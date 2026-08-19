@@ -2838,8 +2838,44 @@ function num(v){
   return isFinite(n) ? n : 0;
 }
 
+/* --------- puesta al día: temas y logos guardados por versiones previas -------- */
+function migra(){
+  let cambio = false;
+  /* el tema viejo no traía los colores del menú */
+  if(DB.tema && DB.tema.base && !DB.tema.navTx){
+    const auto = DB.tema.auto !== false, bg = DB.tema.logoBg || null, hecho = DB.tema.logoAjustado;
+    DB.tema = Object.assign(temaDesde(DB.tema.base, bg), {auto, logoAjustado: hecho});
+    cambio = true;
+  }
+  /* el logo viejo no estaba recortado: se reajusta solo, una sola vez */
+  if(DB.empresa.logo && (!DB.tema || !DB.tema.logoAjustado)){
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const rec = recorta(img);
+        const MAXW = 560, MAXH = 280;
+        const e = Math.min(1, MAXW/rec.w, MAXH/rec.h);
+        const W = Math.max(1, Math.round(rec.w*e)), H = Math.max(1, Math.round(rec.h*e));
+        const out = document.createElement('canvas');
+        out.width = W; out.height = H;
+        const ox = out.getContext('2d'); ox.imageSmoothingQuality='high';
+        ox.drawImage(rec.cv, rec.x0, rec.y0, rec.w, rec.h, 0, 0, W, H);
+        DB.empresa.logo = out.toDataURL('image/png');
+        if(!DB.tema) DB.tema = temaPorDefecto();
+        DB.tema.logoBg = rec.bgHex || null;
+        DB.tema.logoAjustado = true;
+        bitacora('MARCA','MODIFICAR','Logo reajustado solo a '+W+'×'+H+(rec.bgHex?' · fondo '+rec.bgHex:' · fondo transparente'));
+        guardar(); pinta();
+      }catch(err){ console.warn('No se pudo reajustar el logo:', err); }
+    };
+    img.src = DB.empresa.logo;
+  }
+  if(cambio) guardar();
+}
+
 /* ------------------------------- arranque ------------------------------- */
 cargar();
+migra();
 if(!DB.bitacora.length && !DB.creado){
   DB.creado = ahora();
   bitacora('SISTEMA','CREAR','Instalación creada · sistema vacío');
