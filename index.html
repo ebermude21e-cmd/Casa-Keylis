@@ -2586,6 +2586,16 @@ function enlaza(){
       const bcv = num($('#t_bcv').value), par = num($('#t_par').value);
       if(!f){ aviso('Falta la fecha.', true); return; }
       if(!(bcv>0)){ aviso('La tasa BCV tiene que ser mayor que cero.', true); return; }
+      /* red de seguridad: una tasa fuera de rango arrastra el error a todos los bolívares */
+      if(bcv < 1 || bcv > 100000){
+        if(!confirm('La tasa que escribió es ' + fN(bcv) + ' bolívares por dólar.\n\n'
+          + 'Eso está muy fuera de lo normal y afectaría todos los montos en bolívares del sistema.\n\n'
+          + '¿Está seguro de que es correcta?')) return;
+      }
+      if(par > 0 && bcv > 0 && (par/bcv > 5 || bcv/par > 5)){
+        if(!confirm('La tasa BCV (' + fN(bcv) + ') y la paralela (' + fN(par) + ') se diferencian demasiado.\n\n'
+          + '¿Están bien escritas las dos?')) return;
+      }
       const ya = DB.tasas.find(t=>t.fecha===f);
       if(ya){ ya.bcv=bcv; ya.paralelo=par||null; ya.estado='por confirmar'; }
       else DB.tasas.push({fecha:f, bcv, paralelo:par||null, estado:'por confirmar', fuente:'bcv.org.ve'});
