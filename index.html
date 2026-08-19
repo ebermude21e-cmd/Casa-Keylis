@@ -608,11 +608,11 @@ table.dat td .b{white-space:nowrap}
 .vuemonto .sb{font-size:12.5px;color:var(--muted)}
 
 /* ---- logo y paleta ---- */
-.marcabox{padding:20px 16px 18px;text-align:center;border-bottom:1px solid rgba(255,255,255,.10);margin-bottom:6px}
-.marcabox .placa{background:#fff;border-radius:14px;padding:14px 16px;display:grid;place-items:center;min-height:76px;box-shadow:0 6px 18px -8px rgba(0,0,0,.5)}
-.marcabox .placa img{max-width:100%;max-height:74px;object-fit:contain;display:block}
-.marcabox .nom{display:block;margin-top:12px;color:#fff;font-size:14.5px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
-.marcabox .sis{display:block;color:rgba(255,255,255,.62);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-top:5px}
+.marcabox{padding:16px 14px 14px;text-align:center;border-bottom:1px solid rgba(255,255,255,.10);margin-bottom:6px}
+.marcabox .placa{background:var(--logo-bg,#fff);border-radius:12px;padding:0;overflow:hidden;line-height:0;box-shadow:0 8px 22px -10px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14)}
+.marcabox .placa img{width:100%;height:auto;display:block}
+.marcabox .nom{display:block;margin-top:11px;color:#fff;font-size:14px;font-weight:800;letter-spacing:-.01em;line-height:1.3}
+.marcabox .sis{display:block;color:var(--nav-grp,rgba(255,255,255,.62));font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin-top:4px}
 .logobox{border:1px solid var(--grid);border-radius:var(--r2);background:repeating-conic-gradient(var(--surface-2) 0 25%,transparent 0 50%) 50%/18px 18px;padding:22px;display:grid;place-items:center;min-height:150px}
 .logobox img{max-width:100%;max-height:190px;object-fit:contain}
 .paleta{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
@@ -635,6 +635,21 @@ table.dat td .b{white-space:nowrap}
 .hilo b{display:block;font-size:13.5px}
 .hilo span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.45}
 .hilo .hh{font-size:11.5px;color:var(--muted);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---- el texto del menú sigue la paleta ---- */
+nav button{color:var(--nav-tx,#c6d5ec)}
+nav button .ni{opacity:.92}
+nav .grp{color:var(--nav-grp,#7d94b8);font-weight:800;font-size:10px;letter-spacing:.15em}
+nav button:hover{background:rgba(255,255,255,.10);color:#fff}
+nav button:hover .ni{opacity:1}
+nav button.on{background:var(--nav-sel,rgba(79,155,245,.20));color:#fff;font-weight:700}
+nav button.on .ni{opacity:1;color:var(--nav-on,#7fb4ff)}
+nav button.on::before{background:var(--nav-on,#7fb4ff)}
+.envbox{color:var(--nav-tx,#c6d5ec)}
+.envbox b{color:#fff}
+/* la vista previa del tema muestra también el texto del menú */
+.prev{position:relative}
+.prev .tx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
 </style>
 </head>
 <body>
@@ -1500,22 +1515,49 @@ function paletaDe(img){
 }
 
 /* ---------- construir un tema legible a partir de un color ---------- */
-function temaDesde(base){
+function temaDesde(base, logoBg){
   const [h, s] = rgb2hsl(...hex2rgb(base));
   const sat = Math.max(0.28, Math.min(0.82, s));      // ni gris muerto ni fluorescente
   const t = {
-    base,
+    base, logoBg: logoBg || null,
     nav1: rgb2hex(...hsl2rgb(h, Math.min(0.55, sat), 0.14)),
     nav2: rgb2hex(...hsl2rgb(h, Math.min(0.50, sat), 0.22)),
     s1:   rgb2hex(...hsl2rgb(h, sat, 0.44)),
     acc:  rgb2hex(...hsl2rgb(h, sat, 0.50))
   };
-  // el azul de acción tiene que leerse sobre blanco
+  // el color de acción tiene que leerse sobre blanco
   let l = 0.44, g = 0;
   while(contraste(t.s1, '#ffffff') < 4.5 && g++ < 20){ l -= 0.02; t.s1 = rgb2hex(...hsl2rgb(h, sat, l)); }
+
+  // texto del menú: tinte claro del mismo tono, empujado hasta que se lea
+  const fondo = t.nav1;
+  t.navTx = rgb2hex(...hsl2rgb(h, Math.min(0.30, sat*0.42), 0.84));
+  let lt = 0.84, g2 = 0;
+  while(contraste(t.navTx, fondo) < 7 && g2++ < 22){ lt = Math.min(0.985, lt + 0.012); t.navTx = rgb2hex(...hsl2rgb(h, Math.min(0.30, sat*0.42), lt)); }
+  t.navGrp = rgb2hex(...hsl2rgb(h, Math.min(0.26, sat*0.34), 0.66));
+  let lg = 0.66, g3 = 0;
+  while(contraste(t.navGrp, fondo) < 4.5 && g3++ < 22){ lg = Math.min(0.92, lg + 0.014); t.navGrp = rgb2hex(...hsl2rgb(h, Math.min(0.26, sat*0.34), lg)); }
+  // realce del elemento activo: el acento aclarado, que resalte sobre la barra
+  t.navOn = rgb2hex(...hsl2rgb(h, Math.min(0.9, sat+0.12), 0.66));
+  let lo = 0.66, g4 = 0;
+  while(contraste(t.navOn, fondo) < 5.5 && g4++ < 22){ lo = Math.min(0.9, lo + 0.015); t.navOn = rgb2hex(...hsl2rgb(h, Math.min(0.9, sat+0.12), lo)); }
+  t.navSel = 'rgba(' + hex2rgb(t.navOn).join(',') + ',.18)';
   return t;
 }
-function temaPorDefecto(){ return {base:'#2a78d6', nav1:'#0f1c33', nav2:'#16294a', s1:'#2a78d6', acc:'#2a78d6'}; }
+/* de la paleta del logo, el color que mejor funciona como color de marca:
+   ni casi blanco ni casi negro, y con algo de vida */
+function mejorBase(pal){
+  if(!pal || !pal.length) return '#2a78d6';
+  const con = pal.map(c=>{ const [h,s,l]=rgb2hsl(...hex2rgb(c)); return {c,s,l}; });
+  const buenos = con.filter(x=>x.s>=0.18 && x.l>=0.18 && x.l<=0.72);
+  if(buenos.length) return buenos[0].c;
+  const medios = con.filter(x=>x.l>=0.15 && x.l<=0.78);
+  return (medios[0] || con[0]).c;
+}
+function temaPorDefecto(){
+  return {base:'#2a78d6', logoBg:null, nav1:'#0f1c33', nav2:'#16294a', s1:'#2a78d6', acc:'#2a78d6',
+          navTx:'#c6d5ec', navGrp:'#7d94b8', navOn:'#7fb4ff', navSel:'rgba(79,155,245,.20)'};
+}
 
 function aplicaTema(){
   const t = (DB.tema && DB.tema.nav1) ? DB.tema : temaPorDefecto();
@@ -1524,6 +1566,11 @@ function aplicaTema(){
   r.setProperty('--nav-2', t.nav2);
   r.setProperty('--s1',    t.s1);
   r.setProperty('--accent',t.acc);
+  r.setProperty('--nav-tx',  t.navTx  || '#c6d5ec');
+  r.setProperty('--nav-grp', t.navGrp || '#7d94b8');
+  r.setProperty('--nav-on',  t.navOn  || '#7fb4ff');
+  r.setProperty('--nav-sel', t.navSel || 'rgba(79,155,245,.20)');
+  r.setProperty('--logo-bg', t.logoBg || '#ffffff');
 }
 
 /* ---------- pantalla: identidad visual ---------- */
@@ -1555,8 +1602,9 @@ PANT.marca = function(){
         : '<p class="note" style="margin-top:0">Cargue un logo y aquí aparecen sus colores. También puede elegir uno a mano.</p>')+'</div>'
      + '<div class="frm" style="margin-top:16px"><div class="fila">'
      + '<div><label>Color principal</label><input type="color" id="m_color" value="'+t.base+'" style="height:46px;padding:4px"></div>'
-     + '<div><label>Vista previa</label><div class="prev"><span style="background:'+t.nav1+'"></span><span style="background:'+t.nav2+'"></span><span style="background:'+t.s1+'"></span></div>'
-     + '<div class="ayuda">barra lateral · degradado · botones</div></div>'
+     + '<div><label>Vista previa</label><div class="prev"><span style="background:'+t.nav1+'"></span><span style="background:'+t.nav2+'"></span><span style="background:'+t.s1+'"></span>'
+     + '<span class="tx" style="color:'+(t.navTx||'#c6d5ec')+'">Menú</span></div>'
+     + '<div class="ayuda">barra lateral · degradado · botones · texto del menú</div></div>'
      + '</div><div class="acc"><button class="b" id="m_aplicar">Aplicar</button><button class="b gh" id="m_reset">Volver al azul original</button></div></div>'
      + '<p class="note" style="margin:14px 0 0">El sistema oscurece y aclara el color que elija para que los textos siempre se lean. Si un color queda muy claro para los botones, lo ajusta solo.</p>'
      + '</div>';
@@ -1574,22 +1622,48 @@ function recorta(img){
   let d;
   try{ d = cx.getImageData(0,0,cv.width,cv.height).data; }
   catch(e){ return {cv, x0:0, y0:0, w:cv.width, h:cv.height}; }
+  /* el color de fondo se toma de las cuatro esquinas */
+  const TOL = 12;
+  const esq = [[0,0],[cv.width-1,0],[0,cv.height-1],[cv.width-1,cv.height-1]].map(([x,y])=>{
+    const i=(y*cv.width+x)*4; return [d[i],d[i+1],d[i+2],d[i+3]];
+  });
+  const opacas = esq.filter(e=>e[3]>240);
+  const bg = opacas.length
+    ? [Math.round(opacas.reduce((a,e)=>a+e[0],0)/opacas.length),
+       Math.round(opacas.reduce((a,e)=>a+e[1],0)/opacas.length),
+       Math.round(opacas.reduce((a,e)=>a+e[2],0)/opacas.length)]
+    : [255,255,255];
+  const bgHex = opacas.length ? rgb2hex(bg[0],bg[1],bg[2]) : null;
   let x0=cv.width, y0=cv.height, x1=-1, y1=-1;
   for(let y=0; y<cv.height; y++){
     for(let x=0; x<cv.width; x++){
       const i = (y*cv.width + x)*4;
       const a = d[i+3];
       if(a < 24) continue;                                   // transparente
-      if(a > 240 && d[i]>246 && d[i+1]>246 && d[i+2]>246) continue;  // blanco puro
+      if(a > 240 && Math.abs(d[i]-bg[0])<=TOL && Math.abs(d[i+1]-bg[1])<=TOL && Math.abs(d[i+2]-bg[2])<=TOL) continue;  // color de fondo
       if(x<x0) x0=x; if(x>x1) x1=x;
       if(y<y0) y0=y; if(y>y1) y1=y;
     }
   }
-  if(x1 < 0) return {cv, x0:0, y0:0, w:cv.width, h:cv.height};   // imagen vacía
-  const m = Math.round(Math.max(cv.width, cv.height) * 0.015);   // un respiro mínimo
-  x0 = Math.max(0, x0-m); y0 = Math.max(0, y0-m);
-  x1 = Math.min(cv.width-1, x1+m); y1 = Math.min(cv.height-1, y1+m);
-  return {cv, x0, y0, w:x1-x0+1, h:y1-y0+1};
+  if(x1 < 0) return {cv, x0:0, y0:0, w:cv.width, h:cv.height, bgHex:null};   // imagen vacía
+
+  /* ¿el logo trae su propio lienzo de color? Se mira en las esquinas del recorte justo */
+  const esq2 = [[x0,y0],[x1,y0],[x0,y1],[x1,y1]].map(([x,y])=>{
+    const i=(y*cv.width+x)*4; return [d[i],d[i+1],d[i+2],d[i+3]];
+  });
+  let fondo = null;
+  if(esq2.every(e=>e[3]>240)){
+    const pr = [0,1,2].map(k=>Math.round(esq2.reduce((a,e)=>a+e[k],0)/4));
+    if(esq2.every(e=>[0,1,2].every(k=>Math.abs(e[k]-pr[k])<=TOL))) fondo = rgb2hex(pr[0],pr[1],pr[2]);
+  }
+
+  /* con lienzo propio se corta exacto en su borde; sin él, un respiro para que no quede ahogado */
+  if(!fondo){
+    const m = Math.round(Math.max(cv.width, cv.height) * 0.03);
+    x0 = Math.max(0, x0-m); y0 = Math.max(0, y0-m);
+    x1 = Math.min(cv.width-1, x1+m); y1 = Math.min(cv.height-1, y1+m);
+  }
+  return {cv, x0, y0, w:x1-x0+1, h:y1-y0+1, bgHex:fondo};
 }
 
 function leeLogo(file, cb){
@@ -1611,7 +1685,7 @@ function leeLogo(file, cb){
       ox.drawImage(rec.cv, rec.x0, rec.y0, rec.w, rec.h, 0, 0, W, H);
       const dataUrl = out.toDataURL('image/png');
       const pal = paletaDe(img);
-      cb(dataUrl, pal, {orig:[img.width,img.height], final:[W,H]});
+      cb(dataUrl, pal, {orig:[img.width,img.height], final:[W,H], bg:rec.bgHex});
     };
     img.onerror = ()=> aviso('No se pudo leer esa imagen.', true);
     img.src = r.result;
@@ -2595,9 +2669,11 @@ function enlaza(){
         DB.empresa.logo = dataUrl;
         DB.paleta = pal;
         if(pal.length && (!DB.tema || DB.tema.auto !== false)){
-          DB.tema = Object.assign(temaDesde(pal[0]), {auto:true});
+          DB.tema = Object.assign(temaDesde(mejorBase(pal), med.bg), {auto:true});
+        }else if(DB.tema){
+          DB.tema.logoBg = med.bg || null;
         }
-        bitacora('MARCA','MODIFICAR','Logo cargado · recortado y ajustado a '+med.final[0]+'×'+med.final[1]+' desde '+med.orig[0]+'×'+med.orig[1]+' · '+pal.length+' colores detectados'+(pal.length?': '+pal.join(' '):''));
+        bitacora('MARCA','MODIFICAR','Logo cargado · recortado a '+med.final[0]+'×'+med.final[1]+' desde '+med.orig[0]+'×'+med.orig[1]+(med.bg?' · fondo '+med.bg:' · fondo transparente')+' · '+pal.length+' colores'+(pal.length?': '+pal.join(' '):''));
         guardar(); aviso('Logo recortado y ajustado. Los colores se tomaron de la imagen.'); pinta();
       });
     });
@@ -2609,28 +2685,30 @@ function enlaza(){
       guardar(); pinta();
     });
     $$('[data-col]').forEach(b=> b.addEventListener('click', ()=>{
-      DB.tema = Object.assign(temaDesde(b.dataset.col), {auto:false});
+      DB.tema = Object.assign(temaDesde(b.dataset.col, DB.tema?DB.tema.logoBg:null), {auto:false});
       bitacora('MARCA','MODIFICAR','Color principal '+b.dataset.col);
       guardar(); aviso('Colores aplicados.'); pinta();
     }));
     const ap = $('#m_aplicar');
     if(ap) ap.addEventListener('click', ()=>{
       const c = $('#m_color').value;
-      DB.tema = Object.assign(temaDesde(c), {auto:false});
+      DB.tema = Object.assign(temaDesde(c, DB.tema?DB.tema.logoBg:null), {auto:false});
       bitacora('MARCA','MODIFICAR','Color principal '+c);
       guardar(); aviso('Colores aplicados.'); pinta();
     });
     const rs = $('#m_reset');
     if(rs) rs.addEventListener('click', ()=>{
-      DB.tema = Object.assign(temaPorDefecto(), {auto:false});
+      DB.tema = Object.assign(temaPorDefecto(), {auto:false, logoBg: DB.tema?DB.tema.logoBg:null});
       bitacora('MARCA','MODIFICAR','Colores restablecidos al azul original');
       guardar(); pinta();
     });
     const col = $('#m_color');
     if(col) col.addEventListener('input', ()=>{
       const t = temaDesde(col.value);
-      const pv = document.querySelectorAll('.prev span');
+      const pv = document.querySelectorAll('.prev>span');
       if(pv.length===3){ pv[0].style.background=t.nav1; pv[1].style.background=t.nav2; pv[2].style.background=t.s1; }
+      const tx = document.querySelector('.prev .tx');
+      if(tx){ tx.style.color = t.navTx; }
     });
   }
 
