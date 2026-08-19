@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SICOM · Prototipo de pantallas v1.3</title>
+<title>SICOM · Prototipo de pantallas v1.4</title>
 <style>
 :root{
   color-scheme: light;
@@ -545,6 +545,8 @@ details summary::-webkit-details-marker{color:var(--s1)}
   <div class="grp">Dirección</div>
   <button data-s="rec"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 15 4-4 3 3 5-6"/><path d="M19 8h0.01"/><path d="M15 8h4v4"/></svg></span><span>Recuperación de inversión</span></button>
   <button data-s="kpi"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="8" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="5" rx="1.6"/><rect x="3" y="14" width="7.5" height="7" rx="1.6"/><rect x="13.5" y="11" width="7.5" height="10" rx="1.6"/></svg></span><span>Tablero de KPIs</span></button>
+  <div class="grp">Puesta en marcha</div>
+  <button data-s="ini"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></span><span>Arranque · Día 1</span></button>
   <div class="grp">Configuración</div>
   <button data-s="cfg"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h9"/><path d="M17 18h3"/><circle cx="15" cy="18" r="2"/></svg></span><span>Parámetros</span></button>
   <div class="grp">Control</div>
@@ -554,15 +556,11 @@ details summary::-webkit-details-marker{color:var(--s1)}
 <main>
   <div class="topbar">
     <span class="tbi"><span class="tk">Empresa</span><span class="sel">Casa Keylis, C.A.</span></span>
-    <span class="tbi"><span class="tk">Usuario</span><span class="sel">María G.</span><span style="color:var(--muted)">Cajera</span></span>
-    <span class="tbi"><span class="tk">Turno</span><span class="sel">N° 214</span></span>
-    <div class="rate">
-      <span class="tbi"><span class="tk">BCV 17/08</span><span class="sel">623,02</span><span class="pill ok" title="Leída de bcv.org.ve y confirmada por el contador">confirmada</span></span>
-      <span class="tbi"><span class="tk">Paralelo</span><span class="sel">668,50</span><span class="pill" title="Referencial, no contable">referencia</span></span>
-    </div>
+    <span id="tbctx"></span>
+    <div class="rate" id="tbrate"></div>
   </div>
   <div class="wrap" id="stage"></div>
-  <footer>Prototipo de pantallas · SICOM v1.3 · Datos ficticios. Sirve para validar diseño y alcance funcional, no es el sistema.</footer>
+  <footer>Prototipo de pantallas · SICOM v1.4 · Datos ficticios. Sirve para validar diseño y alcance funcional, no es el sistema.</footer>
 </main>
 </div>
 
@@ -2924,11 +2922,101 @@ function scCfg(){
   return h;
 }
 
+
+/* ===================== ARRANQUE · DIA 1 ===================== */
+const PASOS_INI=[
+ ['Datos fiscales de la empresa','RIF, razón social y dirección. Es lo que sale impreso en cada recibo.','Parámetros → Empresa y usuarios',true],
+ ['Usuarios y roles','Quién es cajera, quién contador, quién administrador. Nadie opera sin usuario propio.','Parámetros → Empresa y usuarios',true],
+ ['Tasa del BCV del día','Se lee de bcv.org.ve y el contador la confirma. Sin tasa confirmada no se puede cobrar en bolívares.','Tesorería y cambio',true],
+ ['Fondo de caja','USD 100 en efectivo sencillo para vueltos, registrado como aporte del accionista.','Cierre y reportes → Apertura',true],
+ ['Categorías del catálogo','Ropa, juguetes, bisutería, lentes de sol, zapatos. Después no se puede cargar un artículo sin categoría.','Inventario → Categorías',true],
+ ['Primer lote de compra','Mercancía + flete + otros conceptos. De aquí sale el costo real de cada artículo.','Compras y costos',true],
+ ['Zonas y tarifas de delivery','Solo si va a vender por redes con entrega a domicilio.','Parámetros → Entregas y delivery',false],
+ ['Vendedores y comisiones','El porcentaje de cada vendedor sobre el margen. Se puede dejar para después.','Parámetros → Vendedores y comisiones',false]
+];
+const PRECARGADO=[
+ ['Formas de pago','Efectivo USD · Efectivo Bs · Pago móvil · Punto de venta · USDT · Zelle'],
+ ['Operadoras telefónicas','0412 · 0414 · 0416 · 0424 · 0426'],
+ ['Tipos de documento','V · E · J · G'],
+ ['Motivos de ajuste de inventario','Merma · Rotura · Robo · Error de conteo · Devolución'],
+ ['Roles del sistema','Administrador · Contador · Supervisor · Cajera · Tesorería · Auditor'],
+ ['Monedas','USD como moneda de gestión · Bs como moneda de curso legal']
+];
+const PANTALLAS_D1=[
+ ['Caja de ventas','Ningún cliente registrado todavía.<br>El primero se crea solo, al escribir su cédula en la primera venta.'],
+ ['Inventario','El catálogo está vacío.<br>Los artículos no se crean aquí: entran con el primer lote de Compras y costos.'],
+ ['Cierre y reportes de caja','No hay turnos cerrados.<br>El primer cierre aparece cuando la cajera cierre su turno.'],
+ ['Tablero de KPIs','Sin datos suficientes.<br>Los indicadores necesitan al menos un cierre para tener con qué comparar.']
+];
+
+function scIni(){
+  const oblig = PASOS_INI.filter(x=>x[3]).length;
+  let h='<h1>Arranque · Día 1</h1>'
+  +'<p class="sub">Así se ve SICOM el día que la empresa lo enciende por primera vez. No hay ventas, ni clientes, ni artículos: solo la configuración mínima que tiene que quedar lista antes del primer cobro.</p>'
+
+  +'<div class="grid4">'
+  +'<div class="card"><div class="k">Ventas registradas</div><div class="v">0</div><div class="d">todavía no se abre la primera caja</div></div>'
+  +'<div class="card"><div class="k">Artículos en catálogo</div><div class="v">0</div><div class="d">entran por Compras y costos</div></div>'
+  +'<div class="card"><div class="k">Clientes</div><div class="v">0</div><div class="d">se crean solos en la primera venta</div></div>'
+  +'<div class="card"><div class="k">Registros en la bitácora</div><div class="v">1</div><div class="d">la creación de la empresa</div></div>'
+  +'</div>'
+
+  +'<div class="card"><h2 style="margin-top:0">Lista de puesta en marcha</h2>'
+  +'<p class="note" style="margin-top:0">Seis pasos obligatorios y dos opcionales. Hasta que los seis obligatorios estén listos, la Caja de ventas no deja registrar.</p>'
+  +'<div class="avance"><span style="width:0%"></span></div>'
+  +'<p class="note" style="margin:8px 0 14px">0 de '+oblig+' pasos obligatorios completados</p>'
+  +'<table><thead><tr><th style="width:34px"></th><th>Paso</th><th>Dónde se hace</th><th>Estado</th></tr></thead><tbody>';
+  PASOS_INI.forEach((x,i)=>{
+    h+='<tr><td style="color:var(--muted)">'+(i+1)+'</td>'
+      +'<td><b>'+x[0]+'</b><div class="note" style="margin:3px 0 0">'+x[1]+'</div></td>'
+      +'<td style="white-space:nowrap;color:var(--muted)">'+x[2]+'</td>'
+      +'<td>'+(x[3]?'<span class="pill bad">pendiente · obligatorio</span>':'<span class="pill">pendiente · opcional</span>')+'</td></tr>';
+  });
+  h+='</tbody></table></div>'
+
+  +'<div class="grid2">'
+  +'<div class="card"><h2 style="margin-top:0">Lo único que ya viene cargado</h2>'
+  +'<p class="note" style="margin-top:0">No son datos de la tienda: son las listas cerradas del sistema, las que evitan que la misma cosa se escriba de cinco maneras distintas.</p>'
+  +'<table><tbody>';
+  PRECARGADO.forEach(x=>{ h+='<tr><td style="white-space:nowrap"><b>'+x[0]+'</b></td><td class="note">'+x[1]+'</td></tr>'; });
+  h+='</tbody></table></div>'
+
+  +'<div class="card"><h2 style="margin-top:0">El orden importa</h2>'
+  +'<p class="note" style="margin-top:0">Cada paso depende del anterior. Saltarse uno obliga a rehacer trabajo.</p>'
+  +'<table><tbody>'
+  +'<tr><td class="note">La <b>tasa</b> tiene que estar confirmada antes del <b>fondo de caja</b>, porque el fondo se valora en bolívares al registrarse.</td></tr>'
+  +'<tr><td class="note">Las <b>categorías</b> van antes del <b>primer lote</b>: un artículo sin categoría no se puede guardar.</td></tr>'
+  +'<tr><td class="note">El <b>lote</b> va antes de la <b>primera venta</b>: sin costo real no hay margen, y sin margen no hay comisión que calcular.</td></tr>'
+  +'<tr><td class="note">Los <b>usuarios</b> van de primeros: desde la línea uno, la bitácora quiere saber quién hizo cada cosa.</td></tr>'
+  +'</tbody></table></div></div>'
+
+  +'<div class="card"><h2 style="margin-top:0">Así se ven las pantallas el primer día</h2>'
+  +'<div class="grid2" style="margin-top:12px">';
+  PANTALLAS_D1.forEach(x=>{
+    h+='<div class="card" style="margin:0"><div class="k" style="margin-bottom:4px">'+x[0]+'</div>'
+      +'<div class="vacio"><div class="vi">⌕</div><p class="note" style="margin:0">'+x[1]+'</p></div></div>';
+  });
+  h+='</div></div>'
+
+  +'<div class="card"><h2 style="margin-top:0">Qué NO se traspasa de una instalación a otra</h2>'
+  +'<p class="note" style="margin-top:0">Cada empresa arranca desde cero con su propia configuración inicial. No hay datos compartidos, ni consulta cruzada entre empresas: ni clientes, ni catálogo, ni tarifas, ni saldos, ni bitácora. Lo único que se repite son las listas cerradas del cuadro de arriba, porque son del sistema y no de la tienda.</p></div>';
+  return h;
+}
+
 /* ============================ RENDER ============================ */
-const SC={caja:function(){return fase==='hecha'?scHecha():scCaja();},cie:scCie,con:scCon,inv:scInv,cos:scCos,tes:scTes,rec:scRec,kpi:scKpi,cfg:scCfg,aud:scAud};
+const SC={caja:function(){return fase==='hecha'?scHecha():scCaja();},cie:scCie,con:scCon,inv:scInv,cos:scCos,tes:scTes,rec:scRec,kpi:scKpi,cfg:scCfg,aud:scAud,ini:scIni};
 let cur='caja';
+const TB_NORMAL='<span class="tbi"><span class="tk">Usuario</span><span class="sel">María G.</span><span style="color:var(--muted)">Cajera</span></span>'
+ +'<span class="tbi"><span class="tk">Turno</span><span class="sel">N° 214</span></span>';
+const TB_D1='<span class="tbi"><span class="tk">Usuario</span><span class="sel">Sin usuarios creados</span></span>'
+ +'<span class="tbi"><span class="tk">Turno</span><span class="sel">Caja sin abrir</span></span>';
+const RT_NORMAL='<span class="tbi"><span class="tk">BCV 17/08</span><span class="sel">623,02</span><span class="pill ok" title="Leída de bcv.org.ve y confirmada por el contador">confirmada</span></span>'
+ +'<span class="tbi"><span class="tk">Paralelo</span><span class="sel">668,50</span><span class="pill" title="Referencial, no contable">referencia</span></span>';
+const RT_D1='<span class="tbi"><span class="tk">BCV</span><span class="sel">—</span><span class="pill bad" title="Nadie la ha confirmado todavía">sin confirmar</span></span>';
 function draw(){
   document.getElementById('stage').innerHTML=SC[cur]();
+  document.getElementById('tbctx').innerHTML  = (cur==='ini') ? TB_D1 : TB_NORMAL;
+  document.getElementById('tbrate').innerHTML = (cur==='ini') ? RT_D1 : RT_NORMAL;
   if(cur==='rec'){
     const f=calcRec();
     lineChart(document.getElementById('chRec'), f.map(r=>r.m), [
