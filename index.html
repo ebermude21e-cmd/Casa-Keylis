@@ -650,6 +650,15 @@ nav button.on::before{background:var(--nav-on,#7fb4ff)}
 /* la vista previa del tema muestra también el texto del menú */
 .prev{position:relative}
 .prev .tx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+
+/* ---- módulos aún no desarrollados ---- */
+nav button.pend{opacity:.5}
+nav button.pend:hover{opacity:.8}
+nav button.pend .pt{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.65;margin-left:auto;flex:0 0 5px}
+nav button.pend.on{opacity:1}
+/* ---- el paso del vuelto se distingue ---- */
+.wiz .wp.vue.on{border-color:var(--warn);box-shadow:0 0 0 3px var(--warn-bg),var(--sh2)}
+.wiz .wp.vue.on .nu{background:var(--warn);color:#fff}
 </style>
 </head>
 <body>
@@ -2233,43 +2242,6 @@ function pasoCobro(){
   return h;
 }
 
-/* --------------------------- el vuelto, en grande --------------------- */
-function bloqueVuelto(v, t){
-  if(!VTA.vuelto) VTA.vuelto = {met:'efec_usd', ref:'', bs:false};
-  const sel = VTA.vuelto.met;
-  const m = METODOS.find(x=>x.k===sel);
-  const fondo = +DB.caja.fondoUSD || 0;
-
-  let h = '<div class="card vuebox"><h2 style="margin-top:0">Vuelto</h2>'
-    + '<p class="note" style="margin-top:0">El vuelto no es un descuento: es dinero que sale de la caja. Por eso lleva su propia forma de pago y, si es electrónico, su referencia — así concilia igual que el cobro.</p>'
-    + '<div class="vuemonto"><div><span class="et">Hay que devolver</span><span class="mt">USD '+fN(v)+'</span></div>'
-    + (t?'<div><span class="et">Equivale a</span><span class="mt">Bs '+fN(v*t.bcv)+'</span></div>':'')
-    + '<div><span class="et">Fondo de caja</span><span class="mt">USD '+fN(fondo)+'</span>'
-    + '<span class="sb">'+(fondo>=v?'alcanza para el vuelto en efectivo':'no alcanza en efectivo — use otra vía')+'</span></div></div>';
-
-  h += '<div style="margin-top:18px"><label style="display:block;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:9px">¿Cómo se lo entrega?</label>'
-    + '<div class="opcs">'
-    + METODOS.map(x=>{
-        const enBs = x.mon==='BS';
-        const alcanza = x.k!=='efec_usd' || fondo >= v;
-        return '<button class="opc'+(sel===x.k?' on':'')+'" data-vmet="'+x.k+'"><b>'+x.n+'</b>'
-          + '<span>'+(enBs ? (t?'Bs '+fN(v*t.bcv):'requiere tasa') : 'USD '+fN(v))
-          + (x.k==='efec_usd' && !alcanza ? ' · fondo insuficiente' : '')+'</span></button>';
-      }).join('')
-    + '</div></div>';
-
-  if(m.ref){
-    h += '<div class="frm" style="margin-top:16px"><div class="fila">'
-      + '<div><label>Referencia de la operación</label><input id="k_vueref" value="'+esc(VTA.vuelto.ref||'')+'" placeholder="número que devuelve el banco" maxlength="20">'
-      + '<div class="ayuda">Sin referencia el vuelto no se puede conciliar contra el estado de cuenta.</div></div></div></div>';
-  }else if(m.k==='efec_bs'){
-    h += '<p class="note" style="margin:16px 0 0">Entregue <b>Bs '+(t?fN(v*t.bcv):'—')+'</b> en efectivo. Se descuenta del efectivo en bolívares de la caja.</p>';
-  }else{
-    h += '<p class="note" style="margin:16px 0 0">Entregue <b>USD '+fN(v)+'</b> del fondo de vueltos. Al cierre, el fondo tiene que volver a estar en USD '+fN(fondo)+'.</p>';
-  }
-  return h + '</div>';
-}
-
 /* --------------------------- registrar la venta ------------------------- */
 function registrarVenta(){
   const t = tasaHoy(), falta = faltaUSD();
@@ -2405,6 +2377,144 @@ function vtaHecha(){
 }
 
 /* ==========================================================================
+   El vuelto como paso propio del recorrido, cuando corresponde
+   ========================================================================== */
+function hayVuelto(){ return faltaUSD() < -0.005; }
+function pasosVta(){
+  const base = [
+    ['cliente','Cliente','¿quién compra?'],
+    ['canal',  'Canal y entrega','¿por dónde llegó?'],
+    ['arts',   'Artículos','qué se lleva'],
+    ['cobro',  'Cobro','cómo paga']
+  ];
+  if(hayVuelto() || VTA.paso === 'vuelto') base.push(['vuelto','Vuelto','qué se le devuelve']);
+  return base;
+}
+
+PANT.caja = function(){
+  if(!listoParaVender()){
+    const f = pasos().filter(p=>p.ob && !p.ok);
+    return '<h1>Módulo de ingresos</h1>'
+      + '<div class="card"><div class="vacio"><div class="vi">⌕</div>'
+      + '<p class="note" style="margin:0 0 6px"><b>La caja todavía no está habilitada.</b></p>'
+      + '<p class="note" style="margin:0">Falta: '+f.map(p=>esc(p.t)).join(' · ')+'</p>'
+      + '<button class="b" data-ir="ini" style="margin-top:16px">Ir a la puesta en marcha</button></div></div>';
+  }
+  if(!VTA) nuevaVenta();
+  if(VTA.paso==='hecha') return vtaHecha();
+
+  const PS = pasosVta();
+  const iAct = PS.findIndex(p=>p[0]===VTA.paso);
+  let h = '<h1>Módulo de ingresos</h1>'
+    + '<p class="sub">Un bloque por pantalla. Se puede volver atrás sin perder nada.</p>'
+    + '<div class="wiz">';
+  PS.forEach((p,i)=>{
+    const cls = i===iAct ? 'on' : (i<iAct ? 'ya' : '') ;
+    h += '<div class="wp '+cls+(p[0]==='vuelto'?' vue':'')+'"'+(i<iAct?' data-paso="'+p[0]+'"':'')+'>'
+       + '<span class="nu">'+(i<iAct?'✓':(i+1))+'</span><span><b>'+p[1]+'</b><span>'+p[2]+'</span></span></div>';
+  });
+  h += '</div>';
+
+  if(VTA.paso==='cliente') h += pasoCliente();
+  if(VTA.paso==='canal')   h += pasoCanal();
+  if(VTA.paso==='arts')    h += pasoArts();
+  if(VTA.paso==='cobro')   h += pasoCobro();
+  if(VTA.paso==='vuelto')  h += pasoVuelto();
+  return h;
+};
+
+/* ------------------------------ 4 · COBRO ------------------------------ */
+function pasoCobro(){
+  const t = tasaHoy(), falta = faltaUSD(), vuelto = falta < -0.005 ? Math.abs(falta) : 0;
+  let h = '<div class="grid2" style="align-items:start">';
+
+  h += '<div class="card"><h2 style="margin-top:0">¿Cómo paga?</h2>'
+    + '<p class="note" style="margin-top:0">Se puede combinar. Agregue un método, escriba cuánto entregó, y el sistema le dice lo que falta o lo que hay que devolver.</p>'
+    + '<div class="opcs">'
+    + METODOS.map(m=>'<button class="opc" data-met="'+m.k+'"><b>'+m.n+'</b><span>'+(m.mon==='BS'?'en bolívares':'en dólares')+'</span></button>').join('')
+    + '</div><div id="k_form" style="margin-top:16px"></div></div>';
+
+  h += '<div class="card sticky"><h2 style="margin-top:0">Cobro</h2>'
+    + '<table class="dat"><tbody><tr><td>Total de la venta</td><td class="n"><b>USD '+fN(totalVenta())+'</b>'
+    + (t?'<div class="mini">Bs '+fN(totalVenta()*t.bcv)+'</div>':'')+'</td></tr>';
+  VTA.cobros.forEach((c,i)=>{
+    const m = METODOS.find(x=>x.k===c.met);
+    h += '<tr><td>'+esc(m.n)+(c.ref?'<div class="mini">ref. '+esc(c.ref)+'</div>':'')+'</td>'
+      + '<td class="n">'+(c.mon==='BS'?'Bs '+fN(c.monto)+'<div class="mini">USD '+fN(c.monto/(t?t.bcv:1))+'</div>':'USD '+fN(c.monto))+'</td>'
+      + '<td style="width:34px"><button class="b sm gh" data-qcob="'+i+'">×</button></td></tr>';
+  });
+  h += '</tbody></table>';
+
+  if(falta > 0.005){
+    h += '<div class="estado falta"><span class="et">Falta por cobrar</span>'
+      + '<span class="mt">USD '+fN(falta)+'</span>'
+      + (t?'<span class="sb">Bs '+fN(falta*t.bcv)+'</span>':'')+'</div>'
+      + '<div class="acc" style="margin-top:16px"><button class="b" disabled>Registrar la venta</button></div>';
+  }else if(vuelto > 0){
+    h += '<div class="estado vuelto"><span class="et">Pagó de más · hay vuelto</span>'
+      + '<span class="mt">USD '+fN(vuelto)+'</span>'
+      + (t?'<span class="sb">Bs '+fN(vuelto*t.bcv)+'</span>':'')+'</div>'
+      + '<p class="note" style="margin:12px 0 0">El vuelto es un paso aparte: hay que decir cómo se entrega y dejar su referencia.</p>'
+      + '<div class="acc" style="margin-top:14px"><button class="b" id="k_avuelto">Continuar al vuelto</button></div>';
+  }else{
+    h += '<div class="estado cuadra"><span class="et">Cuadrado</span><span class="mt">USD '+fN(totalVenta())+'</span>'
+      + '<span class="sb">pagó exacto · no hay vuelto</span></div>'
+      + '<div class="acc" style="margin-top:16px"><button class="b" id="k_reg">Registrar la venta</button></div>';
+  }
+  h += '</div></div>';
+
+  h += '<div class="barrapaso"><button class="b gh" data-atras="arts">Atrás</button>'
+     + '<span class="info">'+(falta>0.005?'Falta cobrar USD '+fN(falta)
+        :(vuelto>0?'Hay que devolver USD '+fN(vuelto):'Listo para registrar.'))+'</span><span></span></div>';
+  return h;
+}
+
+/* ------------------------------ 5 · VUELTO ----------------------------- */
+function pasoVuelto(){
+  const t = tasaHoy(), v = Math.abs(Math.min(0, faltaUSD()));
+  if(!VTA.vuelto) VTA.vuelto = {met:'efec_usd', ref:''};
+  const sel = VTA.vuelto.met, m = METODOS.find(x=>x.k===sel);
+  const fondo = +DB.caja.fondoUSD || 0;
+  const listo = !m.ref || (VTA.vuelto.ref && VTA.vuelto.ref.length >= 3);
+
+  let h = '<div class="card vuebox"><h2 style="margin-top:0">Vuelto al cliente</h2>'
+    + '<p class="note" style="margin-top:0">El vuelto no es un descuento: es dinero que sale de la caja. Por eso lleva su propia forma de pago y, si es electrónico, su referencia — así concilia igual que el cobro.</p>'
+    + '<div class="vuemonto">'
+    + '<div><span class="et">Hay que devolver</span><span class="mt">USD '+fN(v)+'</span></div>'
+    + (t?'<div><span class="et">Equivale a</span><span class="mt">Bs '+fN(v*t.bcv)+'</span></div>':'')
+    + '<div><span class="et">Fondo de caja</span><span class="mt">USD '+fN(fondo)+'</span>'
+    + '<span class="sb">'+(fondo>=v?'alcanza para darlo en efectivo':'no alcanza en efectivo — use otra vía')+'</span></div>'
+    + '</div>';
+
+  h += '<div style="margin-top:20px"><label style="display:block;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:9px">¿Cómo se lo entrega?</label>'
+    + '<div class="opcs">'
+    + METODOS.map(x=>{
+        const enBs = x.mon==='BS';
+        const corto = x.k==='efec_usd' && fondo < v;
+        return '<button class="opc'+(sel===x.k?' on':'')+'" data-vmet="'+x.k+'"><b>'+x.n+'</b>'
+          + '<span>'+(enBs ? (t?'Bs '+fN(v*t.bcv):'requiere tasa') : 'USD '+fN(v))
+          + (corto ? ' · fondo insuficiente' : '')+'</span></button>';
+      }).join('')
+    + '</div></div>';
+
+  if(m.ref){
+    h += '<div class="frm" style="margin-top:18px"><div class="fila">'
+      + '<div><label>Referencia de la operación</label><input id="k_vueref" value="'+esc(VTA.vuelto.ref||'')+'" placeholder="número que devuelve el banco" maxlength="20" autocomplete="off">'
+      + '<div class="ayuda">Sin referencia el vuelto no se puede conciliar contra el estado de cuenta.</div></div></div></div>';
+  }else if(m.k==='efec_bs'){
+    h += '<p class="note" style="margin:18px 0 0">Entregue <b>Bs '+(t?fN(v*t.bcv):'—')+'</b> en efectivo. Sale del efectivo en bolívares de la caja.</p>';
+  }else{
+    h += '<p class="note" style="margin:18px 0 0">Entregue <b>USD '+fN(v)+'</b> del fondo de vueltos. Al cierre, el fondo tiene que volver a estar en USD '+fN(fondo)+'.</p>';
+  }
+  h += '</div>';
+
+  h += '<div class="barrapaso"><button class="b gh" data-atras="cobro">Atrás</button>'
+     + '<span class="info">'+(listo?'Entregue el vuelto y registre la venta.':'Falta la referencia del '+m.n.toLowerCase()+'.')+'</span>'
+     + '<button class="b" id="k_reg"'+(listo?'':' disabled')+'>Entregar vuelto y registrar</button></div>';
+  return h;
+}
+
+/* ==========================================================================
    Ventas · detalle y trazabilidad completa, con foco en el vuelto
    ========================================================================== */
 let verVenta = null;
@@ -2526,6 +2636,149 @@ function detalleVenta(v){
 
   h += '<div class="acc" style="margin-top:18px"><button class="b gh" id="v_cerrar">Cerrar el detalle</button></div>';
   return h + '</div>';
+}
+
+/* ==========================================================================
+   Menú según la estructura definida · lo no desarrollado queda listado
+   ========================================================================== */
+const IC = {
+  ingresos: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.4 7.4a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  dia:      '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>',
+  clientes: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/>',
+  prod:     '<path d="M21 8V5a1 1 0 0 0-.6-.9l-7.6-3.4a2 2 0 0 0-1.6 0L3.6 4.1A1 1 0 0 0 3 5v14a1 1 0 0 0 .6.9l7.6 3.4a2 2 0 0 0 1.6 0l7.6-3.4a1 1 0 0 0 .6-.9v-3"/><path d="m3.3 4.6 8.7 4 8.7-4"/><path d="M12 22.8V8.6"/>',
+  control:  '<path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/>',
+  reporte:  '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/>',
+  detalle:  '<path d="M17 2l4 4-4 4"/><path d="M3 6h18"/><path d="M7 22l-4-4 4-4"/><path d="M21 18H3"/>',
+  audinv:   '<path d="M21 8V5a1 1 0 0 0-.6-.9l-7.6-3.4a2 2 0 0 0-1.6 0L3.6 4.1A1 1 0 0 0 3 5v14a1 1 0 0 0 .6.9l7.6 3.4a2 2 0 0 0 1.6 0"/><path d="m3.3 4.6 8.7 4 8.7-4"/><circle cx="18" cy="17" r="3.5"/><path d="m20.6 19.6 1.9 1.9"/>',
+  vend:     '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/>',
+  comis:    '<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  deliv:    '<path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.3a2 2 0 0 0-.3-1L19.5 9H14v8h2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  zona:     '<path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+  tasa:     '<path d="M17 2l4 4-4 4"/><path d="M3 6h18"/><path d="M7 22l-4-4 4-4"/><path d="M21 18H3"/>',
+  emp:      '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>',
+  marca:    '<circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M12 2a10 10 0 1 0 0 20c1 0 1.7-.7 1.7-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.6 1.7-1.6H16a6 6 0 0 0 6-6c0-4.5-4.5-8-10-8z"/>',
+  aud:      '<path d="M12 22s8-3.6 8-10V5.2l-8-3.2-8 3.2V12c0 6.4 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  resp:     '<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  ini:      '<path d="M12 2v6"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>'
+};
+
+/* [clave, nombre, icono, listo] — listo:false = todavía no desarrollado */
+const MENU = [
+  ['Puesta en marcha', [
+    ['ini',  'Inicio y avance', IC.ini, true]
+  ]],
+  ['Ventas', [
+    ['caja', 'Módulo de ingresos', IC.ingresos, true],
+    ['vtas', 'Ventas del día',     IC.dia,      true],
+    ['cli',  'Clientes',           IC.clientes, true]
+  ]],
+  ['Inventario', [
+    ['prod',    'Registro de productos y precios', IC.prod,    true],
+    ['invctrl', 'Control de inventarios',          IC.control, false],
+    ['invrep',  'Reportes de inventario',          IC.reporte, false],
+    ['invdet',  'Detalle por producto',            IC.detalle, false],
+    ['invaud',  'Auditoría de inventario',         IC.audinv,  false]
+  ]],
+  ['Vendedores', [
+    ['vend',   'Registro de vendedores',            IC.vend,  true],
+    ['comprod','Comisiones por producto',           IC.comis, false]
+  ]],
+  ['Procesos', [
+    ['delivreg','Registro de delivery',      IC.deliv, false],
+    ['deli',    'Tarifas por zona',          IC.zona,  true]
+  ]],
+  ['Configuración', [
+    ['tasas',  'Tasa de cambio',      IC.tasa,  true],
+    ['empresa','Datos de la empresa', IC.emp,   true],
+    ['marca',  'Colores y logo',      IC.marca, true]
+  ]],
+  ['Gerencial', [
+    ['aud',   'Auditoría',          IC.aud,  true],
+    ['datos', 'Control y respaldo', IC.resp, true]
+  ]]
+];
+
+/* qué hará cada módulo pendiente, para que se sepa qué falta */
+const PENDIENTES = {
+  invctrl: ['Control de inventarios',
+    'Ajustes de existencia con su motivo, conteo físico contra el sistema y alertas de mínimos.',
+    ['Ajustar existencia dejando el motivo y quién autorizó',
+     'Conteo físico: se carga lo contado y el sistema muestra la diferencia',
+     'Aviso cuando un artículo baja del mínimo que usted defina']],
+  invrep: ['Reportes de inventario',
+    'La foto del inventario a una fecha, por categoría y por artículo.',
+    ['Existencia y valorización por categoría',
+     'Artículos que no rotan y artículos que se agotan',
+     'Exportable para revisarlo con el contador']],
+  invdet: ['Detalle por producto',
+    'El kardex de cada artículo: de dónde salió cada unidad y a dónde fue.',
+    ['Entradas por lote de compra, con su costo',
+     'Salidas por venta, con el número de venta y la talla',
+     'Ajustes, con su motivo · saldo corrido hasta la existencia actual']],
+  invaud: ['Auditoría de inventario',
+    'La revisión de que lo contado cuadra con lo registrado, y el rastro de cada diferencia.',
+    ['Comparación entre conteo físico y saldo del sistema',
+     'Diferencias con su explicación y quién las aprobó',
+     'Cierre de inventario por período, congelado con su hash']],
+  comprod: ['Comisiones por producto',
+    'Hoy la comisión es un porcentaje por vendedor. Esto lo lleva al nivel del artículo.',
+    ['Porcentaje distinto por producto o por categoría',
+     'Deja el porcentaje del vendedor como valor por defecto',
+     'Liquidación por vendedor con el desglose de cada venta']],
+  delivreg: ['Registro de delivery',
+    'El seguimiento de cada entrega, aparte de la tarifa que ya está configurada.',
+    ['Quién la lleva, cuándo salió y cuándo se entregó',
+     'Estado de cada entrega y las que quedaron pendientes',
+     'Lo cobrado al cliente contra lo pagado al repartidor']]
+};
+
+function pantPendiente(k){
+  const p = PENDIENTES[k];
+  if(!p) return '<h1>Módulo en desarrollo</h1>';
+  return '<h1>'+esc(p[0])+'</h1>'
+    + '<p class="sub">'+esc(p[1])+'</p>'
+    + '<div class="card"><div class="vacio" style="padding:30px 16px">'
+    + '<div class="vi">⌕</div>'
+    + '<p class="note" style="margin:0 0 4px"><b>Este módulo todavía no está desarrollado.</b></p>'
+    + '<p class="note" style="margin:0">Está en la lista y llega en su turno.</p></div>'
+    + '<h2 style="margin:22px 0 10px;font-size:15px">Qué va a hacer cuando esté</h2>'
+    + '<table class="dat"><tbody>'
+    + p[2].map(x=>'<tr><td style="width:26px;color:var(--muted)">·</td><td>'+esc(x)+'</td></tr>').join('')
+    + '</tbody></table></div>';
+}
+
+/* registrar las pantallas pendientes en el enrutador */
+Object.keys(PENDIENTES).forEach(k=>{ PANT[k] = () => pantPendiente(k); });
+
+/* --------------------------- pintado del menú --------------------------- */
+function pintaNav(){
+  let h;
+  if(DB.empresa.logo){
+    h = '<div class="marcabox"><div class="placa"><img src="'+DB.empresa.logo+'" alt="'+esc(DB.empresa.nom||'')+'"></div>'
+      + (DB.empresa.nom?'<span class="nom">'+esc(DB.empresa.nom)+'</span>':'')
+      + '<span class="sis">SICOM</span></div>';
+  }else{
+    h = '<div class="brand"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 3.5-4 3 2.5L18 7"/></svg></span>'
+      + '<span><b>SICOM</b><span>' + (DB.empresa.nom ? esc(DB.empresa.nom) : 'Sistema Integrado Contable y Comercial') + '</span></span></div>';
+  }
+
+  const nPend = pasos().filter(p=>p.ob && !p.ok).length;
+  h += '<div class="envbox">' + (listoParaVender()
+        ? 'Sistema operativo<br>Caja ' + (DB.caja.abierta ? 'abierta · turno N° '+DB.caja.turno : 'sin abrir')
+        : 'Puesta en marcha<br>' + nPend + ' ' + (nPend===1?'paso pendiente':'pasos pendientes')) + '</div>';
+
+  MENU.forEach(([grupo, items])=>{
+    h += '<div class="grp">'+grupo+'</div>';
+    items.forEach(([k, nom, ico, listo])=>{
+      h += '<button data-s="'+k+'" class="'+(cur===k?'on':'')+(listo?'':' pend')+'">'
+        + '<span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+ico+'</svg></span>'
+        + '<span>'+nom+'</span>'
+        + (listo?'':'<i class="pt" title="Todavía no desarrollado"></i>')
+        + '</button>';
+    });
+  });
+  $('nav').innerHTML = h;
+  $$('nav button[data-s]').forEach(b=> b.addEventListener('click', ()=> irA(b.dataset.s)));
 }
 
 /* ==========================================================================
@@ -2824,12 +3077,27 @@ function enlaza(){
         formCobro(b.dataset.met);
       }));
       $$('[data-qcob]').forEach(b=> b.addEventListener('click', ()=>{ VTA.cobros.splice(+b.dataset.qcob,1); pinta(); }));
+      const av = $('#k_avuelto'); if(av) av.addEventListener('click', ()=>{ VTA.paso='vuelto'; pinta(); });
+      const rg = $('#k_reg'); if(rg && !rg.disabled) rg.addEventListener('click', registrarVenta);
+    }
+
+    if(VTA.paso==='vuelto'){
       $$('[data-vmet]').forEach(b=> b.addEventListener('click', ()=>{
         if(!VTA.vuelto) VTA.vuelto = {met:'efec_usd', ref:''};
         VTA.vuelto.met = b.dataset.vmet; pinta();
       }));
-      const vr = $('#k_vueref'); if(vr) vr.addEventListener('input', ()=>{ VTA.vuelto.ref = vr.value.trim(); });
-      const rg = $('#k_reg'); if(rg && !rg.disabled) rg.addEventListener('click', registrarVenta);
+      const vr = $('#k_vueref');
+      if(vr){
+        vr.addEventListener('input', ()=>{
+          VTA.vuelto.ref = vr.value.trim();
+          const btn = $('#k_reg'), inf = document.querySelector('.barrapaso .info');
+          const ok = VTA.vuelto.ref.length >= 3;
+          if(btn) btn.disabled = !ok;
+          if(inf) inf.textContent = ok ? 'Entregue el vuelto y registre la venta.' : 'Falta la referencia.';
+        });
+        vr.focus();
+      }
+      const rg = $('#k_reg'); if(rg) rg.addEventListener('click', ()=>{ if(!rg.disabled) registrarVenta(); });
     }
 
     if(VTA.paso==='hecha'){
