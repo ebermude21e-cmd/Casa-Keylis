@@ -575,6 +575,49 @@ table.dat td .b{white-space:nowrap}
 @media(max-width:700px){.wiz .wp{flex:1 1 100%}}
 .v .u{font-size:13px;font-weight:600;color:var(--muted);margin-left:5px;letter-spacing:0}
 .frm input[type=file]{padding:9px 11px;font-size:13px}
+
+/* ---- tallas ---- */
+.tal{display:inline-block;padding:2px 8px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);font-size:11.5px;font-weight:800;margin-right:4px;position:relative}
+.tal i{font-style:normal;font-weight:600;color:var(--muted);margin-left:5px}
+.tallagrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}
+.tallabox{border:1px solid var(--axis);border-radius:var(--r1);padding:8px 10px;background:var(--panel)}
+.tallabox span{display:block;font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin-bottom:5px}
+.tallabox input{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--grid);border-radius:6px;font:inherit;font-size:15px;text-align:center;font-weight:700}
+.tallapick{display:flex;gap:7px;flex-wrap:wrap}
+.tallapick .tb{position:relative;min-width:56px;padding:9px 11px 7px;border:1px solid var(--axis);border-radius:var(--r1);background:var(--panel);font:inherit;font-size:14px;font-weight:800;color:var(--ink);cursor:pointer;transition:.14s;box-shadow:var(--sh1)}
+.tallapick .tb:hover{border-color:var(--s1)}
+.tallapick .tb i{display:block;font-style:normal;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px}
+.tallapick .tb.on{border-color:var(--s1);background:var(--surface-1);box-shadow:var(--ring)}
+.tallapick .tb u{position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;border-radius:999px;background:var(--s1);color:#fff;font-size:11px;font-weight:800;text-decoration:none;display:grid;place-items:center;padding:0 4px}
+
+/* ---- estado del cobro ---- */
+.estado{margin-top:14px;border-radius:var(--r2);padding:16px 18px;display:flex;flex-direction:column;gap:2px}
+.estado .et{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.estado .mt{font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+.estado .sb{font-size:13px;opacity:.8}
+.estado.falta{background:var(--crit-bg);color:var(--crit)}
+.estado.vuelto{background:var(--warn-bg);color:var(--warn-ink)}
+.estado.cuadra{background:var(--good-bg);color:var(--good-ink)}
+
+/* ---- bloque de vuelto ---- */
+.vuebox{border-left:4px solid var(--warn)}
+.vuemonto{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:14px}
+.vuemonto>div{background:var(--surface-1);border:1px solid var(--grid);border-radius:var(--r2);padding:15px 17px;display:flex;flex-direction:column;gap:3px}
+.vuemonto .et{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.vuemonto .mt{font-size:27px;font-weight:800;letter-spacing:-.025em;line-height:1.15}
+.vuemonto .sb{font-size:12.5px;color:var(--muted)}
+
+/* ---- logo y paleta ---- */
+.brandlogo{flex:0 0 auto;width:40px;height:40px;border-radius:11px;background:#fff;display:grid;place-items:center;overflow:hidden}
+.brandlogo img{max-width:34px;max-height:34px;object-fit:contain}
+.logobox{border:1px solid var(--grid);border-radius:var(--r2);background:repeating-conic-gradient(var(--surface-2) 0 25%,transparent 0 50%) 50%/18px 18px;padding:22px;display:grid;place-items:center;min-height:150px}
+.logobox img{max-width:100%;max-height:190px;object-fit:contain}
+.paleta{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.paleta .sw{width:48px;height:48px;border-radius:12px;border:2px solid var(--grid);cursor:pointer;transition:.14s;box-shadow:var(--sh1)}
+.paleta .sw:hover{transform:translateY(-2px)}
+.paleta .sw.on{border-color:var(--ink);box-shadow:var(--sh2)}
+.prev{display:flex;gap:0;border-radius:var(--r1);overflow:hidden;height:46px;border:1px solid var(--axis)}
+.prev span{flex:1}
 </style>
 </head>
 <body>
@@ -599,7 +642,9 @@ function baseVacia(){
   return {
     v: 1,
     creado: null,
-    empresa: { nom:'', rif:'', dir:'', tel:'', mail:'', tipoRif:'J' },
+    empresa: { nom:'', rif:'', dir:'', tel:'', mail:'', tipoRif:'J', logo:'' },
+    tema: null,
+    paleta: [],
     tasas: [],
     vendedores: [],
     categorias: [],
@@ -712,7 +757,8 @@ const NAV = [
     ['vend', 'Vendedores y comisiones', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/>'],
     ['deli', 'Delivery y montos', '<path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.3a2 2 0 0 0-.3-1L19.5 9H14v8h2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>'],
     ['tasas','Tasas de cambio', '<path d="M17 2l4 4-4 4"/><path d="M3 6h18"/><path d="M7 22l-4-4 4-4"/><path d="M21 18H3"/>'],
-    ['empresa','Datos de la empresa', '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>']
+    ['empresa','Datos de la empresa', '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>'],
+    ['marca','Logo y colores', '<circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M12 2a10 10 0 1 0 0 20c1 0 1.7-.7 1.7-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.6 1.7-1.6H16a6 6 0 0 0 6-6c0-4.5-4.5-8-10-8z"/>']
   ]],
   ['Control', [
     ['aud',  'Auditoría',  '<path d="M12 22s8-3.6 8-10V5.2l-8-3.2-8 3.2V12c0 6.4 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>'],
@@ -724,8 +770,11 @@ let cur = 'ini';
 function irA(s){ cur = s; pinta(); window.scrollTo(0,0); }
 
 function pintaNav(){
-  let h = '<div class="brand"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 3.5-4 3 2.5L18 7"/></svg></span>'
-        + '<span><b>SICOM</b><span>Sistema Integrado Contable y Comercial</span></span></div>';
+  const marca = DB.empresa.logo
+    ? '<span class="brandlogo"><img src="'+DB.empresa.logo+'" alt=""></span>'
+    : '<span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 3.5-4 3 2.5L18 7"/></svg></span>';
+  let h = '<div class="brand">' + marca
+        + '<span><b>SICOM</b><span>' + (DB.empresa.nom ? esc(DB.empresa.nom) : 'Sistema Integrado Contable y Comercial') + '</span></span></div>';
   const t = tasaHoy();
   h += '<div class="envbox">' + (DB.empresa.nom ? esc(DB.empresa.nom) : 'Empresa sin configurar')
      + '<br>' + (listoParaVender() ? 'Sistema operativo' : 'Faltan pasos de puesta en marcha') + '</div>';
@@ -754,6 +803,7 @@ function pintaBarra(){
 
 const PANT = {};
 function pinta(){
+  aplicaTema();
   pintaNav();
   pintaBarra();
   const f = PANT[cur] || PANT.ini;
@@ -1103,6 +1153,416 @@ PANT.datos = function(){
   + '<p class="note" style="margin-top:0">Borra todo y deja el sistema como el día uno: sin empresa, sin productos, sin clientes, sin ventas. No se puede deshacer.</p>'
   + '<div class="acc"><button class="b peligro" id="x_borrar">Borrar todo y empezar de cero</button></div></div>';
 };
+
+/* ==========================================================================
+   Productos con tallas · edición de categorías y artículos
+   ========================================================================== */
+const TALLAS_PRESET = {
+  ropa:    ['XS','S','M','L','XL','XXL'],
+  calzado: ['34','35','36','37','38','39','40','41','42','43','44','45'],
+  ninguna: []
+};
+const TIPO_TALLA = [
+  ['ninguna','Sin tallas','bisutería, lentes, juguetes'],
+  ['ropa','Tallas de ropa','XS a XXL'],
+  ['calzado','Tallas de calzado','34 al 45']
+];
+function exiProd(p){ return (p.tallas && p.tallas.length) ? p.tallas.reduce((a,x)=>a+(+x.exi||0),0) : (+p.exi||0); }
+function tipoTallaDe(catId){ const c = DB.categorias.find(x=>x.id===catId); return (c && c.tallas) || 'ninguna'; }
+function nomCat(catId){ const c = DB.categorias.find(x=>x.id===catId); return c?c.nom:'—'; }
+
+let editCat = null;   // id de la categoría en edición
+let editProd = null;  // id del producto en edición
+let tallasForm = [];  // tallas del formulario en curso
+
+/* -------------------------- pantalla productos -------------------------- */
+PANT.prod = function(){
+  const t = tasaHoy();
+  let h = '<h1>Productos y precios</h1>'
+    + '<p class="sub">El costo es lo que a usted le puso el artículo en la tienda: mercancía más flete más cualquier otro concepto. El margen sale de ahí, y de él salen las comisiones.</p>';
+
+  /* ---------- categorías ---------- */
+  h += '<div class="card"><h2 style="margin-top:0">Categorías</h2>';
+  if(editCat){
+    const c = DB.categorias.find(x=>x.id===editCat);
+    h += '<div class="nuevo"><b>Modificar categoría</b><div class="frm" style="margin-top:11px">'
+      + '<div class="fila"><div><label>Nombre</label><input id="c_ednom" value="'+esc(c.nom)+'" maxlength="40"></div>'
+      + '<div><label>¿Maneja tallas?</label><select id="c_edtal">'
+      + TIPO_TALLA.map(x=>'<option value="'+x[0]+'"'+((c.tallas||'ninguna')===x[0]?' selected':'')+'>'+x[1]+' — '+x[2]+'</option>').join('')
+      + '</select><div class="ayuda">Cambiarlo no borra las tallas ya cargadas en los artículos.</div></div></div>'
+      + '<div class="acc"><button class="b" id="c_edok">Guardar cambios</button>'
+      + '<button class="b gh" id="c_edno">Cancelar</button>'
+      + (DB.productos.some(p=>p.cat===c.id)
+          ? '<span class="mini">No se puede eliminar: tiene '+DB.productos.filter(p=>p.cat===c.id).length+' artículos.</span>'
+          : '<button class="b peligro sm" id="c_edborrar">Eliminar categoría</button>')
+      + '</div></div></div>';
+  }else{
+    h += '<div class="frm"><div class="fila">'
+      + '<div><label>Nueva categoría</label><input id="c_nom" placeholder="Ropa" maxlength="40"></div>'
+      + '<div><label>¿Maneja tallas?</label><select id="c_tal">'
+      + TIPO_TALLA.map(x=>'<option value="'+x[0]+'">'+x[1]+' — '+x[2]+'</option>').join('')
+      + '</select></div>'
+      + '<div style="display:flex;align-items:flex-end"><button class="b" id="c_guardar">Agregar</button></div>'
+      + '</div></div>';
+  }
+  if(DB.categorias.length){
+    h += '<table class="dat" style="margin-top:14px"><thead><tr><th>Categoría</th><th>Tallas</th><th class="n">Artículos</th><th class="n">Existencia</th><th></th></tr></thead><tbody>';
+    DB.categorias.forEach(c=>{
+      const ps = DB.productos.filter(p=>p.cat===c.id);
+      const tt = TIPO_TALLA.find(x=>x[0]===(c.tallas||'ninguna'));
+      h += '<tr><td><b>'+esc(c.nom)+'</b></td><td>'+tt[1]+'</td><td class="n">'+ps.length+'</td>'
+        + '<td class="n">'+ps.reduce((a,p)=>a+exiProd(p),0)+'</td>'
+        + '<td><button class="b sm gh" data-ceditar="'+c.id+'">Modificar</button></td></tr>';
+    });
+    h += '</tbody></table>';
+  }else{
+    h += '<p class="note" style="margin:14px 0 0">Ninguna categoría todavía. Para su rubro: Ropa y Zapatos con tallas; Juguetes, Bisutería y Lentes de sol sin tallas.</p>';
+  }
+  h += '</div>';
+
+  /* ---------- alta / edición de producto ---------- */
+  h += '<div class="card"><h2 style="margin-top:0">'+(editProd?'Modificar artículo':'Agregar producto')+'</h2>';
+  if(!DB.categorias.length){
+    h += '<p class="note" style="margin:0">Primero cree al menos una categoría, arriba.</p>';
+  }else{
+    const p = editProd ? DB.productos.find(x=>x.id===editProd) : null;
+    const catSel = p ? p.cat : DB.categorias[0].id;
+    h += '<div class="frm">'
+      + '<div class="fila">'
+        + '<div><label>Nombre del artículo</label><input id="p_nom" value="'+esc(p?p.nom:'')+'" placeholder="Franela algodón manga corta" maxlength="80"></div>'
+        + '<div><label>Categoría</label><select id="p_cat">'+DB.categorias.map(c=>'<option value="'+c.id+'"'+(catSel===c.id?' selected':'')+'>'+esc(c.nom)+'</option>').join('')+'</select></div>'
+        + '<div><label>Código</label><input id="p_sku" value="'+esc(p?p.sku:'')+'" placeholder="se genera solo" maxlength="24"></div>'
+      + '</div>'
+      + '<div class="fila">'
+        + '<div><label>Costo puesto en tienda (USD)</label><input id="p_costo" inputmode="decimal" value="'+(p?fN(p.costo):'')+'" placeholder="8,40"><div class="ayuda">Mercancía + flete + otros</div></div>'
+        + '<div><label>Precio de venta (USD)</label><input id="p_precio" inputmode="decimal" value="'+(p?fN(p.precio):'')+'" placeholder="15,00"></div>'
+        + '<div id="p_exiwrap"></div>'
+      + '</div>'
+      + '<div id="p_tallas"></div>'
+      + '<div id="p_margen" class="note" style="margin:0"></div>'
+      + '<div class="acc"><button class="b" id="p_guardar">'+(editProd?'Guardar cambios':'Agregar producto')+'</button>'
+      + (editProd?'<button class="b gh" id="p_edno">Cancelar</button>':'')
+      + '</div></div>';
+  }
+  h += '</div>';
+
+  /* ---------- catálogo ---------- */
+  h += '<div class="card"><h2 style="margin-top:0">Catálogo</h2>';
+  if(!DB.productos.length){
+    h += '<div class="vacio"><div class="vi">⌕</div><p class="note" style="margin:0">El catálogo está vacío.<br>Sin productos, la caja de ventas no tiene qué vender.</p></div>';
+  }else{
+    h += '<table class="dat"><thead><tr><th>Código</th><th>Artículo</th><th>Categoría</th><th>Tallas</th><th class="n">Costo</th><th class="n">Precio</th><th class="n">Margen</th><th class="n">Precio Bs</th><th class="n">Existencia</th><th></th></tr></thead><tbody>';
+    DB.productos.forEach(p=>{
+      const mg = p.precio>0 ? (p.precio-p.costo)/p.precio*100 : 0;
+      const ex = exiProd(p);
+      const tal = (p.tallas && p.tallas.length)
+        ? p.tallas.filter(x=>+x.exi>0).map(x=>'<span class="tal">'+esc(x.t)+'<i>'+x.exi+'</i></span>').join('') || '<span class="mini">agotado</span>'
+        : '<span class="mini">—</span>';
+      h += '<tr><td class="mono">'+esc(p.sku)+'</td><td><b>'+esc(p.nom)+'</b></td><td>'+esc(nomCat(p.cat))+'</td>'
+        + '<td>'+tal+'</td>'
+        + '<td class="n">'+fN(p.costo)+'</td><td class="n">'+fN(p.precio)+'</td>'
+        + '<td class="n" style="color:'+(mg<20?'var(--crit)':'var(--good-ink)')+'">'+fN(mg)+' %</td>'
+        + '<td class="n">'+(t?fN(p.precio*t.bcv):'—')+'</td>'
+        + '<td class="n"'+(ex<=0?' style="color:var(--crit);font-weight:700"':'')+'>'+ex+'</td>'
+        + '<td><button class="b sm gh" data-peditar="'+p.id+'">Modificar</button></td></tr>';
+    });
+    h += '</tbody></table>';
+  }
+  return h + '</div>';
+};
+
+/* ---------- el bloque de existencias cambia según la categoría ---------- */
+function pintaExistencias(){
+  const cat = $('#p_cat') ? $('#p_cat').value : null;
+  if(!cat) return;
+  const tipo = tipoTallaDe(cat);
+  const wrap = $('#p_exiwrap'), tal = $('#p_tallas');
+  if(tipo === 'ninguna'){
+    tal.innerHTML = '';
+    wrap.innerHTML = '<label>Existencia</label><input id="p_exi" inputmode="numeric" value="'+(tallasForm.exiUnica!=null?tallasForm.exiUnica:0)+'">';
+    $('#p_exi').addEventListener('input', ()=>{ tallasForm.exiUnica = Math.max(0, Math.round(num($('#p_exi').value))); });
+    return;
+  }
+  wrap.innerHTML = '<label>Existencia</label><input value="'+(tallasForm.reduce?tallasForm.reduce((a,x)=>a+(+x.exi||0),0):0)+'" readonly><div class="ayuda">Es la suma de las tallas</div>';
+  const lista = (tallasForm && tallasForm.length) ? tallasForm : TALLAS_PRESET[tipo].map(t=>({t, exi:0}));
+  tallasForm = lista;
+  tal.innerHTML = '<label>Existencia por talla</label>'
+    + '<p class="ayuda" style="margin:0 0 10px">Escriba cuántas unidades tiene de cada talla. Las que queden en cero no aparecen en la caja.</p>'
+    + '<div class="tallagrid">'
+    + lista.map((x,i)=>'<div class="tallabox"><span>'+esc(x.t)+'</span><input data-tal="'+i+'" inputmode="numeric" value="'+(x.exi||0)+'"></div>').join('')
+    + '</div>'
+    + '<div class="acc" style="margin-top:11px"><input id="p_taln" placeholder="Otra talla" maxlength="8" style="max-width:130px">'
+    + '<button class="b sm gh" id="p_taladd">Agregar talla</button>'
+    + '<button class="b sm gh" id="p_talcero">Poner todas en cero</button></div>';
+  $$('[data-tal]').forEach(inp=> inp.addEventListener('input', ()=>{
+    tallasForm[+inp.dataset.tal].exi = Math.max(0, Math.round(num(inp.value)));
+    const tot = tallasForm.reduce((a,x)=>a+(+x.exi||0),0);
+    const ro = $('#p_exiwrap input'); if(ro) ro.value = tot;
+  }));
+  $('#p_taladd').addEventListener('click', ()=>{
+    const v = $('#p_taln').value.trim().toUpperCase();
+    if(!v) return;
+    if(tallasForm.some(x=>x.t===v)){ aviso('Esa talla ya está en la lista.', true); return; }
+    tallasForm.push({t:v, exi:0}); pintaExistencias();
+  });
+  $('#p_talcero').addEventListener('click', ()=>{ tallasForm.forEach(x=>x.exi=0); pintaExistencias(); });
+}
+
+/* ------------------------------ enlaces -------------------------------- */
+function enlazaProd(){
+  /* categorías */
+  const cg = $('#c_guardar');
+  if(cg) cg.addEventListener('click', ()=>{
+    const nom = $('#c_nom').value.trim();
+    if(nom.length<2){ aviso('Escriba el nombre de la categoría.', true); return; }
+    if(DB.categorias.some(c=>c.nom.toLowerCase()===nom.toLowerCase())){ aviso('Esa categoría ya existe.', true); return; }
+    const tal = $('#c_tal').value;
+    DB.categorias.push({id:'c'+Date.now().toString(36), nom, tallas:tal});
+    bitacora('INVENTARIO','CREAR','Categoría '+nom+' · '+TIPO_TALLA.find(x=>x[0]===tal)[1].toLowerCase());
+    guardar(); aviso('Categoría agregada.'); pinta();
+  });
+  $$('[data-ceditar]').forEach(b=> b.addEventListener('click', ()=>{ editCat = b.dataset.ceditar; editProd = null; pinta(); }));
+  const ceo = $('#c_edok');
+  if(ceo) ceo.addEventListener('click', ()=>{
+    const c = DB.categorias.find(x=>x.id===editCat);
+    const nom = $('#c_ednom').value.trim(), tal = $('#c_edtal').value;
+    if(nom.length<2){ aviso('El nombre no puede quedar vacío.', true); return; }
+    if(DB.categorias.some(x=>x.id!==c.id && x.nom.toLowerCase()===nom.toLowerCase())){ aviso('Ya hay otra categoría con ese nombre.', true); return; }
+    const antes = c.nom + ' · ' + (c.tallas||'ninguna');
+    c.nom = nom; c.tallas = tal;
+    bitacora('INVENTARIO','MODIFICAR','Categoría: '+antes+' → '+nom+' · '+tal);
+    guardar(); editCat = null; aviso('Categoría actualizada.'); pinta();
+  });
+  const cen = $('#c_edno'); if(cen) cen.addEventListener('click', ()=>{ editCat=null; pinta(); });
+  const ceb = $('#c_edborrar');
+  if(ceb) ceb.addEventListener('click', ()=>{
+    const c = DB.categorias.find(x=>x.id===editCat);
+    if(!confirm('¿Eliminar la categoría «'+c.nom+'»?')) return;
+    DB.categorias = DB.categorias.filter(x=>x.id!==c.id);
+    bitacora('INVENTARIO','ELIMINAR','Categoría '+c.nom+' · sin artículos asociados');
+    guardar(); editCat=null; aviso('Categoría eliminada.'); pinta();
+  });
+
+  /* productos */
+  const sel = $('#p_cat');
+  if(sel){
+    if(editProd){
+      const p = DB.productos.find(x=>x.id===editProd);
+      tallasForm = (p.tallas && p.tallas.length) ? p.tallas.map(x=>({t:x.t, exi:x.exi})) : [];
+      if(!tallasForm.length) tallasForm.exiUnica = p.exi;
+    }
+    sel.addEventListener('change', ()=>{ tallasForm = []; pintaExistencias(); });
+    pintaExistencias();
+
+    const mg = $('#p_margen');
+    const calc = ()=>{
+      const c = num($('#p_costo').value), pr = num($('#p_precio').value);
+      if(!(c>0 && pr>0)){ mg.innerHTML=''; return; }
+      const m = (pr-c)/pr*100, t = tasaHoy();
+      mg.innerHTML = 'Margen bruto <b style="color:'+(m<20?'var(--crit)':'var(--good-ink)')+'">'+fN(m)+' %</b> · gana USD '+fN(pr-c)+' por unidad'
+        + (t?' · precio en bolívares Bs '+fN(pr*t.bcv):'');
+    };
+    ['p_costo','p_precio'].forEach(k=> $('#'+k).addEventListener('input', calc));
+    calc();
+
+    $('#p_guardar').addEventListener('click', ()=>{
+      const nom = $('#p_nom').value.trim(), cat = $('#p_cat').value;
+      const costo = num($('#p_costo').value), precio = num($('#p_precio').value);
+      if(nom.length<3){ aviso('Falta el nombre del artículo.', true); return; }
+      if(!(costo>0)){ aviso('El costo tiene que ser mayor que cero.', true); return; }
+      if(!(precio>0)){ aviso('El precio tiene que ser mayor que cero.', true); return; }
+      if(precio<costo && !confirm('El precio es menor que el costo: esta venta daría pérdida. ¿Guardar de todas formas?')) return;
+
+      const tipo = tipoTallaDe(cat);
+      let tallas = [], exi = 0;
+      if(tipo==='ninguna'){ exi = Math.max(0, Math.round(num($('#p_exi').value))); }
+      else { tallas = tallasForm.filter(x=>x.t).map(x=>({t:x.t, exi:Math.max(0,Math.round(+x.exi||0))}));
+             exi = tallas.reduce((a,x)=>a+x.exi,0); }
+
+      let sku = $('#p_sku').value.trim();
+
+      if(editProd){
+        const p = DB.productos.find(x=>x.id===editProd);
+        if(!sku) sku = p.sku;
+        if(DB.productos.some(x=>x.id!==p.id && x.sku===sku)){ aviso('Ese código ya está usado.', true); return; }
+        const antes = p.nom+' · costo '+fN(p.costo)+' · precio '+fN(p.precio)+' · existencia '+exiProd(p);
+        Object.assign(p, {sku, nom, cat, costo, precio, exi, tallas});
+        bitacora('INVENTARIO','MODIFICAR', p.sku+' · '+antes+' → '+nom+' · costo '+fN(costo)+' · precio '+fN(precio)+' · existencia '+exi);
+        guardar(); editProd=null; tallasForm=[]; aviso('Artículo actualizado.'); pinta(); return;
+      }
+
+      if(!sku) sku = String(DB.categorias.findIndex(c=>c.id===cat)+1).padStart(2,'0')+'-'+String(DB.productos.length+1).padStart(5,'0');
+      if(DB.productos.some(p=>p.sku===sku)){ aviso('Ese código ya está usado.', true); return; }
+      DB.productos.push({id:id('producto'), sku, nom, cat, costo, precio, exi, tallas, min:0});
+      bitacora('INVENTARIO','CREAR', sku+' '+nom+' · costo USD '+fN(costo)+' · precio USD '+fN(precio)+' · existencia '+exi
+        + (tallas.length?' ('+tallas.filter(x=>x.exi>0).map(x=>x.t+':'+x.exi).join(' ')+')':''));
+      guardar(); tallasForm=[]; aviso('Producto agregado.'); pinta();
+    });
+
+    const pen = $('#p_edno'); if(pen) pen.addEventListener('click', ()=>{ editProd=null; tallasForm=[]; pinta(); });
+  }
+  $$('[data-peditar]').forEach(b=> b.addEventListener('click', ()=>{
+    editProd = b.dataset.peditar; editCat = null; tallasForm = []; pinta();
+    window.scrollTo({top: 0, behavior:'smooth'});
+  }));
+}
+
+/* ==========================================================================
+   Identidad visual — logo, extracción de paleta y aplicación del tema
+   ========================================================================== */
+
+/* ---------- color: conversiones y ajustes ---------- */
+function hex2rgb(h){ h=h.replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join('');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+function rgb2hex(r,g,b){ return '#'+[r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,'0')).join(''); }
+function rgb2hsl(r,g,b){
+  r/=255; g/=255; b/=255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2;
+  let h=0,s=0;
+  if(mx!==mn){ const d=mx-mn; s = l>0.5 ? d/(2-mx-mn) : d/(mx+mn);
+    h = mx===r ? ((g-b)/d + (g<b?6:0)) : mx===g ? ((b-r)/d + 2) : ((r-g)/d + 4);
+    h/=6; }
+  return [h*360, s, l];
+}
+function hsl2rgb(h,s,l){
+  h=((h%360)+360)%360/360;
+  if(s===0){ const v=l*255; return [v,v,v]; }
+  const q = l<0.5 ? l*(1+s) : l+s-l*s, p = 2*l-q;
+  const f = t => { t=(t+1)%1;
+    if(t<1/6) return p+(q-p)*6*t;
+    if(t<1/2) return q;
+    if(t<2/3) return p+(q-p)*(2/3-t)*6;
+    return p; };
+  return [f(h+1/3)*255, f(h)*255, f(h-1/3)*255];
+}
+function conL(hex, l){ const [h,s]=rgb2hsl(...hex2rgb(hex)); return rgb2hex(...hsl2rgb(h,s,l)); }
+function conSL(hex, s, l){ const [h]=rgb2hsl(...hex2rgb(hex)); return rgb2hex(...hsl2rgb(h,s,l)); }
+function lum(hex){ const [r,g,b]=hex2rgb(hex).map(v=>{ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
+  return 0.2126*r + 0.7152*g + 0.0722*b; }
+function contraste(a,b){ const l1=lum(a), l2=lum(b); return (Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05); }
+
+/* ---------- extraer los colores dominantes de una imagen ---------- */
+function paletaDe(img){
+  const N = 80, cv = document.createElement('canvas');
+  cv.width = N; cv.height = N;
+  const cx = cv.getContext('2d', {willReadFrequently:true});
+  cx.drawImage(img, 0, 0, N, N);
+  let px;
+  try{ px = cx.getImageData(0,0,N,N).data; }catch(e){ return []; }
+  const cubos = {};
+  for(let i=0;i<px.length;i+=4){
+    const a = px[i+3]; if(a < 128) continue;
+    const r=px[i], g=px[i+1], b=px[i+2];
+    const [hh,ss,ll] = rgb2hsl(r,g,b);
+    if(ll > 0.94 || ll < 0.06) continue;      // fuera blancos y negros puros
+    const k = (r>>4)+','+(g>>4)+','+(b>>4);
+    if(!cubos[k]) cubos[k] = {n:0, r:0, g:0, b:0, s:0};
+    const c = cubos[k]; c.n++; c.r+=r; c.g+=g; c.b+=b; c.s+=ss;
+  }
+  const ls = Object.values(cubos).map(c=>({
+    hex: rgb2hex(c.r/c.n, c.g/c.n, c.b/c.n),
+    n: c.n,
+    sat: c.s/c.n
+  }));
+  // peso: cuánto aparece × qué tan vivo es
+  ls.sort((a,b)=> (b.n * (0.35 + b.sat)) - (a.n * (0.35 + a.sat)));
+  const out = [];
+  ls.forEach(c=>{
+    if(out.length >= 6) return;
+    if(out.some(o => Math.abs(rgb2hsl(...hex2rgb(o.hex))[0] - rgb2hsl(...hex2rgb(c.hex))[0]) < 18
+                  && Math.abs(lum(o.hex) - lum(c.hex)) < 0.12)) return;   // muy parecido a uno ya elegido
+    out.push(c);
+  });
+  return out.map(c=>c.hex);
+}
+
+/* ---------- construir un tema legible a partir de un color ---------- */
+function temaDesde(base){
+  const [h, s] = rgb2hsl(...hex2rgb(base));
+  const sat = Math.max(0.28, Math.min(0.82, s));      // ni gris muerto ni fluorescente
+  const t = {
+    base,
+    nav1: rgb2hex(...hsl2rgb(h, Math.min(0.55, sat), 0.14)),
+    nav2: rgb2hex(...hsl2rgb(h, Math.min(0.50, sat), 0.22)),
+    s1:   rgb2hex(...hsl2rgb(h, sat, 0.44)),
+    acc:  rgb2hex(...hsl2rgb(h, sat, 0.50))
+  };
+  // el azul de acción tiene que leerse sobre blanco
+  let l = 0.44, g = 0;
+  while(contraste(t.s1, '#ffffff') < 4.5 && g++ < 20){ l -= 0.02; t.s1 = rgb2hex(...hsl2rgb(h, sat, l)); }
+  return t;
+}
+function temaPorDefecto(){ return {base:'#2a78d6', nav1:'#0f1c33', nav2:'#16294a', s1:'#2a78d6', acc:'#2a78d6'}; }
+
+function aplicaTema(){
+  const t = (DB.tema && DB.tema.nav1) ? DB.tema : temaPorDefecto();
+  const r = document.documentElement.style;
+  r.setProperty('--nav-1', t.nav1);
+  r.setProperty('--nav-2', t.nav2);
+  r.setProperty('--s1',    t.s1);
+  r.setProperty('--accent',t.acc);
+}
+
+/* ---------- pantalla: identidad visual ---------- */
+PANT.marca = function(){
+  const e = DB.empresa, t = (DB.tema && DB.tema.nav1) ? DB.tema : temaPorDefecto();
+  let h = '<h1>Logo y colores</h1>'
+    + '<p class="sub">Cargue el logo de la tienda y el sistema toma sus colores. Todo —la barra lateral, los botones, los indicadores— se pinta con la paleta de su marca.</p>';
+
+  h += '<div class="grid2" style="align-items:start">';
+
+  /* logo */
+  h += '<div class="card"><h2 style="margin-top:0">Logo</h2>';
+  if(e.logo){
+    h += '<div class="logobox"><img src="'+e.logo+'" alt="Logo"></div>'
+       + '<div class="acc" style="margin-top:14px"><label class="b sm gh" style="cursor:pointer;margin:0">Cambiar logo<input type="file" id="m_arch" accept="image/*" hidden></label>'
+       + '<button class="b sm gh" id="m_quitar">Quitar</button></div>';
+  }else{
+    h += '<div class="vacio" style="border:1px dashed var(--axis);border-radius:var(--r2)"><div class="vi">⌕</div>'
+       + '<p class="note" style="margin:0 0 14px">Sin logo cargado.</p>'
+       + '<label class="b" style="cursor:pointer">Subir logo<input type="file" id="m_arch" accept="image/*" hidden></label></div>';
+  }
+  h += '<p class="note" style="margin:14px 0 0">PNG o JPG, idealmente con fondo transparente. Se guarda dentro del sistema, no se sube a ningún lado. Sale en la barra lateral y en el encabezado del recibo.</p></div>';
+
+  /* paleta */
+  h += '<div class="card"><h2 style="margin-top:0">Colores</h2>'
+     + '<div id="m_pal">'+(DB.paleta && DB.paleta.length
+        ? '<p class="note" style="margin-top:0">Colores encontrados en su logo. Toque uno para usarlo como color principal.</p>'
+          + '<div class="paleta">'+DB.paleta.map(c=>'<button class="sw'+(c.toLowerCase()===String(t.base).toLowerCase()?' on':'')+'" data-col="'+c+'" style="background:'+c+'" title="'+c+'"></button>').join('')+'</div>'
+        : '<p class="note" style="margin-top:0">Cargue un logo y aquí aparecen sus colores. También puede elegir uno a mano.</p>')+'</div>'
+     + '<div class="frm" style="margin-top:16px"><div class="fila">'
+     + '<div><label>Color principal</label><input type="color" id="m_color" value="'+t.base+'" style="height:46px;padding:4px"></div>'
+     + '<div><label>Vista previa</label><div class="prev"><span style="background:'+t.nav1+'"></span><span style="background:'+t.nav2+'"></span><span style="background:'+t.s1+'"></span></div>'
+     + '<div class="ayuda">barra lateral · degradado · botones</div></div>'
+     + '</div><div class="acc"><button class="b" id="m_aplicar">Aplicar</button><button class="b gh" id="m_reset">Volver al azul original</button></div></div>'
+     + '<p class="note" style="margin:14px 0 0">El sistema oscurece y aclara el color que elija para que los textos siempre se lean. Si un color queda muy claro para los botones, lo ajusta solo.</p>'
+     + '</div>';
+
+  h += '</div>';
+  return h;
+};
+
+function leeLogo(file, cb){
+  if(!file) return;
+  if(file.size > 1024*1024*2){ aviso('El logo pesa más de 2 MB. Use una imagen más liviana.', true); return; }
+  const r = new FileReader();
+  r.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{
+      // reescalar a 480 px de ancho máximo para no inflar el almacenamiento
+      const max = 480, esc = Math.min(1, max/img.width);
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width*esc); cv.height = Math.round(img.height*esc);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const dataUrl = cv.toDataURL('image/png');
+      const pal = paletaDe(img);
+      cb(dataUrl, pal);
+    };
+    img.onerror = ()=> aviso('No se pudo leer esa imagen.', true);
+    img.src = r.result;
+  };
+  r.readAsDataURL(file);
+}
 
 /* ==========================================================================
    Caja de ventas — un bloque por pantalla
@@ -1510,6 +1970,312 @@ function vtaHecha(){
 }
 
 /* ==========================================================================
+   Caja · artículos con talla y pantalla de vuelto
+   (estas definiciones reemplazan a las anteriores)
+   ========================================================================== */
+
+function keyLinea(pid, talla){ return pid + '|' + (talla||''); }
+function dispDe(p, talla){
+  if(p.tallas && p.tallas.length){ const t = p.tallas.find(x=>x.t===talla); return t ? (+t.exi||0) : 0; }
+  return +p.exi||0;
+}
+
+function pasoArts(){
+  const q = (VTA.q||'').toLowerCase().trim();
+  const enc = DB.productos.filter(p=> !q || p.nom.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || nomCat(p.cat).toLowerCase().includes(q));
+  const t = tasaHoy();
+
+  let h = '<div class="grid2" style="align-items:start">';
+
+  h += '<div class="card"><h2 style="margin-top:0">Agregar artículos</h2>'
+    + '<div class="bwrap"><span class="lupa"></span><input id="k_q" value="'+esc(VTA.q)+'" placeholder="Buscar por nombre, código o categoría" autocomplete="off"></div>'
+    + '<div style="max-height:460px;overflow:auto;margin-top:4px">';
+  if(!enc.length){
+    h += '<div class="vacio"><div class="vi">⌕</div><p class="note" style="margin:0">Ningún artículo coincide.</p></div>';
+  }else{
+    enc.slice(0,60).forEach(p=>{
+      const conTallas = !!(p.tallas && p.tallas.length);
+      const ex = exiProd(p);
+      h += '<div class="linea" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>'+esc(p.nom)+'</b>'
+        + '<div class="mini">'+esc(p.sku)+' · '+esc(nomCat(p.cat))+' · existencia '+ex+(ex<=0?' · <span style="color:var(--crit);font-weight:700">agotado</span>':'')+'</div></div>'
+        + '<div style="text-align:right;white-space:nowrap"><b>USD '+fN(p.precio)+'</b>'
+        + (t?'<div class="mini">Bs '+fN(p.precio*t.bcv)+'</div>':'')+'</div>';
+      if(conTallas){
+        const hay = p.tallas.filter(x=>+x.exi>0);
+        h += '<div style="flex:1 0 100%;margin-top:9px">';
+        if(!hay.length){
+          h += '<span class="mini" style="color:var(--crit)">Sin existencia en ninguna talla</span>';
+        }else{
+          h += '<div class="tallapick">'
+            + hay.map(x=>{
+                const en = VTA.lineas.find(l=>l.k===keyLinea(p.id,x.t));
+                return '<button class="tb'+(en?' on':'')+'" data-add="'+p.id+'" data-talla="'+esc(x.t)+'">'
+                  + esc(x.t)+'<i>'+x.exi+'</i>'+(en?'<u>'+en.cant+'</u>':'')+'</button>';
+              }).join('')
+            + '</div>';
+        }
+        h += '</div>';
+      }else{
+        h += '<button class="b sm'+(ex<=0?' gh':'')+'" data-add="'+p.id+'"'+(ex<=0?' disabled':'')+'>Agregar</button>';
+      }
+      h += '</div>';
+    });
+  }
+  h += '</div></div>';
+
+  /* ticket */
+  h += '<div class="card sticky"><h2 style="margin-top:0">Esta venta</h2>';
+  if(!VTA.lineas.length){
+    h += '<div class="vacio"><div class="vi">⌕</div><p class="note" style="margin:0">Todavía no ha agregado nada.</p></div>';
+  }else{
+    h += '<table class="dat"><tbody>';
+    VTA.lineas.forEach(l=>{
+      h += '<tr><td><b>'+esc(l.nom)+'</b>'+(l.talla?' <span class="tal">'+esc(l.talla)+'</span>':'')
+        + '<div class="mini">USD '+fN(l.precio)+' c/u · quedan '+(l.disp-l.cant)+'</div></td>'
+        + '<td style="width:124px;white-space:nowrap;text-align:center">'
+        + '<button class="b sm gh" data-qm="'+esc(l.k)+'">−</button> <b style="display:inline-block;min-width:22px">'+l.cant+'</b> <button class="b sm gh" data-qp="'+esc(l.k)+'">+</button></td>'
+        + '<td class="n" style="width:92px"><b>'+fN(l.precio*l.cant)+'</b></td>'
+        + '<td style="width:34px"><button class="b sm gh" data-del="'+esc(l.k)+'" title="Quitar">×</button></td></tr>';
+    });
+    h += '</tbody></table>';
+    h += '<table class="dat" style="margin-top:12px"><tbody>'
+      + '<tr><td>Mercancía</td><td class="n">USD '+fN(totalArts())+'</td></tr>';
+    if(VTA.entrega==='delivery'){
+      const m = montoDeliv();
+      h += '<tr><td>Delivery'+(m===0?' <span class="badge ok">exonerado</span>':'')+'</td><td class="n">USD '+fN(m)+'</td></tr>';
+    }
+    h += '<tr><td><b>Total</b></td><td class="n"><span class="tot">'+fN(totalVenta())+'</span></td></tr>'
+      + (t?'<tr><td class="mini">Equivalente en bolívares</td><td class="n mini">Bs '+fN(totalVenta()*t.bcv)+'</td></tr>':'')
+      + '</tbody></table>';
+  }
+  h += '</div></div>';
+
+  h += '<div class="barrapaso"><button class="b gh" data-atras="canal">Atrás</button>'
+     + '<span class="info">'+(VTA.lineas.length?VTA.lineas.reduce((a,l)=>a+l.cant,0)+' unidades · USD '+fN(totalVenta()):'Agregue al menos un artículo.')+'</span>'
+     + '<button class="b" id="k_sigue"'+(VTA.lineas.length?'':' disabled')+'>Ir al cobro</button></div>';
+  return h;
+}
+
+/* ------------------------------ 4 · COBRO ------------------------------ */
+function pasoCobro(){
+  const t = tasaHoy(), falta = faltaUSD(), vuelto = falta < -0.005 ? Math.abs(falta) : 0;
+  let h = '<div class="grid2" style="align-items:start">';
+
+  /* izquierda: métodos */
+  h += '<div class="card"><h2 style="margin-top:0">¿Cómo paga?</h2>'
+    + '<p class="note" style="margin-top:0">Se puede combinar. Agregue un método, escriba cuánto entregó, y el sistema le dice lo que falta o lo que hay que devolver.</p>'
+    + '<div class="opcs">'
+    + METODOS.map(m=>'<button class="opc" data-met="'+m.k+'"><b>'+m.n+'</b><span>'+(m.mon==='BS'?'en bolívares':'en dólares')+'</span></button>').join('')
+    + '</div><div id="k_form" style="margin-top:16px"></div></div>';
+
+  /* derecha: resumen */
+  h += '<div class="card sticky"><h2 style="margin-top:0">Cobro</h2>'
+    + '<table class="dat"><tbody><tr><td>Total de la venta</td><td class="n"><b>USD '+fN(totalVenta())+'</b>'
+    + (t?'<div class="mini">Bs '+fN(totalVenta()*t.bcv)+'</div>':'')+'</td></tr>';
+  VTA.cobros.forEach((c,i)=>{
+    const m = METODOS.find(x=>x.k===c.met);
+    h += '<tr><td>'+esc(m.n)+(c.ref?'<div class="mini">ref. '+esc(c.ref)+'</div>':'')+'</td>'
+      + '<td class="n">'+(c.mon==='BS'?'Bs '+fN(c.monto)+'<div class="mini">USD '+fN(c.monto/(t?t.bcv:1))+'</div>':'USD '+fN(c.monto))+'</td>'
+      + '<td style="width:34px"><button class="b sm gh" data-qcob="'+i+'">×</button></td></tr>';
+  });
+  h += '</tbody></table>';
+
+  if(falta > 0.005){
+    h += '<div class="estado falta"><span class="et">Falta por cobrar</span>'
+      + '<span class="mt">USD '+fN(falta)+'</span>'
+      + (t?'<span class="sb">Bs '+fN(falta*t.bcv)+'</span>':'')+'</div>';
+  }else if(vuelto > 0){
+    h += '<div class="estado vuelto"><span class="et">Vuelto a entregar</span>'
+      + '<span class="mt">USD '+fN(vuelto)+'</span>'
+      + (t?'<span class="sb">Bs '+fN(vuelto*t.bcv)+'</span>':'')+'</div>';
+  }else{
+    h += '<div class="estado cuadra"><span class="et">Cuadrado</span><span class="mt">USD '+fN(totalVenta())+'</span>'
+      + '<span class="sb">no hay vuelto</span></div>';
+  }
+
+  h += '<div class="acc" style="margin-top:16px"><button class="b" id="k_reg"'+(falta>0.005?' disabled':'')+'>'
+     + (vuelto>0?'Entregar vuelto y registrar':'Registrar la venta')+'</button></div></div></div>';
+
+  /* bloque de vuelto, a lo ancho */
+  if(vuelto > 0) h += bloqueVuelto(vuelto, t);
+
+  h += '<div class="barrapaso"><button class="b gh" data-atras="arts">Atrás</button>'
+     + '<span class="info">'+(falta>0.005?'Falta cobrar USD '+fN(falta):(vuelto>0?'Elija cómo entrega el vuelto':'Listo para registrar.'))+'</span><span></span></div>';
+  return h;
+}
+
+/* --------------------------- el vuelto, en grande --------------------- */
+function bloqueVuelto(v, t){
+  if(!VTA.vuelto) VTA.vuelto = {met:'efec_usd', ref:'', bs:false};
+  const sel = VTA.vuelto.met;
+  const m = METODOS.find(x=>x.k===sel);
+  const fondo = +DB.caja.fondoUSD || 0;
+
+  let h = '<div class="card vuebox"><h2 style="margin-top:0">Vuelto</h2>'
+    + '<p class="note" style="margin-top:0">El vuelto no es un descuento: es dinero que sale de la caja. Por eso lleva su propia forma de pago y, si es electrónico, su referencia — así concilia igual que el cobro.</p>'
+    + '<div class="vuemonto"><div><span class="et">Hay que devolver</span><span class="mt">USD '+fN(v)+'</span></div>'
+    + (t?'<div><span class="et">Equivale a</span><span class="mt">Bs '+fN(v*t.bcv)+'</span></div>':'')
+    + '<div><span class="et">Fondo de caja</span><span class="mt">USD '+fN(fondo)+'</span>'
+    + '<span class="sb">'+(fondo>=v?'alcanza para el vuelto en efectivo':'no alcanza en efectivo — use otra vía')+'</span></div></div>';
+
+  h += '<div style="margin-top:18px"><label style="display:block;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:9px">¿Cómo se lo entrega?</label>'
+    + '<div class="opcs">'
+    + METODOS.map(x=>{
+        const enBs = x.mon==='BS';
+        const alcanza = x.k!=='efec_usd' || fondo >= v;
+        return '<button class="opc'+(sel===x.k?' on':'')+'" data-vmet="'+x.k+'"><b>'+x.n+'</b>'
+          + '<span>'+(enBs ? (t?'Bs '+fN(v*t.bcv):'requiere tasa') : 'USD '+fN(v))
+          + (x.k==='efec_usd' && !alcanza ? ' · fondo insuficiente' : '')+'</span></button>';
+      }).join('')
+    + '</div></div>';
+
+  if(m.ref){
+    h += '<div class="frm" style="margin-top:16px"><div class="fila">'
+      + '<div><label>Referencia de la operación</label><input id="k_vueref" value="'+esc(VTA.vuelto.ref||'')+'" placeholder="número que devuelve el banco" maxlength="20">'
+      + '<div class="ayuda">Sin referencia el vuelto no se puede conciliar contra el estado de cuenta.</div></div></div></div>';
+  }else if(m.k==='efec_bs'){
+    h += '<p class="note" style="margin:16px 0 0">Entregue <b>Bs '+(t?fN(v*t.bcv):'—')+'</b> en efectivo. Se descuenta del efectivo en bolívares de la caja.</p>';
+  }else{
+    h += '<p class="note" style="margin:16px 0 0">Entregue <b>USD '+fN(v)+'</b> del fondo de vueltos. Al cierre, el fondo tiene que volver a estar en USD '+fN(fondo)+'.</p>';
+  }
+  return h + '</div>';
+}
+
+/* --------------------------- registrar la venta ------------------------- */
+function registrarVenta(){
+  const t = tasaHoy(), falta = faltaUSD();
+  if(falta > 0.005){ aviso('Todavía falta cobrar.', true); return; }
+  const vuelto = falta < -0.005 ? Math.abs(falta) : 0;
+
+  if(vuelto > 0){
+    const m = METODOS.find(x=>x.k===VTA.vuelto.met);
+    if(m.ref){
+      const ref = $('#k_vueref') ? $('#k_vueref').value.trim() : '';
+      if(!ref){ aviso('El vuelto por '+m.n+' necesita su número de referencia.', true); return; }
+      VTA.vuelto.ref = ref;
+    }
+  }
+
+  let cli = VTA.cliente;
+  if(!cli){
+    cli = { id:id('cliente'), tipoDoc:VTA.tipoDoc, doc:VTA.doc, nom:VTA.nuevo.nom,
+            cod:VTA.nuevo.cod, tel:VTA.nuevo.tel, mail:VTA.nuevo.mail,
+            compras:0, monto:0, ultima:null, creado:ahora() };
+    DB.clientes.push(cli);
+    bitacora('CLIENTES','CREAR', cli.tipoDoc+'-'+cli.doc+' '+cli.nom+' · creado desde la caja');
+  }
+
+  /* descontar existencia, por talla cuando aplica */
+  VTA.lineas.forEach(l=>{
+    const p = DB.productos.find(x=>x.id===l.id);
+    if(!p) return;
+    if(l.talla && p.tallas && p.tallas.length){
+      const tt = p.tallas.find(x=>x.t===l.talla);
+      if(tt) tt.exi = Math.max(0, (+tt.exi||0) - l.cant);
+      p.exi = p.tallas.reduce((a,x)=>a+(+x.exi||0),0);
+    }else{
+      p.exi = Math.max(0, (+p.exi||0) - l.cant);
+    }
+  });
+
+  const totalUSD = totalVenta();
+  const margenUSD = Math.round((totalArts() - costoArts())*100)/100;
+  const vend = DB.vendedores.find(v=>v.id===VTA.vendedorId);
+  const comision = vend ? Math.round(margenUSD*vend.com)/100 : 0;
+
+  const venta = {
+    id: id('venta'),
+    num: 'V-' + String(DB.corr.venta).padStart(5,'0'),
+    fecha: ahora(),
+    clienteId: cli.id,
+    canal: VTA.canal,
+    entrega: VTA.entrega,
+    zonaId: VTA.zonaId,
+    delivUSD: montoDeliv(),
+    exoDeliv: VTA.exoDeliv,
+    vendedorId: (VTA.vendedorId==='sin'?null:VTA.vendedorId),
+    lineas: VTA.lineas.map(l=>({id:l.id, sku:l.sku, nom:l.nom, talla:l.talla||'', cant:l.cant, precio:l.precio, costo:l.costo})),
+    cobros: VTA.cobros.slice(),
+    vuelto: vuelto>0 ? { usd:vuelto, bs: t?Math.round(vuelto*t.bcv*100)/100:null, met:VTA.vuelto.met, ref:VTA.vuelto.ref||'' } : null,
+    totalUSD, margenUSD, comision,
+    tasaBCV: t ? t.bcv : null
+  };
+  DB.ventas.push(venta);
+
+  cli.compras = (cli.compras||0)+1;
+  cli.monto = Math.round(((cli.monto||0)+totalUSD)*100)/100;
+  cli.ultima = venta.fecha;
+
+  bitacora('CAJA','CREAR','Venta '+venta.num+' · USD '+fN(totalUSD)+' · '+venta.lineas.reduce((a,l)=>a+l.cant,0)+' unidades · cliente '+cli.tipoDoc+'-'+cli.doc+' · canal '+venta.canal);
+  venta.cobros.forEach((c,i)=>{
+    const m = METODOS.find(x=>x.k===c.met);
+    bitacora('CAJA','CREAR','Cobro '+(i+1)+'/'+venta.cobros.length+' · '+m.n+' '+(c.mon==='BS'?'Bs ':'USD ')+fN(c.monto)+(c.ref?' · ref. '+c.ref:''));
+  });
+  if(venta.vuelto){
+    const m = METODOS.find(x=>x.k===venta.vuelto.met);
+    bitacora('CAJA','CREAR','Vuelto entregado · '+m.n+' · USD '+fN(venta.vuelto.usd)+(venta.vuelto.bs?' (Bs '+fN(venta.vuelto.bs)+')':'')+(venta.vuelto.ref?' · ref. '+venta.vuelto.ref:'')+' · salida de caja');
+  }
+  bitacora('INVENTARIO','MODIFICAR','Salida de '+venta.lineas.map(l=>l.cant+' × '+l.sku+(l.talla?' talla '+l.talla:'')).join(', '));
+  if(venta.exoDeliv) bitacora('CAJA','APROBAR','Delivery exonerado en la venta '+venta.num);
+
+  guardar();
+  VTA.hecha = venta;
+  VTA.paso = 'hecha';
+  pinta();
+}
+
+/* ------------------------------ comprobante ---------------------------- */
+function vtaHecha(){
+  const v = VTA.hecha, cli = DB.clientes.find(c=>c.id===v.clienteId), t = v.tasaBCV;
+  const vend = DB.vendedores.find(x=>x.id===v.vendedorId);
+  let h = '<h1>Venta registrada</h1>'
+    + '<p class="sub">Quedó guardada con el número <b>'+esc(v.num)+'</b>. La existencia ya bajó y la bitácora tiene su línea.</p>';
+
+  if(v.vuelto){
+    const m = METODOS.find(x=>x.k===v.vuelto.met);
+    h += '<div class="card vuebox" style="margin-bottom:16px"><div class="vuemonto">'
+      + '<div><span class="et">Entregue de vuelto</span><span class="mt">USD '+fN(v.vuelto.usd)+'</span>'
+      + (v.vuelto.bs?'<span class="sb">Bs '+fN(v.vuelto.bs)+'</span>':'')+'</div>'
+      + '<div><span class="et">Por</span><span class="mt" style="font-size:22px">'+esc(m.n)+'</span>'
+      + (v.vuelto.ref?'<span class="sb">ref. '+esc(v.vuelto.ref)+'</span>':'')+'</div></div></div>';
+  }
+
+  h += '<div class="grid2" style="align-items:start">';
+  h += '<div class="card"><h2 style="margin-top:0">Qué quedó registrado</h2><table class="dat"><tbody>'
+    + '<tr><td>Cliente</td><td class="n"><b>'+esc(cli.nom)+'</b><div class="mini">'+esc(cli.tipoDoc+'-'+cli.doc)+'</div></td></tr>'
+    + '<tr><td>Canal</td><td class="n">'+esc(v.canal)+'</td></tr>'
+    + '<tr><td>Entrega</td><td class="n">'+(v.entrega==='delivery'?'Delivery · USD '+fN(v.delivUSD):'Retiro en la tienda')+'</td></tr>'
+    + '<tr><td>Vendedor</td><td class="n">'+(vend?esc(vend.nom):'Autoservicio')+'</td></tr>'
+    + '<tr><td>Margen bruto</td><td class="n">USD '+fN(v.margenUSD)+'</td></tr>'
+    + (vend?'<tr><td>Comisión de '+esc(vend.nom)+'</td><td class="n">USD '+fN(v.comision)+'</td></tr>':'')
+    + '<tr><td><b>Total cobrado</b></td><td class="n"><b>USD '+fN(v.totalUSD)+'</b></td></tr>'
+    + '</tbody></table>'
+    + '<div class="acc" style="margin-top:16px"><button class="b" id="k_otra">Registrar otra venta</button>'
+    + '<button class="b gh" data-ir="vtas">Ver todas las ventas</button></div></div>';
+
+  h += '<div class="card"><h2 style="margin-top:0">Recibo</h2><div class="recibo">';
+  if(DB.empresa.logo) h += '<div style="text-align:center;margin-bottom:8px"><img src="'+DB.empresa.logo+'" alt="" style="max-height:52px;max-width:70%"></div>';
+  h += '<div style="text-align:center"><b>'+esc(DB.empresa.nom||'—')+'</b><br>'
+    + 'RIF ' + esc((DB.empresa.tipoRif||'J')+'-'+(DB.empresa.rif||'')) + '<br>'
+    + esc(DB.empresa.dir||'') + '</div><hr>'
+    + 'Recibo ' + esc(v.num) + '<br>' + fFecha(v.fecha) + ' ' + fHora(v.fecha) + '<br>'
+    + esc(cli.nom) + ' · ' + esc(cli.tipoDoc+'-'+cli.doc) + '<hr>';
+  v.lineas.forEach(l=>{
+    h += esc(l.nom) + (l.talla?' (talla '+esc(l.talla)+')':'') + '<br>' + l.cant + ' × ' + fN(l.precio) + ' = ' + fN(l.precio*l.cant) + '<br>';
+  });
+  h += '<hr>';
+  if(v.delivUSD>0) h += 'Delivery ' + fN(v.delivUSD) + '<br>';
+  h += '<b>TOTAL USD ' + fN(v.totalUSD) + '</b><br>';
+  if(t) h += 'TOTAL Bs ' + fN(v.totalUSD*t) + '<br>Tasa BCV ' + fN(t) + '<br>';
+  h += '<hr>';
+  v.cobros.forEach(c=>{ const m=METODOS.find(x=>x.k===c.met); h += esc(m.n)+' '+(c.mon==='BS'?'Bs ':'USD ')+fN(c.monto)+(c.ref?' ref.'+esc(c.ref):'')+'<br>'; });
+  if(v.vuelto){ const m=METODOS.find(x=>x.k===v.vuelto.met); h += 'Vuelto '+esc(m.n)+' USD '+fN(v.vuelto.usd)+'<br>'; }
+  h += '<hr><div style="text-align:center" class="mini">Gracias por su compra</div>';
+  h += '</div></div></div>';
+  return h;
+}
+
+/* ==========================================================================
    Apertura de caja + cableado de eventos por pantalla
    ========================================================================== */
 function faltantesSinCaja(){ return pasos().filter(p=>p.ob && p.k!=='caja' && !p.ok); }
@@ -1552,7 +2318,8 @@ function enlaza(){
       if(nom.length<3){ aviso('Falta la razón social.', true); return; }
       if(rif.length<8){ aviso('El RIF lleva al menos 8 dígitos.', true); return; }
       DB.empresa = { nom, rif, tipoRif:$('#e_trif').value, dir:$('#e_dir').value.trim(),
-                     tel:$('#e_tel').value.trim(), mail:$('#e_mail').value.trim() };
+                     tel:$('#e_tel').value.trim(), mail:$('#e_mail').value.trim(),
+                     logo: DB.empresa.logo || '' };
       if(!DB.creado) DB.creado = ahora();
       bitacora('EMPRESA','MODIFICAR','Datos fiscales · '+nom+' · '+$('#e_trif').value+'-'+rif);
       guardar(); aviso('Datos de la empresa guardados.'); pinta();
@@ -1622,49 +2389,60 @@ function enlaza(){
     }));
   }
 
-  /* ---- productos ---- */
-  if(cur==='prod'){
-    $('#c_guardar').addEventListener('click', ()=>{
-      const nom = $('#c_nom').value.trim();
-      if(nom.length<2){ aviso('Escriba el nombre de la categoría.', true); return; }
-      if(DB.categorias.some(c=>c.nom.toLowerCase()===nom.toLowerCase())){ aviso('Esa categoría ya existe.', true); return; }
-      DB.categorias.push({id:'c'+(DB.categorias.length+1), nom});
-      bitacora('INVENTARIO','CREAR','Categoría '+nom);
-      guardar(); aviso('Categoría agregada.'); pinta();
-    });
-    const mg = $('#p_margen');
-    if(mg){
-      const calc = ()=>{
-        const c = num($('#p_costo').value), pr = num($('#p_precio').value);
-        if(!(c>0 && pr>0)){ mg.innerHTML=''; return; }
-        const m = (pr-c)/pr*100, t = tasaHoy();
-        mg.innerHTML = 'Margen bruto <b style="color:'+(m<20?'var(--crit)':'var(--good-ink)')+'">'+fN(m)+' %</b> · gana USD '+fN(pr-c)+' por unidad'
-          + (t?' · precio en bolívares Bs '+fN(pr*t.bcv):'');
-      };
-      ['p_costo','p_precio'].forEach(k=> $('#'+k).addEventListener('input', calc));
-      calc();
-    }
-    const pg = $('#p_guardar');
-    if(pg) pg.addEventListener('click', ()=>{
-      const nom = $('#p_nom').value.trim(), cat = $('#p_cat').value;
-      const costo = num($('#p_costo').value), precio = num($('#p_precio').value), exi = Math.max(0, Math.round(num($('#p_exi').value)));
-      if(nom.length<3){ aviso('Falta el nombre del artículo.', true); return; }
-      if(!(costo>0)){ aviso('El costo tiene que ser mayor que cero.', true); return; }
-      if(!(precio>0)){ aviso('El precio tiene que ser mayor que cero.', true); return; }
-      if(precio<costo && !confirm('El precio es menor que el costo: esta venta daría pérdida. ¿Guardar de todas formas?')) return;
-      let sku = $('#p_sku').value.trim();
-      if(!sku) sku = String(DB.categorias.findIndex(c=>c.id===cat)+1).padStart(2,'0')+'-'+String(DB.productos.length+1).padStart(5,'0');
-      if(DB.productos.some(p=>p.sku===sku)){ aviso('Ese código ya está usado.', true); return; }
-      DB.productos.push({id:id('producto'), sku, nom, cat, costo, precio, exi, min:0});
-      bitacora('INVENTARIO','CREAR', sku+' '+nom+' · costo USD '+fN(costo)+' · precio USD '+fN(precio)+' · existencia '+exi);
-      guardar(); aviso('Producto agregado.'); pinta();
-    });
-  }
+  /* ---- productos y categorías ---- */
+  if(cur==='prod') enlazaProd();
 
   /* ---- clientes ---- */
   if(cur==='cli'){
     const q = $('#cli_q');
     if(q) q.addEventListener('input', ()=>{ $('#cli_tabla').innerHTML = tablaClientes(q.value); });
+  }
+
+  /* ---- logo y colores ---- */
+  if(cur==='marca'){
+    const arch = $('#m_arch');
+    if(arch) arch.addEventListener('change', e=>{
+      leeLogo(e.target.files[0], (dataUrl, pal)=>{
+        DB.empresa.logo = dataUrl;
+        DB.paleta = pal;
+        if(pal.length && (!DB.tema || DB.tema.auto !== false)){
+          DB.tema = Object.assign(temaDesde(pal[0]), {auto:true});
+        }
+        bitacora('MARCA','MODIFICAR','Logo cargado · '+pal.length+' colores detectados'+(pal.length?': '+pal.join(' '):''));
+        guardar(); aviso('Logo cargado. Los colores se tomaron de la imagen.'); pinta();
+      });
+    });
+    const qu = $('#m_quitar');
+    if(qu) qu.addEventListener('click', ()=>{
+      if(!confirm('¿Quitar el logo?')) return;
+      DB.empresa.logo = ''; DB.paleta = [];
+      bitacora('MARCA','MODIFICAR','Logo eliminado');
+      guardar(); pinta();
+    });
+    $$('[data-col]').forEach(b=> b.addEventListener('click', ()=>{
+      DB.tema = Object.assign(temaDesde(b.dataset.col), {auto:false});
+      bitacora('MARCA','MODIFICAR','Color principal '+b.dataset.col);
+      guardar(); aviso('Colores aplicados.'); pinta();
+    }));
+    const ap = $('#m_aplicar');
+    if(ap) ap.addEventListener('click', ()=>{
+      const c = $('#m_color').value;
+      DB.tema = Object.assign(temaDesde(c), {auto:false});
+      bitacora('MARCA','MODIFICAR','Color principal '+c);
+      guardar(); aviso('Colores aplicados.'); pinta();
+    });
+    const rs = $('#m_reset');
+    if(rs) rs.addEventListener('click', ()=>{
+      DB.tema = Object.assign(temaPorDefecto(), {auto:false});
+      bitacora('MARCA','MODIFICAR','Colores restablecidos al azul original');
+      guardar(); pinta();
+    });
+    const col = $('#m_color');
+    if(col) col.addEventListener('input', ()=>{
+      const t = temaDesde(col.value);
+      const pv = document.querySelectorAll('.prev span');
+      if(pv.length===3){ pv[0].style.background=t.nav1; pv[1].style.background=t.nav2; pv[2].style.background=t.s1; }
+    });
   }
 
   /* ---- datos y respaldo ---- */
@@ -1737,25 +2515,29 @@ function enlaza(){
 
     if(VTA.paso==='arts'){
       const q = $('#k_q');
-      q.addEventListener('input', ()=>{ VTA.q = q.value; const p=q.selectionStart; pinta(); const n=$('#k_q'); n.focus(); n.setSelectionRange(p,p); });
+      q.addEventListener('input', ()=>{ VTA.q = q.value; const c=q.selectionStart; pinta(); const n=$('#k_q'); n.focus(); n.setSelectionRange(c,c); });
       $$('[data-add]').forEach(b=> b.addEventListener('click', ()=>{
         const p = DB.productos.find(x=>x.id===b.dataset.add);
-        const l = VTA.lineas.find(x=>x.id===p.id);
-        if(l){ if(l.cant < p.exi) l.cant++; else aviso('No hay más existencia de ese artículo.', true); }
-        else VTA.lineas.push({id:p.id, sku:p.sku, nom:p.nom, precio:p.precio, costo:p.costo, cant:1, disp:p.exi});
+        const talla = b.dataset.talla || '';
+        const k = keyLinea(p.id, talla);
+        const disp = dispDe(p, talla);
+        const l = VTA.lineas.find(x=>x.k===k);
+        if(l){ if(l.cant < disp) l.cant++; else aviso('No hay más existencia'+(talla?' en la talla '+talla:'')+'.', true); }
+        else if(disp>0) VTA.lineas.push({k, id:p.id, sku:p.sku, nom:p.nom, talla, precio:p.precio, costo:p.costo, cant:1, disp});
+        else aviso('Sin existencia'+(talla?' en la talla '+talla:'')+'.', true);
         pinta();
       }));
       $$('[data-qp]').forEach(b=> b.addEventListener('click', ()=>{
-        const l = VTA.lineas.find(x=>x.id===b.dataset.qp);
-        if(l.cant < l.disp) l.cant++; else aviso('No hay más existencia.', true);
+        const l = VTA.lineas.find(x=>x.k===b.dataset.qp);
+        if(l.cant < l.disp) l.cant++; else aviso('No hay más existencia'+(l.talla?' en la talla '+l.talla:'')+'.', true);
         pinta();
       }));
       $$('[data-qm]').forEach(b=> b.addEventListener('click', ()=>{
-        const l = VTA.lineas.find(x=>x.id===b.dataset.qm);
-        l.cant--; if(l.cant<=0) VTA.lineas = VTA.lineas.filter(x=>x.id!==l.id);
+        const l = VTA.lineas.find(x=>x.k===b.dataset.qm);
+        l.cant--; if(l.cant<=0) VTA.lineas = VTA.lineas.filter(x=>x.k!==l.k);
         pinta();
       }));
-      $$('[data-del]').forEach(b=> b.addEventListener('click', ()=>{ VTA.lineas = VTA.lineas.filter(x=>x.id!==b.dataset.del); pinta(); }));
+      $$('[data-del]').forEach(b=> b.addEventListener('click', ()=>{ VTA.lineas = VTA.lineas.filter(x=>x.k!==b.dataset.del); pinta(); }));
       const sg = $('#k_sigue'); if(sg && !sg.disabled) sg.addEventListener('click', ()=>{ VTA.paso='cobro'; pinta(); });
     }
 
@@ -1765,6 +2547,11 @@ function enlaza(){
         formCobro(b.dataset.met);
       }));
       $$('[data-qcob]').forEach(b=> b.addEventListener('click', ()=>{ VTA.cobros.splice(+b.dataset.qcob,1); pinta(); }));
+      $$('[data-vmet]').forEach(b=> b.addEventListener('click', ()=>{
+        if(!VTA.vuelto) VTA.vuelto = {met:'efec_usd', ref:''};
+        VTA.vuelto.met = b.dataset.vmet; pinta();
+      }));
+      const vr = $('#k_vueref'); if(vr) vr.addEventListener('input', ()=>{ VTA.vuelto.ref = vr.value.trim(); });
       const rg = $('#k_reg'); if(rg && !rg.disabled) rg.addEventListener('click', registrarVenta);
     }
 
