@@ -542,8 +542,8 @@ details summary::-webkit-details-marker{color:var(--s1)}
 .b.gh:hover{border-color:var(--s1);background:var(--surface-1)}
 .b.peligro{background:var(--crit);color:#fff}
 .b.sm{padding:7px 13px;font-size:13px}
-.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(120%);background:var(--nav-1);color:#fff;padding:13px 22px;border-radius:999px;box-shadow:var(--sh3);font-size:14.5px;font-weight:600;z-index:90;transition:transform .28s cubic-bezier(.2,.9,.3,1);max-width:90vw;text-align:center}
-.toast.ver{transform:translateX(-50%) translateY(0)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(30px);background:var(--nav-1);color:#fff;padding:13px 22px;border-radius:999px;box-shadow:var(--sh3);font-size:14.5px;font-weight:600;z-index:90;max-width:90vw;text-align:center;opacity:0;visibility:hidden;pointer-events:none;transition:transform .26s cubic-bezier(.2,.9,.3,1),opacity .22s,visibility 0s linear .26s}
+.toast.ver{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;transition:transform .26s cubic-bezier(.2,.9,.3,1),opacity .22s,visibility 0s}
 .toast.mal{background:var(--crit)}
 .wiz{display:flex;flex-direction:row;gap:8px;flex-wrap:wrap;margin:0 0 20px}
 .wiz .wp{flex:1 1 150px;min-width:0;border:1px solid var(--axis);border-radius:var(--r2);padding:12px 14px;background:var(--panel);display:flex;gap:11px;align-items:center;box-shadow:var(--sh1);opacity:.62;transition:.16s}
@@ -608,8 +608,11 @@ table.dat td .b{white-space:nowrap}
 .vuemonto .sb{font-size:12.5px;color:var(--muted)}
 
 /* ---- logo y paleta ---- */
-.brandlogo{flex:0 0 auto;width:40px;height:40px;border-radius:11px;background:#fff;display:grid;place-items:center;overflow:hidden}
-.brandlogo img{max-width:34px;max-height:34px;object-fit:contain}
+.marcabox{padding:20px 16px 18px;text-align:center;border-bottom:1px solid rgba(255,255,255,.10);margin-bottom:6px}
+.marcabox .placa{background:#fff;border-radius:14px;padding:14px 16px;display:grid;place-items:center;min-height:76px;box-shadow:0 6px 18px -8px rgba(0,0,0,.5)}
+.marcabox .placa img{max-width:100%;max-height:74px;object-fit:contain;display:block}
+.marcabox .nom{display:block;margin-top:12px;color:#fff;font-size:14.5px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.marcabox .sis{display:block;color:rgba(255,255,255,.62);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-top:5px}
 .logobox{border:1px solid var(--grid);border-radius:var(--r2);background:repeating-conic-gradient(var(--surface-2) 0 25%,transparent 0 50%) 50%/18px 18px;padding:22px;display:grid;place-items:center;min-height:150px}
 .logobox img{max-width:100%;max-height:190px;object-fit:contain}
 .paleta{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
@@ -618,6 +621,20 @@ table.dat td .b{white-space:nowrap}
 .paleta .sw.on{border-color:var(--ink);box-shadow:var(--sh2)}
 .prev{display:flex;gap:0;border-radius:var(--r1);overflow:hidden;height:46px;border:1px solid var(--axis)}
 .prev span{flex:1}
+
+.filaclic{cursor:pointer}
+.filaclic:hover{background:var(--surface-1)}
+.filaclic.on{background:var(--surface-1);box-shadow:inset 3px 0 0 var(--s1)}
+.detalle{border-left:4px solid var(--s1)}
+.hilo{list-style:none;margin:14px 0 0;padding:0;position:relative}
+.hilo li{position:relative;padding:0 0 16px 26px;border-left:2px solid var(--grid)}
+.hilo li:last-child{border-left-color:transparent;padding-bottom:0}
+.hilo li::before{content:"";position:absolute;left:-7px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--panel);border:2px solid var(--s1)}
+.hilo li.sal::before{border-color:var(--warn)}
+.hilo li.ent::before{border-color:var(--good)}
+.hilo b{display:block;font-size:13.5px}
+.hilo span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+.hilo .hh{font-size:11.5px;color:var(--muted);font-family:ui-monospace,"SF Mono",Menlo,monospace}
 </style>
 </head>
 <body>
@@ -770,14 +787,20 @@ let cur = 'ini';
 function irA(s){ cur = s; pinta(); window.scrollTo(0,0); }
 
 function pintaNav(){
-  const marca = DB.empresa.logo
-    ? '<span class="brandlogo"><img src="'+DB.empresa.logo+'" alt=""></span>'
-    : '<span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 3.5-4 3 2.5L18 7"/></svg></span>';
-  let h = '<div class="brand">' + marca
-        + '<span><b>SICOM</b><span>' + (DB.empresa.nom ? esc(DB.empresa.nom) : 'Sistema Integrado Contable y Comercial') + '</span></span></div>';
+  let h;
+  if(DB.empresa.logo){
+    h = '<div class="marcabox"><div class="placa"><img src="'+DB.empresa.logo+'" alt="'+esc(DB.empresa.nom||'')+'"></div>'
+      + (DB.empresa.nom?'<span class="nom">'+esc(DB.empresa.nom)+'</span>':'')
+      + '<span class="sis">SICOM</span></div>';
+  }else{
+    h = '<div class="brand"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 3.5-4 3 2.5L18 7"/></svg></span>'
+      + '<span><b>SICOM</b><span>' + (DB.empresa.nom ? esc(DB.empresa.nom) : 'Sistema Integrado Contable y Comercial') + '</span></span></div>';
+  }
   const t = tasaHoy();
-  h += '<div class="envbox">' + (DB.empresa.nom ? esc(DB.empresa.nom) : 'Empresa sin configurar')
-     + '<br>' + (listoParaVender() ? 'Sistema operativo' : 'Faltan pasos de puesta en marcha') + '</div>';
+  const nPend = pasos().filter(p=>p.ob && !p.ok).length;
+  h += '<div class="envbox">' + (listoParaVender()
+        ? 'Sistema operativo<br>Caja ' + (DB.caja.abierta ? 'abierta · turno N° '+DB.caja.turno : 'sin abrir')
+        : 'Puesta en marcha<br>' + nPend + ' ' + (nPend===1?'paso pendiente':'pasos pendientes')) + '</div>';
   NAV.forEach(([grupo, items])=>{
     h += '<div class="grp">'+grupo+'</div>';
     items.forEach(([k, nom, ico])=>{
@@ -1542,21 +1565,53 @@ PANT.marca = function(){
   return h;
 };
 
+/* recorta el borde vacío (transparente o blanco) alrededor del logo */
+function recorta(img){
+  const cv = document.createElement('canvas');
+  cv.width = img.width; cv.height = img.height;
+  const cx = cv.getContext('2d', {willReadFrequently:true});
+  cx.drawImage(img, 0, 0);
+  let d;
+  try{ d = cx.getImageData(0,0,cv.width,cv.height).data; }
+  catch(e){ return {cv, x0:0, y0:0, w:cv.width, h:cv.height}; }
+  let x0=cv.width, y0=cv.height, x1=-1, y1=-1;
+  for(let y=0; y<cv.height; y++){
+    for(let x=0; x<cv.width; x++){
+      const i = (y*cv.width + x)*4;
+      const a = d[i+3];
+      if(a < 24) continue;                                   // transparente
+      if(a > 240 && d[i]>246 && d[i+1]>246 && d[i+2]>246) continue;  // blanco puro
+      if(x<x0) x0=x; if(x>x1) x1=x;
+      if(y<y0) y0=y; if(y>y1) y1=y;
+    }
+  }
+  if(x1 < 0) return {cv, x0:0, y0:0, w:cv.width, h:cv.height};   // imagen vacía
+  const m = Math.round(Math.max(cv.width, cv.height) * 0.015);   // un respiro mínimo
+  x0 = Math.max(0, x0-m); y0 = Math.max(0, y0-m);
+  x1 = Math.min(cv.width-1, x1+m); y1 = Math.min(cv.height-1, y1+m);
+  return {cv, x0, y0, w:x1-x0+1, h:y1-y0+1};
+}
+
 function leeLogo(file, cb){
   if(!file) return;
-  if(file.size > 1024*1024*2){ aviso('El logo pesa más de 2 MB. Use una imagen más liviana.', true); return; }
+  if(file.size > 1024*1024*4){ aviso('El logo pesa más de 4 MB. Use una imagen más liviana.', true); return; }
   const r = new FileReader();
   r.onload = ()=>{
     const img = new Image();
     img.onload = ()=>{
-      // reescalar a 480 px de ancho máximo para no inflar el almacenamiento
-      const max = 480, esc = Math.min(1, max/img.width);
-      const cv = document.createElement('canvas');
-      cv.width = Math.round(img.width*esc); cv.height = Math.round(img.height*esc);
-      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      const dataUrl = cv.toDataURL('image/png');
+      const rec = recorta(img);
+      /* se ajusta solo a una caja de 560 × 280, sin deformarse */
+      const MAXW = 560, MAXH = 280;
+      const esc2 = Math.min(1, MAXW/rec.w, MAXH/rec.h);
+      const W = Math.max(1, Math.round(rec.w*esc2)), H = Math.max(1, Math.round(rec.h*esc2));
+      const out = document.createElement('canvas');
+      out.width = W; out.height = H;
+      const ox = out.getContext('2d');
+      ox.imageSmoothingQuality = 'high';
+      ox.drawImage(rec.cv, rec.x0, rec.y0, rec.w, rec.h, 0, 0, W, H);
+      const dataUrl = out.toDataURL('image/png');
       const pal = paletaDe(img);
-      cb(dataUrl, pal);
+      cb(dataUrl, pal, {orig:[img.width,img.height], final:[W,H]});
     };
     img.onerror = ()=> aviso('No se pudo leer esa imagen.', true);
     img.src = r.result;
@@ -2276,6 +2331,130 @@ function vtaHecha(){
 }
 
 /* ==========================================================================
+   Ventas · detalle y trazabilidad completa, con foco en el vuelto
+   ========================================================================== */
+let verVenta = null;
+
+function nomMet(k){ const m = METODOS.find(x=>x.k===k); return m ? m.n : k; }
+function vueltosDe(ls){ return ls.filter(v=>v.vuelto).reduce((a,v)=>a+v.vuelto.usd, 0); }
+
+PANT.vtas = function(){
+  const ls = DB.ventas.slice().reverse();
+  let h = '<h1>Ventas</h1>';
+  if(!ls.length){
+    return h + '<p class="sub">Todavía no se ha registrado ninguna venta.</p>'
+      + '<div class="card"><div class="vacio"><div class="vi">⌕</div><p class="note" style="margin:0">Sin ventas registradas.</p>'
+      + (listoParaVender()?'<button class="b" data-ir="caja" style="margin-top:14px">Registrar la primera venta</button>':'')+'</div></div>';
+  }
+  const hoy = ls.filter(v=>v.fecha.slice(0,10)===hoyISO());
+  const tot = a => a.reduce((x,v)=>x+v.totalUSD,0);
+  const marg= a => a.reduce((x,v)=>x+(v.margenUSD||0),0);
+  const conVuelto = ls.filter(v=>v.vuelto);
+
+  h += '<p class="sub">Toque cualquier venta para ver su detalle completo: qué se llevó, cómo pagó, cuánto se le devolvió y con qué referencia.</p>'
+    + '<div class="grid4">'
+    + '<div class="card"><div class="k">Hoy</div><div class="v">'+fN(tot(hoy))+'<span class="u">USD</span></div><div class="d">'+hoy.length+' '+(hoy.length===1?'venta':'ventas')+'</div></div>'
+    + '<div class="card"><div class="k">Acumulado</div><div class="v">'+fN(tot(ls))+'<span class="u">USD</span></div><div class="d">'+ls.length+' ventas</div></div>'
+    + '<div class="card"><div class="k">Margen acumulado</div><div class="v">'+fN(marg(ls))+'<span class="u">USD</span></div><div class="d">'+(tot(ls)>0?fN(marg(ls)/tot(ls)*100)+' % sobre venta':'—')+'</div></div>'
+    + '<div class="card"><div class="k">Vueltos entregados</div><div class="v">'+fN(vueltosDe(ls))+'<span class="u">USD</span></div><div class="d">en '+conVuelto.length+' de '+ls.length+' ventas</div></div>'
+    + '</div>';
+
+  h += '<div class="card"><table class="dat"><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Canal</th><th>Vendedor</th><th class="n">Unid.</th><th class="n">Total USD</th><th>Vuelto</th><th class="n">Margen</th></tr></thead><tbody>';
+  ls.forEach(v=>{
+    const c = DB.clientes.find(x=>x.id===v.clienteId);
+    const vd = DB.vendedores.find(x=>x.id===v.vendedorId);
+    h += '<tr class="filaclic'+(verVenta===v.id?' on':'')+'" data-vventa="'+v.id+'">'
+      + '<td class="mono">'+esc(v.num)+'</td><td>'+fFecha(v.fecha)+' <span class="mini">'+fHora(v.fecha)+'</span></td>'
+      + '<td>'+(c?esc(c.nom):'Ocasional')+'</td><td>'+esc(v.canal)+'</td><td>'+(vd?esc(vd.nom):'—')+'</td>'
+      + '<td class="n">'+v.lineas.reduce((a,l)=>a+l.cant,0)+'</td><td class="n"><b>'+fN(v.totalUSD)+'</b></td>'
+      + '<td>'+(v.vuelto
+          ? '<span class="badge" style="background:var(--warn-bg);color:var(--warn-ink)">USD '+fN(v.vuelto.usd)+'</span>'
+            +'<div class="mini">'+esc(nomMet(v.vuelto.met))+(v.vuelto.ref?' · ref. '+esc(v.vuelto.ref):'')+'</div>'
+          : '<span class="mini">—</span>')+'</td>'
+      + '<td class="n">'+fN(v.margenUSD||0)+'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+
+  if(verVenta){
+    const v = DB.ventas.find(x=>x.id===verVenta);
+    if(v) h += detalleVenta(v);
+  }
+  return h;
+};
+
+/* ------------------------- detalle de una venta ------------------------- */
+function detalleVenta(v){
+  const c = DB.clientes.find(x=>x.id===v.clienteId);
+  const vd = DB.vendedores.find(x=>x.id===v.vendedorId);
+  const z = v.zonaId ? DB.delivery.zonas.find(x=>x.id===v.zonaId) : null;
+  const t = v.tasaBCV;
+  const pagado = v.cobros.reduce((a,x)=>a + (x.mon==='BS' ? x.monto/(t||1) : x.monto), 0);
+
+  let h = '<div class="card detalle"><h2 style="margin-top:0">Venta '+esc(v.num)+'</h2>'
+    + '<p class="note" style="margin-top:0">Registrada el '+fFecha(v.fecha)+' a las '+fHora(v.fecha)
+    + (t?' · tasa BCV '+fN(t):'')+'. Ninguna venta se puede borrar ni editar: si hay un error, se anula con su motivo y se emite el reverso.</p>';
+
+  h += '<div class="grid2" style="align-items:start;margin-top:16px">';
+
+  /* qué se llevó */
+  h += '<div><h3 style="font-size:14.5px;margin:0 0 9px">Qué se llevó</h3>'
+    + '<table class="dat"><thead><tr><th>Artículo</th><th class="n">Cant.</th><th class="n">Precio</th><th class="n">Subtotal</th></tr></thead><tbody>';
+  v.lineas.forEach(l=>{
+    h += '<tr><td><b>'+esc(l.nom)+'</b>'+(l.talla?' <span class="tal">'+esc(l.talla)+'</span>':'')
+      + '<div class="mini">'+esc(l.sku)+' · costo USD '+fN(l.costo)+'</div></td>'
+      + '<td class="n">'+l.cant+'</td><td class="n">'+fN(l.precio)+'</td><td class="n"><b>'+fN(l.precio*l.cant)+'</b></td></tr>';
+  });
+  h += '</tbody></table>'
+    + '<table class="dat" style="margin-top:10px"><tbody>'
+    + '<tr><td>Canal</td><td class="n">'+esc(v.canal)+'</td></tr>'
+    + '<tr><td>Entrega</td><td class="n">'+(v.entrega==='delivery'
+        ? (z?esc(z.nom):'Delivery')+' · USD '+fN(v.delivUSD)+(v.exoDeliv?' <span class="badge ok">exonerado</span>':'')
+        : 'Retiro en la tienda')+'</td></tr>'
+    + '<tr><td>Vendedor</td><td class="n">'+(vd?esc(vd.nom)+' · comisión USD '+fN(v.comision):'Autoservicio · sin comisión')+'</td></tr>'
+    + '<tr><td>Margen bruto</td><td class="n">USD '+fN(v.margenUSD)+'</td></tr>'
+    + '<tr><td><b>Total</b></td><td class="n"><b>USD '+fN(v.totalUSD)+'</b>'+(t?'<div class="mini">Bs '+fN(v.totalUSD*t)+'</div>':'')+'</td></tr>'
+    + '</tbody></table></div>';
+
+  /* el dinero: entró, salió */
+  h += '<div><h3 style="font-size:14.5px;margin:0 0 9px">El dinero</h3><ul class="hilo">';
+  h += '<li class="ent"><b>Cliente: '+(c?esc(c.nom):'Ocasional')+'</b>'
+     + '<span>'+(c?esc(c.tipoDoc+'-'+c.doc)+(c.tel?' · '+esc((c.cod||'')+'-'+c.tel):''):'sin identificar')+'</span></li>';
+  v.cobros.forEach((x,i)=>{
+    h += '<li class="ent"><b>Entró · '+esc(nomMet(x.met))+'</b>'
+      + '<span>'+(x.mon==='BS'?'Bs '+fN(x.monto)+' · equivale a USD '+fN(x.monto/(t||1)):'USD '+fN(x.monto))
+      + (x.ref?' · referencia '+esc(x.ref):' · sin referencia (efectivo)')+'</span></li>';
+  });
+  h += '<li><b>Total recibido</b><span>USD '+fN(pagado)+' contra un total de USD '+fN(v.totalUSD)+'</span></li>';
+  if(v.vuelto){
+    h += '<li class="sal"><b>Salió · vuelto por '+esc(nomMet(v.vuelto.met))+'</b>'
+      + '<span>USD '+fN(v.vuelto.usd)+(v.vuelto.bs?' · Bs '+fN(v.vuelto.bs):'')
+      + (v.vuelto.ref?' · referencia '+esc(v.vuelto.ref):' · efectivo del fondo de vueltos')+'</span></li>'
+      + '<li><b>Queda en caja por esta venta</b><span>USD '+fN(v.totalUSD)+' — el vuelto ya salió</span></li>';
+  }else{
+    h += '<li><b>Sin vuelto</b><span>El cliente pagó el monto exacto.</span></li>';
+  }
+  h += '</ul></div></div>';
+
+  /* bitácora de esta venta */
+  const reg = DB.bitacora.filter(r=> r.detalle.includes(v.num)
+      || (r.ts >= v.fecha && new Date(r.ts) - new Date(v.fecha) < 4000 && ['CAJA','INVENTARIO','CLIENTES'].includes(r.modulo)));
+  if(reg.length){
+    h += '<div style="margin-top:20px"><h3 style="font-size:14.5px;margin:0 0 9px">Lo que quedó en la bitácora</h3>'
+      + '<table class="dat"><thead><tr><th>Hora</th><th>Módulo</th><th>Acción</th><th>Detalle</th><th>Hash</th></tr></thead><tbody>';
+    reg.forEach(r=>{
+      h += '<tr><td class="mono" style="white-space:nowrap">'+fHora(r.ts)+'</td>'
+        + '<td><span class="badge">'+esc(r.modulo)+'</span></td><td><b>'+esc(r.accion)+'</b></td>'
+        + '<td>'+esc(r.detalle)+'</td><td class="mono mini">'+esc(r.h)+'</td></tr>';
+    });
+    h += '</tbody></table>'
+      + '<p class="note" style="margin:11px 0 0">Cada línea está encadenada con la anterior por su hash. Alterar cualquiera rompe la cadena y el verificador de Auditoría señala el punto exacto.</p></div>';
+  }
+
+  h += '<div class="acc" style="margin-top:18px"><button class="b gh" id="v_cerrar">Cerrar el detalle</button></div>';
+  return h + '</div>';
+}
+
+/* ==========================================================================
    Apertura de caja + cableado de eventos por pantalla
    ========================================================================== */
 function faltantesSinCaja(){ return pasos().filter(p=>p.ob && p.k!=='caja' && !p.ok); }
@@ -2392,6 +2571,16 @@ function enlaza(){
   /* ---- productos y categorías ---- */
   if(cur==='prod') enlazaProd();
 
+  /* ---- ventas: abrir el detalle ---- */
+  if(cur==='vtas'){
+    $$('[data-vventa]').forEach(r=> r.addEventListener('click', ()=>{
+      verVenta = (verVenta===r.dataset.vventa) ? null : r.dataset.vventa;
+      pinta();
+      if(verVenta){ const d=document.querySelector('.detalle'); if(d) d.scrollIntoView({behavior:'smooth', block:'start'}); }
+    }));
+    const vc = $('#v_cerrar'); if(vc) vc.addEventListener('click', ()=>{ verVenta=null; pinta(); });
+  }
+
   /* ---- clientes ---- */
   if(cur==='cli'){
     const q = $('#cli_q');
@@ -2402,14 +2591,14 @@ function enlaza(){
   if(cur==='marca'){
     const arch = $('#m_arch');
     if(arch) arch.addEventListener('change', e=>{
-      leeLogo(e.target.files[0], (dataUrl, pal)=>{
+      leeLogo(e.target.files[0], (dataUrl, pal, med)=>{
         DB.empresa.logo = dataUrl;
         DB.paleta = pal;
         if(pal.length && (!DB.tema || DB.tema.auto !== false)){
           DB.tema = Object.assign(temaDesde(pal[0]), {auto:true});
         }
-        bitacora('MARCA','MODIFICAR','Logo cargado · '+pal.length+' colores detectados'+(pal.length?': '+pal.join(' '):''));
-        guardar(); aviso('Logo cargado. Los colores se tomaron de la imagen.'); pinta();
+        bitacora('MARCA','MODIFICAR','Logo cargado · recortado y ajustado a '+med.final[0]+'×'+med.final[1]+' desde '+med.orig[0]+'×'+med.orig[1]+' · '+pal.length+' colores detectados'+(pal.length?': '+pal.join(' '):''));
+        guardar(); aviso('Logo recortado y ajustado. Los colores se tomaron de la imagen.'); pinta();
       });
     });
     const qu = $('#m_quitar');
