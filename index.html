@@ -395,6 +395,7 @@ function SEMILLA(){ return {
   fondoUSD:100,
   cfg:{
     claveAdmin:'',
+    motAnul:MOT_ANUL_BASE(), motDev:MOT_DEV_BASE(),
     canales:['Presencial','Instagram','TikTok','WhatsApp','Facebook','Referido'],
     vendedores:[
       {id:'v1',nom:'Keylis',ape:'Bermúdez',ci:'12458001',com:3,banco:'Banesco',op:'0412',tel:'9597787',activo:true},
@@ -1643,7 +1644,7 @@ function vistaCfg(){
     +'<div class="subtabs">'
     +[['emp','Empresa'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
       ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras'],
-      ['contab','Contabilidad']]
+      ['mot','Motivos'],['contab','Contabilidad']]
       .map(s=>'<button data-csub="'+s[0]+'" class="'+(CSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     +'</div>';
 
@@ -1651,6 +1652,7 @@ function vistaCfg(){
   if(CSUB==='marca') return h + cfgMarca();
   if(CSUB==='prod')  return h + cfgProd();
   if(CSUB==='cat')   return h + cfgCat();
+  if(CSUB==='mot')    return h + cfgMotivos();
   if(CSUB==='contab') return h + cfgContab();
 
   if(CSUB==='vend'){
@@ -2184,6 +2186,8 @@ function normaliza(b){
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
   if(!b.cuentas || !b.cuentas.length) b.cuentas = CUENTAS_BASE();
   if(!b.mapaCtas) b.mapaCtas = MAPA_BASE();
+  if(!b.cfg.motAnul || !b.cfg.motAnul.length) b.cfg.motAnul = MOT_ANUL_BASE();
+  if(!b.cfg.motDev  || !b.cfg.motDev.length)  b.cfg.motDev  = MOT_DEV_BASE();
   b.vpend.forEach(p=>{ if(!p.tipo) p.tipo = 'vuelto'; });
   return b;
 }
@@ -3136,12 +3140,12 @@ function puedeAnular(v){
   if(devueltoUSD(v) > 0.005) return 'Esa venta ya tiene una devolución registrada. Anular encima dejaría el inventario descuadrado: registre el resto como devolución.';
   return '';
 }
-function anularVenta(num, motivo, clave){
+function anularVenta(num, cod, det, clave){
   const v = DB.ventas.find(x=>x.num === num);
   if(!v) return aviso('No encontré esa venta.', true);
   const no = puedeAnular(v); if(no) return aviso(no, true);
-  if(String(motivo||'').trim().length < 10)
-    return aviso('Escriba el motivo de la anulación: al menos una frase que explique qué pasó.', true);
+  const vm = valMotivo('anul', cod, det); if(!vm.ok) return aviso(vm.msg, true);
+  const motivo = motTexto('anul', cod, det);
   if(!hayClave())
     return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true);
   if(!claveOK(clave)) return aviso('La clave de administrador no es correcta.', true);
@@ -3174,17 +3178,18 @@ function anularVenta(num, motivo, clave){
     cie.afectado.push({venta:v.num, usd:v.total, motivo:'anulación', cuando:hoy});
   }
 
-  v.anulada = {fecha:hoy, hora:horaAhora(), motivo:String(motivo).trim(),
+  v.anulada = {fecha:hoy, hora:horaAhora(), motivo:motivo,
+               motivoC:cod, detalle:String(det||'').trim(),
                por:cajeraNom(DB.turno), cierre: cie ? cie.fecha : null,
                vueltoCancelado:Math.round(vueltoCancelado*100)/100,
                yaEntregado:Math.round(yaEntregado*100)/100, op:'anul'};
 
-  bitacora('caja','Venta anulada', v.num + ' · USD ' + fN(v.total) + ' · ' + String(motivo).trim()
+  bitacora('caja','Venta anulada', v.num + ' · USD ' + fN(v.total) + ' · ' + cod + ' · ' + motivo
     + (cie ? ' · afecta el cierre del ' + fFecha(cie.fecha) : '')
     + (yaEntregado > 0.005 ? ' · ya se le había entregado USD ' + fN(yaEntregado) : ''));
 
   aviso('Venta ' + v.num + ' anulada.' + (cie ? ' El cierre del ' + fFecha(cie.fecha) + ' quedó marcado como afectado.' : ''));
-  VSEL = v.num; VACC = null; VMOT = ''; VCLA = '';
+  VSEL = v.num; VACC = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = '';
   pinta();
 }
 
@@ -3197,14 +3202,14 @@ function totalDev(v){
   v.lineas.forEach((l,i)=>{ const n = DEV[i] || 0; t += n * l.precio; });
   return Math.round(t * 100) / 100;
 }
-function registraDevolucion(num, motivo){
+function registraDevolucion(num, cod, det){
   const v = DB.ventas.find(x=>x.num === num);
   if(!v) return aviso('No encontré esa venta.', true);
   if(anulada(v)) return aviso('Esa venta está anulada: no hay nada que devolver.', true);
   const usd = totalDev(v);
   if(usd < 0.005) return aviso('Indique cuántas unidades regresan.', true);
-  if(String(motivo||'').trim().length < 5)
-    return aviso('Escriba por qué la devuelve: talla, defecto, cambio de opinión.', true);
+  const vm = valMotivo('dev', cod, det); if(!vm.ok) return aviso(vm.msg, true);
+  const motivo = motTexto('dev', cod, det);
 
   const lineas = [];
   v.lineas.forEach((l,i)=>{
@@ -3223,7 +3228,8 @@ function registraDevolucion(num, motivo){
 
   if(!v.devuelto) v.devuelto = [];
   v.devuelto.push({fecha:hoy, hora:horaAhora(), lineas:lineas, usd:usd,
-                   motivo:String(motivo).trim(), cajera:DB.turno, pendId:pid, op:'dev'});
+                   motivo:motivo, motivoC:cod, detalle:String(det||'').trim(),
+                   cajera:DB.turno, pendId:pid, op:'dev'});
 
   const cie = DB.cierres.find(x=>x.fecha === v.fecha);
   if(cie && cie.fecha !== hoy){
@@ -3236,10 +3242,10 @@ function registraDevolucion(num, motivo){
 
   bitacora('caja','Devolución registrada', v.num + ' · USD ' + fN(usd) + ' · '
     + lineas.map(l=>l.cant + '× ' + l.nom + (l.talla ? ' ' + l.talla : '')).join(' · ')
-    + ' · ' + String(motivo).trim());
+    + ' · ' + cod + ' · ' + motivo);
 
   aviso('Devolución registrada por USD ' + fN(usd) + ' · entréguesela al cliente.');
-  DEV = null; VACC = null; VMOT = '';
+  DEV = null; VACC = null; VMOT = ''; VMOTC = ''; VDET = '';
   TAB = 'tes'; TSUB = 'vueltos'; PSEL = pid;
   pinta(); window.scrollTo(0, 0);
 }
@@ -3248,6 +3254,7 @@ function registraDevolucion(num, motivo){
    SICOM v3 · pantallas de ventas, seguridad y contabilidad
    ========================================================================== */
 let VSEL = null, VACC = null, VMOT = '', VCLA = '', VQ = '', DEV = null, CTAED = null;
+let VMOTC = '', VDET = '';
 
 /* ------------------------------------------------------------- VENTAS ---- */
 function buscaVentas(){
@@ -3312,6 +3319,8 @@ function repVentas(){
   h += '</tbody></table>';
   if(ls.length > 60) h += '<div class="nota">Se muestran las 60 más recientes de '+ls.length+'. Afine la búsqueda para ver el resto.</div>';
   h += '</div>';
+  if(DB.ventas.some(v=>(v.devuelto||[]).length)) h += cardPorQue('dev');
+  if(DB.ventas.some(anulada))                    h += cardPorQue('anul');
   return h;
 }
 
@@ -3321,7 +3330,7 @@ function fichaVenta(v, c, t){
   if(anulada(v)){
     const a = v.anulada;
     h += '<div class="nota rj" style="margin:0 0 18px"><b>Venta anulada el '+fFecha(a.fecha)+' a las '+esc(a.hora)+'</b> '
-       + 'por '+esc(a.por)+'.<br>Motivo: '+esc(a.motivo)
+       + 'por '+esc(a.por)+'.<br>Motivo: '+(a.motivoC?'<b>'+esc(a.motivoC)+'</b> · ':'')+esc(a.motivo)
        + (a.cierre ? '<br>Afecta el cierre de caja del <b>'+fFecha(a.cierre)+'</b>, que ya estaba firmado.' : '')
        + (a.yaEntregado > 0.005 ? '<br>Ya se le había entregado USD <b>'+fN(a.yaEntregado)+'</b> de vuelto: ese dinero salió y no regresó solo.' : '')
        + '</div>';
@@ -3418,11 +3427,19 @@ function formDevolucion(v, t){
   h += '<div class="nota az" style="margin-top:14px"><b>Por qué en dólares.</b> La compra se pactó en dólares, así que '
      + 'eso es lo que se le devuelve. Si se le paga en bolívares, se calcula a la tasa del día de hoy, no a la del día '
      + 'de la compra: es lo que le cuesta a ella reponer la prenda hoy.</div>';
-  h += '<div style="margin-top:14px"><label class="f">¿Por qué la devuelve?</label>'
-     + '<input id="dv_mot" value="'+esc(VMOT)+'" placeholder="Talla equivocada, defecto de fábrica, cambio de opinión…" maxlength="90">'
-     + '<div class="ayuda">Queda en la bitácora y en el correo al cliente.</div></div>';
+  const mDev = motDe('dev', VMOTC);
+  h += '<div class="fila" style="margin-top:14px">'
+     + '<div><label class="f">¿Por qué la devuelve?</label>'+selMotivo('dev','dv_motc',VMOTC)
+     + '<div id="dv_motayuda">'+ayudaMotivo('dev',VMOTC)+'</div></div>'
+     + '<div style="flex:2 1 320px"><label class="f">Detalle'+(mDev&&mDev.pide?'':' (opcional)')+'</label>'
+     + '<input id="dv_det" value="'+esc(VDET)+'" maxlength="90" placeholder="'
+     + (mDev&&mDev.pide?'Obligatorio: explique qué pasó':'Opcional: agregue el detalle si hace falta')+'">'
+     + '<div class="ayuda">El motivo se cuenta en el reporte; el detalle va en la bitácora y en el correo.</div></div>'
+     + '</div>';
   h += '<div class="acc"><button class="b oro" id="dv_g"'+(usd < 0.005 ? ' disabled' : '')+'>'
-     + (usd < 0.005 ? 'Indique qué regresa' : 'Registrar la devolución de USD '+fN(usd))+'</button></div></div>';
+     + (usd < 0.005 ? 'Indique qué regresa' : 'Registrar la devolución de USD '+fN(usd))+'</button></div>'
+     + '<div class="nota">Con el motivo de lista, dentro de tres meses va a poder ver por qué le devuelven. '
+     + 'Los motivos se administran en Configuración · Motivos.</div></div>';
   return h;
 }
 
@@ -3462,9 +3479,15 @@ function formAnulacion(v){
   if(entregado > 0.005) h += '<div class="nota rj" style="margin-top:14px"><b>Ya se le entregó USD '+fN(entregado)+' de vuelto.</b> '
      + 'Ese dinero salió de la caja y anular no lo trae de vuelta: hay que cobrárselo al cliente aparte.</div>';
 
-  h += '<div style="margin-top:16px"><label class="f">Motivo de la anulación</label>'
-     + '<input id="an_mot" value="'+esc(VMOT)+'" placeholder="Explique qué pasó, con sus palabras" maxlength="140">'
-     + '<div class="ayuda">Al menos una frase. Queda firmada en la bitácora con su nombre.</div></div>';
+  const mAn = motDe('anul', VMOTC);
+  h += '<div class="fila" style="margin-top:16px">'
+     + '<div><label class="f">Motivo de la anulación</label>'+selMotivo('anul','an_motc',VMOTC)
+     + '<div id="an_motayuda">'+ayudaMotivo('anul',VMOTC)+'</div></div>'
+     + '<div style="flex:2 1 320px"><label class="f">Detalle'+(mAn&&mAn.pide?'':' (opcional)')+'</label>'
+     + '<input id="an_det" value="'+esc(VDET)+'" maxlength="140" placeholder="'
+     + (mAn&&mAn.pide?'Obligatorio: explique qué pasó':'Opcional: agregue el detalle si hace falta')+'">'
+     + '<div class="ayuda">Queda firmado en la bitácora con su nombre.</div></div>'
+     + '</div>';
 
   if(!hayClave()){
     h += '<div class="nota rj" style="margin-top:14px"><b>Falta la clave de administrador.</b> '
@@ -3507,6 +3530,19 @@ function gerSeguridad(){
      + 'Sirve para que nadie anule una venta de paso, no para detener a alguien decidido. La seguridad de verdad '
      + '—usuario, contraseña y permisos por rol— llega cuando el sistema esté en el servidor.</div></div>';
 
+  h += '<div class="card"><h2>Quién es quién, hoy</h2>'
+     + '<p class="cap">Se lo digo aquí para que nadie lea la bitácora como si fuera prueba de autoría.</p>'
+     + '<div class="estado pend"><span class="et">Usuarios y roles</span>'
+     + '<span class="mt">Todavía no existen</span>'
+     + '<span class="sb">Quien abre el sistema tiene acceso completo.</span></div>'
+     + '<div class="nota rj" style="margin-top:16px">El selector «Cajera en turno» de la barra de arriba es una '
+     + '<b>etiqueta, no una identidad</b>: cualquiera lo cambia sin clave. La bitácora firma con el nombre que diga '
+     + 'ese selector en ese momento, así que sirve para saber <b>qué</b> pasó y <b>cuándo</b>, pero no prueba '
+     + '<b>quién</b> lo hizo. Hoy la clave de administrador es lo único que separa una operación sensible del resto.'
+     + '<br><br>Usuario y contraseña por persona, con permisos por rol —cajera, supervisor, administrador— y una '
+     + 'firma que sí valga como prueba, llegan cuando el sistema esté en el servidor. Mientras tanto, opere sabiendo '
+     + 'esto.</div></div>';
+
   h += '<div class="card"><h2>Ventas anuladas</h2>';
   if(!anu.length) h += '<div class="vacio"><div class="vi">✓</div>No se ha anulado ninguna venta.</div>';
   else{
@@ -3515,7 +3551,8 @@ function gerSeguridad(){
     anu.slice().reverse().forEach(v=>{ const a = v.anulada;
       h += '<tr><td><b>'+esc(v.num)+'</b></td><td class="mini">'+fFecha(v.fecha)+'</td>'
         + '<td class="mini">'+fFecha(a.fecha)+' '+esc(a.hora)+'</td><td class="mini">'+esc(a.por)+'</td>'
-        + '<td class="mini">'+esc(a.motivo)+'</td><td class="n"><b>'+fN(v.total)+'</b></td>'
+        + '<td class="mini">'+(a.motivoC?'<b>'+esc(a.motivoC)+'</b> · ':'')+esc(a.motivo)+'</td>'
+        + '<td class="n"><b>'+fN(v.total)+'</b></td>'
         + '<td>'+(a.cierre ? '<span class="chip mal">afectó el del '+fFecha(a.cierre)+'</span>' : '<span class="chip">día abierto</span>')+'</td></tr>';
     });
     h += '</tbody></table><div class="nota">Ninguna venta anulada se borra. Esta tabla es la que hay que poder mostrar '
@@ -3596,12 +3633,12 @@ document.addEventListener('click', e=>{
   /* ---------------- ficha de la venta ---------------- */
   if(b.dataset.vsel){
     VSEL = (VSEL === b.dataset.vsel) ? null : b.dataset.vsel;
-    VACC = null; DEV = null; VMOT = ''; VCLA = '';
+    VACC = null; DEV = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = '';
     pinta(); return;
   }
   if(b.dataset.vacc){
     VACC = (VACC === b.dataset.vacc) ? null : b.dataset.vacc;
-    DEV = null; VMOT = ''; VCLA = '';
+    DEV = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = '';
     pinta(); return;
   }
 
@@ -3619,10 +3656,10 @@ document.addEventListener('click', e=>{
     if(DEV && DEV[i] > 0) DEV[i]--;
     pinta(); return;
   }
-  if(b.id === 'dv_g'){ registraDevolucion(VSEL, VMOT); return; }
+  if(b.id === 'dv_g'){ registraDevolucion(VSEL, VMOTC, VDET); return; }
 
   /* ---------------- anulación ---------------- */
-  if(b.id === 'an_g'){ anularVenta(VSEL, VMOT, VCLA); return; }
+  if(b.id === 'an_g'){ anularVenta(VSEL, VMOTC, VDET, VCLA); return; }
 
   /* ---------------- clave de administrador ---------------- */
   if(b.id === 'sg_g'){
@@ -3677,6 +3714,247 @@ document.addEventListener('change', e=>{
     bitacora('contab','Operación mapeada', opNom(k)+' → '+(c ? c+' · '+ctaNom(c) : 'sin cuenta'));
     aviso(c ? opNom(k)+' se asienta en '+c+'.' : opNom(k)+' quedó sin cuenta.');
     guardar(); return;
+  }
+});
+
+/* ==========================================================================
+   SICOM v4 · motivos estandarizados de anulación y devolución
+   ========================================================================== */
+
+/* Un motivo escrito a mano no se puede contar. Uno de lista sí:
+   permite saber si devuelven por talla, por defecto o por la foto. */
+function MOT_ANUL_BASE(){ return [
+  {c:'AN-01', n:'Error al registrar la venta',        d:'Se cargó el artículo, la talla o la cantidad equivocada.', pide:false, activo:true},
+  {c:'AN-02', n:'Error en el precio cobrado',         d:'Se cobró de más o de menos y hay que rehacer la venta.',   pide:false, activo:true},
+  {c:'AN-03', n:'Venta duplicada',                    d:'La misma compra se registró dos veces.',                   pide:false, activo:true},
+  {c:'AN-04', n:'El cliente desistió',                d:'Se arrepintió antes de llevarse la mercancía.',            pide:false, activo:true},
+  {c:'AN-05', n:'El pago no se confirmó',             d:'El pago móvil o la transferencia nunca entró.',            pide:false, activo:true},
+  {c:'AN-06', n:'Prueba del sistema',                 d:'Venta de ensayo, no es una operación real.',               pide:false, activo:true},
+  {c:'AN-99', n:'Otro motivo',                        d:'Hay que explicarlo por escrito.',                          pide:true,  activo:true}
+]; }
+function MOT_DEV_BASE(){ return [
+  {c:'DV-01', n:'Talla equivocada',                   d:'No le sirvió la talla que se llevó.',                      pide:false, activo:true},
+  {c:'DV-02', n:'Defecto de fábrica',                 d:'Costura, cierre, herraje o material en mal estado.',       pide:false, activo:true},
+  {c:'DV-03', n:'No era el color o el modelo pedido', d:'Llegó distinto a lo que encargó.',                         pide:false, activo:true},
+  {c:'DV-04', n:'No le gustó al verlo',               d:'Compró por foto y en persona cambió de opinión.',          pide:false, activo:true},
+  {c:'DV-05', n:'Llegó dañado en el traslado',        d:'Se estropeó en el delivery.',                              pide:false, activo:true},
+  {c:'DV-06', n:'Cambio por otro artículo',           d:'Devuelve este para llevarse otro.',                        pide:false, activo:true},
+  {c:'DV-07', n:'Entrega fuera de tiempo',            d:'Llegó tarde y ya no lo necesitaba.',                        pide:false, activo:true},
+  {c:'DV-99', n:'Otro motivo',                        d:'Hay que explicarlo por escrito.',                          pide:true,  activo:true}
+]; }
+
+function motLista(tipo){ return (tipo === 'anul' ? DB.cfg.motAnul : DB.cfg.motDev) || []; }
+function motActivos(tipo){ return motLista(tipo).filter(m=>m.activo); }
+function motDe(tipo, cod){ return motLista(tipo).find(m=>m.c === cod) || null; }
+function motTexto(tipo, cod, det){
+  const m = motDe(tipo, cod);
+  const base = m ? m.n : (cod || 'Sin motivo');
+  const d = String(det || '').trim();
+  return d ? base + ' · ' + d : base;
+}
+/* ¿está en uso? entonces no se borra, se desactiva */
+function motUsado(tipo, cod){
+  if(tipo === 'anul') return DB.ventas.some(v=>v.anulada && v.anulada.motivoC === cod);
+  return DB.ventas.some(v=>(v.devuelto||[]).some(d=>d.motivoC === cod));
+}
+function motProxCod(tipo){
+  const pre = tipo === 'anul' ? 'AN-' : 'DV-';
+  const ns = motLista(tipo).map(m=>parseInt(String(m.c).replace(pre,''), 10))
+    .filter(n=>isFinite(n) && n < 90);
+  const n = (ns.length ? Math.max.apply(null, ns) : 0) + 1;
+  return pre + String(n).padStart(2, '0');
+}
+/* valida la elección antes de dejar seguir */
+function valMotivo(tipo, cod, det){
+  if(!cod) return {ok:false, msg:'Elija el motivo de la lista.'};
+  const m = motDe(tipo, cod);
+  if(!m) return {ok:false, msg:'Ese motivo ya no existe en la lista.'};
+  if(!m.activo) return {ok:false, msg:'Ese motivo está desactivado. Elija otro.'};
+  if(m.pide && String(det||'').trim().length < 10)
+    return {ok:false, msg:'Con «'+m.n+'» hay que explicar por escrito qué pasó.'};
+  return {ok:true, msg:''};
+}
+
+/* ---------- por qué anulamos y por qué nos devuelven ---------- */
+function resumenMotivos(tipo){
+  const r = {};
+  if(tipo === 'anul'){
+    DB.ventas.filter(v=>v.anulada).forEach(v=>{
+      const c = v.anulada.motivoC || 'AN-99';
+      if(!r[c]) r[c] = {c:c, n:0, usd:0};
+      r[c].n++; r[c].usd += v.total;
+    });
+  }else{
+    DB.ventas.forEach(v=>(v.devuelto||[]).forEach(d=>{
+      const c = d.motivoC || 'DV-99';
+      if(!r[c]) r[c] = {c:c, n:0, usd:0, uds:0};
+      r[c].n++; r[c].usd += d.usd;
+      r[c].uds = (r[c].uds||0) + d.lineas.reduce((a,l)=>a+l.cant, 0);
+    }));
+  }
+  return Object.values(r)
+    .map(x=>({...x, nom:(motDe(tipo, x.c)||{}).n || x.c, usd:Math.round(x.usd*100)/100}))
+    .sort((a,b)=>b.n - a.n || b.usd - a.usd);
+}
+
+/* ==========================================================================
+   SICOM v4 · pantalla de motivos y desglose de por qué
+   ========================================================================== */
+let MOTTIPO = 'dev';
+
+/* selector de motivo, compartido por anulación y devolución */
+function selMotivo(tipo, id, cod){
+  const ls = motActivos(tipo);
+  if(!ls.length) return '<div class="nota rj" style="margin:0">No hay motivos cargados. '
+    + 'Agréguelos en Configuración · Motivos.</div>';
+  return '<select id="'+id+'"><option value="">Elija el motivo</option>'
+    + ls.map(m=>'<option value="'+esc(m.c)+'"'+(m.c === cod ? ' selected' : '')+'>'
+        + esc(m.c)+' · '+esc(m.n)+'</option>').join('') + '</select>';
+}
+function ayudaMotivo(tipo, cod){
+  const m = motDe(tipo, cod);
+  if(!m) return '<div class="ayuda">De la lista, para que después se pueda contar.</div>';
+  return '<div class="ayuda">'+esc(m.d)+'</div>';
+}
+
+/* ------------------------------------------------------------ MOTIVOS --- */
+function cfgMotivos(){
+  const tipo = MOTTIPO, ls = motLista(tipo);
+  const nom = tipo === 'anul' ? 'anulación' : 'devolución';
+
+  let h = '<div class="card"><h2>Motivos de '+nom+'</h2>'
+    + '<p class="cap">Un motivo escrito a mano no se puede contar. Uno de lista sí: es lo que permite saber, al cabo '
+    + 'de tres meses, si le devuelven por talla, por defecto de fábrica o porque la foto no se parecía al artículo. '
+    + 'Cada uno de esos problemas se arregla en un sitio distinto.</p>'
+    + '<div class="segm" style="margin-bottom:18px">'
+    + [['dev','Devoluciones'],['anul','Anulaciones']].map(o=>{
+        const on = tipo === o[0];
+        return '<button class="sg'+(on ? ' on' : '')+'" data-mottipo="'+o[0]+'">'
+          + '<span class="tick">'+(on ? '✓' : '')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div>';
+
+  h += '<div class="fila">'
+     + '<div style="flex:2 1 300px"><label class="f">Nuevo motivo</label>'
+     + '<input id="mo_n" placeholder="Escriba el motivo, corto y claro" maxlength="50"></div>'
+     + '<div style="flex:2 1 300px"><label class="f">Cuándo se usa</label>'
+     + '<input id="mo_d" placeholder="Explique en qué caso aplica" maxlength="90"></div>'
+     + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="mo_g">Agregar</button></div>'
+     + '</div>'
+     + '<div class="ayuda" style="margin-top:8px">El código se asigna solo. Los motivos que exigen explicación escrita '
+     + 'son los que terminan en 99.</div>';
+
+  h += '<table class="dat" style="margin-top:18px"><thead><tr><th>Código</th><th>Motivo</th><th>Cuándo se usa</th>'
+     + '<th class="n">Veces usado</th><th>Estado</th><th></th></tr></thead><tbody>';
+  ls.forEach(m=>{
+    const usos = tipo === 'anul'
+      ? DB.ventas.filter(v=>v.anulada && v.anulada.motivoC === m.c).length
+      : DB.ventas.reduce((a,v)=>a+(v.devuelto||[]).filter(d=>d.motivoC === m.c).length, 0);
+    h += '<tr><td><b>'+esc(m.c)+'</b></td>'
+      + '<td><b>'+esc(m.n)+'</b>'+(m.pide ? ' <span class="chip avi">pide explicación</span>' : '')+'</td>'
+      + '<td class="mini">'+esc(m.d||'')+'</td>'
+      + '<td class="n">'+(usos || '—')+'</td>'
+      + '<td>'+(m.activo ? '<span class="chip ok">activo</span>' : '<span class="chip">inactivo</span>')+'</td>'
+      + '<td class="n" style="white-space:nowrap">'
+      + '<button class="b sm gh" data-motog="'+tipo+'|'+esc(m.c)+'">'+(m.activo ? 'Desactivar' : 'Activar')+'</button>'
+      + (usos || /-99$/.test(m.c) ? '' : ' <button class="b sm gh" data-motdel="'+tipo+'|'+esc(m.c)+'">Eliminar</button>')
+      + '</td></tr>';
+  });
+  h += '</tbody></table>'
+     + '<div class="nota">Un motivo que ya se usó no se elimina: se desactiva. Deja de ofrecerse en las pantallas, '
+     + 'pero las anulaciones y devoluciones viejas conservan el suyo y siguen contando en el reporte.</div></div>';
+
+  /* el porqué, que es para lo que sirve todo esto */
+  h += cardPorQue(tipo, true);
+  return h;
+}
+
+function cardPorQue(tipo, solo){
+  const rs = resumenMotivos(tipo);
+  const nom = tipo === 'anul' ? 'Por qué anulamos' : 'Por qué nos devuelven';
+  let h = '<div class="card"><h2>'+nom+'</h2>';
+  if(!rs.length){
+    h += '<div class="vacio"><div class="vi">📊</div>Todavía no hay '
+      + (tipo === 'anul' ? 'anulaciones' : 'devoluciones')+' registradas.</div></div>';
+    return h;
+  }
+  const tot = rs.reduce((a,x)=>a+x.n, 0), totUsd = rs.reduce((a,x)=>a+x.usd, 0);
+  h += '<p class="cap">'+tot+' '+(tot === 1 ? 'caso' : 'casos')+' por USD '+fN(totUsd)+'. '
+     + 'El motivo que más pesa es el que primero hay que atacar.</p>';
+  h += '<div class="lineas">';
+  rs.forEach(x=>{
+    const pct = Math.round(x.n / tot * 100);
+    h += '<div class="lin"><div class="li"><b>'+esc(x.nom)+'</b>'
+      + '<div class="mini">'+esc(x.c)+' · '+x.n+' '+(x.n === 1 ? 'caso' : 'casos')
+      + (x.uds ? ' · '+x.uds+' unidades' : '')+'</div>'
+      + '<div class="bar" style="margin:7px 0 0"><div class="bt"><i style="width:'+Math.max(2,pct)+'%"></i></div></div></div>'
+      + '<span class="lm">USD '+fN(x.usd)+'<div class="mini" style="text-align:right">'+pct+' %</div></span></div>';
+  });
+  h += '</div>';
+  if(tipo === 'dev'){
+    const top = rs[0];
+    h += '<div class="nota az"><b>Qué hacer con esto.</b> Si lo que más se repite es «talla equivocada», el problema está '
+       + 'en la tabla de tallas que publica. Si es «no era el color o el modelo pedido», está en las fotos. '
+       + 'Si es «defecto de fábrica», está en el proveedor. Hoy el que más pesa es <b>'+esc(top.nom)+'</b>.</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+/* ==========================================================================
+   SICOM v4 · eventos de los motivos
+   ========================================================================== */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+
+  if(b.dataset.mottipo){ MOTTIPO = b.dataset.mottipo; pinta(); return; }
+
+  if(b.id === 'mo_g'){
+    const n = ($('#mo_n').value || '').trim(), d = ($('#mo_d').value || '').trim();
+    if(n.length < 4) return aviso('Escriba el motivo: al menos cuatro letras.', true);
+    if(motLista(MOTTIPO).some(m=>m.n.toLowerCase() === n.toLowerCase()))
+      return aviso('Ese motivo ya está en la lista.', true);
+    const c = motProxCod(MOTTIPO);
+    motLista(MOTTIPO).push({c:c, n:n, d:d, pide:false, activo:true});
+    bitacora('cfg','Motivo agregado', (MOTTIPO === 'anul' ? 'anulación' : 'devolución')+' · '+c+' · '+n);
+    aviso('Motivo '+c+' agregado.'); pinta(); return;
+  }
+  if(b.dataset.motog){
+    const p = b.dataset.motog.split('|'), m = motDe(p[0], p[1]); if(!m) return;
+    if(m.activo && motActivos(p[0]).length === 1)
+      return aviso('Es el último motivo activo: sin ninguno no se podría anular ni devolver.', true);
+    m.activo = !m.activo;
+    bitacora('cfg', m.activo ? 'Motivo reactivado' : 'Motivo desactivado', p[1]+' · '+m.n);
+    aviso(m.activo ? 'Motivo reactivado.' : 'Motivo desactivado: deja de ofrecerse.');
+    pinta(); return;
+  }
+  if(b.dataset.motdel){
+    const p = b.dataset.motdel.split('|');
+    if(/-99$/.test(p[1])) return aviso('«Otro motivo» no se elimina: es la salida para lo que no estaba previsto.', true);
+    if(motUsado(p[0], p[1])) return aviso('Ese motivo ya se usó: desactívelo en lugar de borrarlo.', true);
+    const m = motDe(p[0], p[1]); if(!m) return;
+    if(p[0] === 'anul') DB.cfg.motAnul = DB.cfg.motAnul.filter(x=>x.c !== p[1]);
+    else                DB.cfg.motDev  = DB.cfg.motDev.filter(x=>x.c !== p[1]);
+    bitacora('cfg','Motivo eliminado', p[1]+' · '+m.n);
+    aviso('Motivo eliminado.'); pinta(); return;
+  }
+});
+
+document.addEventListener('input', e=>{
+  if(e.target.id === 'dv_det' || e.target.id === 'an_det'){ VDET = e.target.value; return; }
+});
+
+document.addEventListener('change', e=>{
+  if(e.target.id === 'dv_motc' || e.target.id === 'an_motc'){
+    VMOTC = e.target.value;
+    const tipo = e.target.id === 'dv_motc' ? 'dev' : 'anul';
+    const n = $('#' + (tipo === 'dev' ? 'dv' : 'an') + '_motayuda');
+    if(n) n.innerHTML = ayudaMotivo(tipo, VMOTC);
+    const m = motDe(tipo, VMOTC);
+    const d = $('#' + (tipo === 'dev' ? 'dv' : 'an') + '_det');
+    if(d) d.placeholder = (m && m.pide)
+      ? 'Obligatorio: explique qué pasó'
+      : 'Opcional: agregue el detalle si hace falta';
+    return;
   }
 });
 
