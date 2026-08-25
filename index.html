@@ -295,6 +295,17 @@ table.dat .n{text-align:right;font-variant-numeric:tabular-nums}
 .print .pn{flex:1;min-width:0;font-size:13px}
 .mininota{font-size:11.5px;color:var(--muted)}
 
+/* ===================== SICOM v3 · ventas, anulación y devolución ========== */
+.card.editando{border-color:var(--oro);box-shadow:var(--ring)}
+table.dat td .chip{white-space:nowrap}
+.dat tr td[colspan] .card{margin:0}
+/* la ficha de una venta abierta dentro de la tabla */
+.dat .card{box-shadow:none}
+.dat .card h2{font-size:15px}
+/* clave: nunca se ve lo que se escribe */
+input[type=password]{letter-spacing:.18em;font-family:ui-monospace,monospace}
+input[type=password]::placeholder{letter-spacing:normal;font-family:inherit}
+
 /* ===================== SICOM v2 · identidad configurable ================== */
 /* estas reglas van después de las originales: mismo peso, ganan por posición */
 .top{background:linear-gradient(135deg,var(--marron) 0%,var(--marron-os,#2f2318) 100%)}
@@ -372,6 +383,7 @@ function SEMILLA(){ return {
     dir:'Av. Francisco Solano López, Edif. San Germán, Caracas',
     mail:'casakeilysboutiquefemine@gmail.com', op:'0412', tel:'9597787', logo:''},
   tema:null, paleta:[], bitacora:[],
+  cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(),
   categorias:['Ropa de Dama','Lentes de Sol','Cartera Alta Gama','Carteras Eyes Theme','Bisutería Dama'],
   corr:{venta:7, cli:3, id:100},
   tasas:[
@@ -382,6 +394,7 @@ function SEMILLA(){ return {
   ],
   fondoUSD:100,
   cfg:{
+    claveAdmin:'',
     canales:['Presencial','Instagram','TikTok','WhatsApp','Facebook','Referido'],
     vendedores:[
       {id:'v1',nom:'Keylis',ape:'Bermúdez',ci:'12458001',com:3,banco:'Banesco',op:'0412',tel:'9597787',activo:true},
@@ -560,7 +573,7 @@ function tasaVigente(){return tasaEn(hoy);}
 function tasaDeHoyCargada(){return DB.tasas.some(t=>t.fecha===hoy&&t.estado==='confirmada');}
 function exi(p){return p.tallas?p.tallas.reduce((a,x)=>a+x.e,0):p.exi;}
 function saldoAcc(){return Math.round(DB.accionista.reduce((a,m)=>a+m.usd,0)*100)/100;}
-function pendAbiertos(){return DB.vpend.filter(v=>v.saldo>0.005);}
+function pendAbiertos(){return DB.vpend.filter(v=>v.saldo>0.005&&!v.anulado);}
 function cajeraNom(id){const k=DB.cfg.cajeras.find(x=>x.id===id);return k?nomComp(k):'—';}
 function vendNom(id){const v=DB.cfg.vendedores.find(x=>x.id===id);return v?nomComp(v):'—';}
 function repNom(id){const r=DB.cfg.repartidores.find(x=>x.id===id);return r?nomComp(r):'—';}
@@ -609,7 +622,7 @@ function cliActual(){
 function cliListo(){
   const c=cliActual(); if(!c) return false;
   if(!c.nuevo) return true;
-  return valDoc(VTA.doc) && c.nom.trim().length>1 && c.ape.trim().length>1
+  return valDoc(VTA.doc) && nomOK(c.nom) && nomOK(c.ape)
       && !valTel(c.op,c.tel) && valMail(c.mail).ok;
 }
 
@@ -715,12 +728,12 @@ function msgMail(n){
 }
 function checkHTML(){
   const n=VTA.nuevo, hay=!!VTA.cli;
-  const okDoc=valDoc(VTA.doc), okNom=hay||(n.nom.trim().length>1&&n.ape.trim().length>1);
+  const okDoc=valDoc(VTA.doc), okNom=hay||(nomOK(n.nom)&&nomOK(n.ape));
   const okTel=hay||(!valTel(n.op,n.tel)), okMail=hay||valMail(n.mail).ok;
   const fila=(t,ok,txt)=>'<tr><td>'+t+'</td><td class="n">'
     +(ok?'<span class="chip ok">'+txt+'</span>':'<span class="chip">pendiente</span>')+'</td></tr>';
   return fila('Cédula',okDoc,'6 a 9 dígitos')
-    +fila('Nombre y apellido',okNom,'separados')
+    +fila('Nombre y apellido',okNom,'solo letras')
     +fila('Teléfono',okTel,'operadora + 7')
     +fila('Correo',okMail,'verificado');
 }
@@ -757,9 +770,9 @@ function pasoCliente(){
     h+='<div class="nuevoc"><b>No está registrado. Regístrelo ahora.</b>'
       +'<div class="fila" style="margin-top:14px">'
       +'<div><label class="f">Nombre</label><input id="cl_nom" value="'+esc(n.nom)+'" placeholder="Escriba el nombre" maxlength="40"'
-      +' class="'+(n.nom?(n.nom.trim().length>1?'bien':'mal'):'')+'"></div>'
+      +' class="'+(n.nom?(nomOK(n.nom)?'bien':'mal'):'')+'"><div id="cl_nommsg">'+msgNom(n.nom,'nombre')+'</div></div>'
       +'<div><label class="f">Apellido</label><input id="cl_ape" value="'+esc(n.ape)+'" placeholder="Escriba el apellido" maxlength="40"'
-      +' class="'+(n.ape?(n.ape.trim().length>1?'bien':'mal'):'')+'"></div>'
+      +' class="'+(n.ape?(nomOK(n.ape)?'bien':'mal'):'')+'"><div id="cl_apemsg">'+msgNom(n.ape,'apellido')+'</div></div>'
       +'</div>'
       +'<div style="margin-top:14px"><label class="f">Género — define el trato del correo</label>'
       +'<div class="segm">'+GENEROS.map(g=>'<button class="sg'+(n.gen===g[0]?' on':'')+'" data-gen="'+g[0]+'">'
@@ -1035,20 +1048,24 @@ function registrar(){
   VTA.cobros.filter(x=>x.fuente==='accionista').forEach(x=>{
     const usd=x.mon==='BS'&&t?x.monto/t.bcv:x.monto;
     DB.accionista.push({fecha:hoy,tipo:'cobro',concepto:'Cobro venta '+num+' recibido en su cuenta',
-      usd:-Math.round(usd*100)/100,ref:x.ref,venta:num});});
+      usd:-Math.round(usd*100)/100,ref:x.ref,venta:num,op:'acc_cob'});});
   VTA.vueltos.filter(x=>x.fuente==='accionista').forEach(x=>{
     const usd=x.mon==='BS'&&t?x.monto/t.bcv:x.monto;
     DB.accionista.push({fecha:hoy,tipo:'vuelto',concepto:'Vuelto venta '+num+' con fondos del accionista',
-      usd:Math.round(usd*100)/100,ref:x.ref,venta:num});});
+      usd:Math.round(usd*100)/100,ref:x.ref,venta:num,op:'acc_vue'});});
 
   const resta=vueltoResta();
-  if(resta>0.005) DB.vpend.push({id:nid('vp'),venta:num,fecha:hoy,cliId:c.id,usd:resta,saldo:resta,entregas:[],cajera:DB.turno});
+  if(resta>0.005) DB.vpend.push({id:nid('vp'),tipo:'vuelto',venta:num,fecha:hoy,cliId:c.id,
+    usd:resta,saldo:resta,entregas:[],cajera:DB.turno,op:'vue_pend'});
 
   DB.ventas.push({num,fecha:hoy,hora:horaAhora(),cliId:c.id,canal:VTA.canal,vendedorId:VTA.vendedorId==='sin'?null:VTA.vendedorId,
     repId:VTA.repId,entrega:VTA.entrega,deliv:montoDeliv(),cajera:DB.turno,total:totalVenta(),tasa:t?t.bcv:null,
     lineas:VTA.lineas.map(l=>{const p=DB.productos.find(x=>x.id===l.id)||{};
       return {sku:l.sku,nom:l.nom,talla:l.talla,cant:l.cant,precio:l.precio,cat:p.cat||'',costo:p.costo||0};}),
-    cobros:VTA.cobros.slice(),vueltos:VTA.vueltos.slice(),pend:resta>0.005?resta:0});
+    op:'vta',
+    cobros:VTA.cobros.map(x=>Object.assign({},x,{op:'cob_'+x.met})),
+    vueltos:VTA.vueltos.map(x=>Object.assign({},x,{op:'vue_'+x.met})),
+    pend:resta>0.005?resta:0});
   VTA.hecha={num,fecha:hoy,tasa:t?t.bcv:null,pend:resta>0.005?resta:0,cajera:DB.turno,
              repId:VTA.repId,pagoRep:pagoRep()};
   /* el recibo sale con la misma acción: no hace falta un segundo clic */
@@ -1148,7 +1165,7 @@ function pasoCorreo(){
 function ventasDe(f){return DB.ventas.filter(v=>v.fecha===f);}
 function movMet(f,k,mon){
   let e=0,sal=0;
-  ventasDe(f).forEach(v=>{
+  ventasVal(f).forEach(v=>{
     v.cobros.forEach(c=>{if(c.met===k)e+=c.monto;});
     v.vueltos.forEach(x=>{if(x.met===k)sal+=x.monto;});
   });
@@ -1168,7 +1185,7 @@ function vistaTes(){
     +'<p class="sub">Aquí vive el dinero que no es venta: lo que se le debe a un cliente, lo que se le debe al accionista, '
     +'y el cuadre del día.</p>'
     +'<div class="subtabs">'
-    +[['vueltos','Vueltos a clientes'+(np.length?' ('+np.length+')':'')],['reint','Reintegros al accionista'],['cierre','Cierre de caja']]
+    +[['vueltos','Vueltos y devoluciones'+(np.length?' ('+np.length+')':'')],['reint','Reintegros al accionista'],['cierre','Cierre de caja']]
       .map(x=>'<button data-tsub="'+x[0]+'" class="'+(TSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
     +'</div>';
   if(TSUB==='vueltos') h+=tesVueltos();
@@ -1206,9 +1223,10 @@ function tesReintegros(){
 }
 function tesVueltos(){
   const ab=pendAbiertos(), ce=DB.vpend.filter(v=>v.saldo<=0.005), t=tasaVigente();
-  let h='<h1>Vueltos por entregar</h1>'
-    +'<p class="sub">Cuando no hay sencillo, la venta se cierra igual y el vuelto queda aquí como deuda con el cliente. '
-    +'Nada se pierde: cada uno tiene su antigüedad y, al entregarlo, sale un correo de confirmación.</p>';
+  const nd=pendDev().length;
+  let h='<h1>Dinero que se le debe al cliente</h1>'
+    +'<p class="sub">Dos cosas caen aquí: el vuelto que no se pudo dar por falta de sencillo, y la plata de una '
+    +'devolución. Las dos son deuda con el cliente y las dos trancan el cierre de caja hasta que se resuelvan.</p>';
   h+='<div class="hero">'
     +'<div class="h dest"><span class="k">Por entregar</span><span class="v">'+fN(ab.reduce((a,v)=>a+v.saldo,0))+' <small>USD</small></span>'
     +'<span class="s">'+ab.length+' '+(ab.length===1?'cliente':'clientes')+'</span></div>'
@@ -1219,13 +1237,16 @@ function tesVueltos(){
     +'<div class="h"><span class="k">Ya entregados</span><span class="v">'+ce.length+'</span>'
     +'<span class="s">cerrados con su correo</span></div></div>';
 
-  h+='<div class="card" style="margin-top:18px"><h2>Pendientes</h2>';
-  if(!ab.length) h+='<div class="vacio"><div class="vi">✓</div>No hay vueltos por entregar.</div>';
+  h+='<div class="card" style="margin-top:18px"><h2>Pendientes'
+    +(nd?' · '+nd+' '+(nd===1?'es devolución':'son devoluciones'):'')+'</h2>';
+  if(!ab.length) h+='<div class="vacio"><div class="vi">✓</div>No se le debe nada a ningún cliente.</div>';
   ab.forEach(v=>{
     const c=DB.clientes.find(x=>x.id===v.cliId)||{nom:'?',ape:'',doc:'',mail:''};
     const d=dias(v.fecha), sel=PSEL===v.id;
+    const esDev=v.tipo==='devolucion';
     h+='<div class="pend'+(d>=7?' viejo':'')+'"><div class="pendhd">'
       +'<div style="flex:1;min-width:210px"><b>'+esc(nomComp(c))+'</b> '
+      +(esDev?'<span class="chip acc">devolución</span> ':'<span class="chip">vuelto</span> ')
       +(d>=7?'<span class="chip mal">'+d+' días</span>':'<span class="chip avi">'+(d===0?'hoy':d+' día'+(d>1?'s':''))+'</span>')
       +'<div class="mini" style="margin-top:4px">Venta '+esc(v.venta)+' · '+fFecha(v.fecha)+' · V-'+esc(c.doc)+' · '+esc(c.mail)+'</div>'
       +(v.entregas.length?'<div class="mini">Ya se le entregó USD '+fN(v.usd-v.saldo)+' en '+v.entregas.length+' '+(v.entregas.length===1?'parte':'partes')+'</div>':'')
@@ -1288,14 +1309,14 @@ function formEntrega(v,c,t){
 
 /* ------------------------------------------------- CIERRE DE CAJA -------- */
 function tesCierre(){
-  const t=tasaVigente(), np=pendAbiertos(), vs=ventasDe(hoy), esp=esperadoCaja(hoy);
+  const t=tasaVigente(), np=pendAbiertos(), vs=ventasVal(hoy), esp=esperadoCaja(hoy);
   const yaCerrado=DB.cierres.some(c=>c.fecha===hoy);
   if(!CIERRE) CIERRE={usd:'',bs:'',motivo:''};
   const decUSD=pila(CIERRE.usd), decBS=pila(CIERRE.bs);
   const difUSD=Math.round((decUSD-esp.efec_usd.esperado)*100)/100;
   const difBS=Math.round((decBS-esp.efec_bs.esperado)*100)/100;
   const cuadra=Math.abs(difUSD)<0.005&&Math.abs(difBS)<0.005;
-  const totalDia=vs.reduce((a,v)=>a+v.total,0);
+  const totalDia=vs.reduce((a,v)=>a+netoVenta(v),0);
 
   let h='<div class="hero">'
     +'<div class="h dest"><span class="k">Ventas del día</span><span class="v">'+fN(totalDia)+' <small>USD</small></span>'
@@ -1309,9 +1330,17 @@ function tesCierre(){
 
   if(yaCerrado){
     const c=DB.cierres.find(x=>x.fecha===hoy);
-    h+='<div class="card" style="margin-top:18px"><div class="estado cuadra" style="margin-top:0">'
+    const af=c.afectado||[];
+    h+='<div class="card" style="margin-top:18px"><div class="estado '+(af.length?'pend':'cuadra')+'" style="margin-top:0">'
       +'<span class="et">Caja cerrada</span><span class="mt">'+fFecha(c.fecha)+'</span>'
-      +'<span class="sb">'+esc(cajeraNom(c.cajera))+' · '+(c.cuadro?'cuadró exacto':'con diferencia autorizada')+'</span></div></div>';
+      +'<span class="sb">'+esc(cajeraNom(c.cajera))+' · '+(c.cuadro?'cuadró exacto':'con diferencia autorizada')+'</span></div>';
+    if(af.length){
+      h+='<div class="nota rj"><b>Este cierre ya no refleja lo que pasó.</b> Después de firmarlo se '
+        +af.map(x=>x.motivo+' la venta '+x.venta+' por USD '+fN(x.usd)).join(', ')+'. '
+        +'El arqueo que se contó ese día sigue siendo el que se contó; lo que cambió es lo que debió haber. '
+        +'La diferencia acumulada es de <b>USD '+fN(af.reduce((a,x)=>a+x.usd,0))+'</b>.</div>';
+    }
+    h+='</div>';
     return h;
   }
 
@@ -1366,15 +1395,16 @@ function tesCierre(){
 /* ----------------------------------------------------------- REPORTES ---- */
 function vistaRep(){
   let h='<h1>Reportes de ventas</h1>'
-    +'<p class="sub">Lo que se vendió hoy, y de dónde viene. Estos números salen de las mismas ventas registradas en la caja.</p>'
+    +'<p class="sub">Lo que se vendió hoy, y de dónde viene. Los totales son netos: lo anulado no suma y lo devuelto resta.</p>'
     +'<div class="subtabs">'
-    +[['dia','Ventas del día'],['est','Estadísticas']].map(x=>'<button data-rsub="'+x[0]+'" class="'+(RSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
+    +[['dia','Resumen del día'],['vtas','Todas las ventas'],['est','Estadísticas']]
+      .map(x=>'<button data-rsub="'+x[0]+'" class="'+(RSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
     +'</div>';
-  return h+(RSUB==='dia'?repDia():repEst());
+  return h+(RSUB==='vtas'?repVentas():RSUB==='est'?repEst():repDia());
 }
 function repDia(){
-  const vs=ventasDe(hoy),t=tasaVigente();
-  const tot=vs.reduce((a,v)=>a+v.total,0), uds=vs.reduce((a,v)=>a+v.lineas.reduce((b,l)=>b+l.cant,0),0);
+  const vs=ventasVal(hoy),t=tasaVigente();
+  const tot=vs.reduce((a,v)=>a+netoVenta(v),0), uds=vs.reduce((a,v)=>a+v.lineas.reduce((b,l)=>b+l.cant,0),0);
   let h='<div class="hero">'
     +'<div class="h dest"><span class="k">Vendido hoy</span><span class="v">'+fN(tot)+' <small>USD</small></span>'
     +'<span class="s">'+(t?'Bs '+fN(tot*t.bcv,0):'')+'</span></div>'
@@ -1415,7 +1445,7 @@ function barras(titulo,datos,uni){
   return h+'</div>';
 }
 function repEst(){
-  const vs=ventasDe(hoy);
+  const vs=ventasVal(hoy);
   const agrupa=(fn)=>{const m={};vs.forEach(v=>{const k=fn(v);if(!k)return;m[k]=(m[k]||0)+v.total;});
     return Object.keys(m).map(k=>[k,Math.round(m[k]*100)/100]).sort((a,b)=>b[1]-a[1]);};
   const canal=agrupa(v=>v.canal);
@@ -1440,7 +1470,7 @@ function repEst(){
   h+='<div class="card"><h2>Comparativo</h2><table class="dat"><thead><tr><th>Día</th><th class="n">Ventas</th>'
     +'<th class="n">Total USD</th><th class="n">Ticket promedio</th></tr></thead><tbody>';
   const fechas=Array.from(new Set(DB.ventas.map(v=>v.fecha))).sort().reverse();
-  fechas.forEach(f=>{const g=ventasDe(f),tt=g.reduce((a,v)=>a+v.total,0);
+  fechas.forEach(f=>{const g=ventasVal(f),tt=g.reduce((a,v)=>a+netoVenta(v),0);
     h+='<tr><td><b>'+fFecha(f)+'</b>'+(f===hoy?' <span class="chip ok">hoy</span>':'')+'</td>'
       +'<td class="n">'+g.length+'</td><td class="n"><b>'+fN(tt)+'</b></td>'
       +'<td class="n">'+fN(g.length?tt/g.length:0)+'</td></tr>';});
@@ -1597,7 +1627,8 @@ function vistaCorreos(){
   else{h+='<table class="dat"><thead><tr><th>Fecha</th><th>Cliente</th><th>Correo</th><th>Venta</th><th>Tipo</th><th>Estado</th></tr></thead><tbody>';
     DB.correos.slice().reverse().forEach(x=>{
       h+='<tr><td><b>'+fFecha(x.fecha)+'</b></td><td>'+esc(x.cli)+'</td><td class="mini">'+esc(x.mail)+'</td>'
-        +'<td>'+esc(x.venta)+'</td><td>'+(x.tipo==='vuelto'?'<span class="chip avi">vuelto entregado</span>':'<span class="chip">recibo</span>')+'</td>'
+        +'<td>'+esc(x.venta)+'</td><td>'+(x.tipo==='vuelto'?'<span class="chip avi">vuelto entregado</span>'
+          :x.tipo==='devolucion'?'<span class="chip acc">nota de devolución</span>':'<span class="chip">recibo</span>')+'</td>'
         +'<td><span class="chip ok">'+esc(x.estado)+'</span></td></tr>';});
     h+='</tbody></table>';}
   h+='<div class="nota"><b>Sobre el permiso.</b> El recibo va a todo el que compra porque es su comprobante. '
@@ -1611,7 +1642,8 @@ function vistaCfg(){
     +'<p class="sub">Todo lo que la caja ofrece se administra aquí. Cambie una tarifa o agregue un canal y aparece en la venta al instante.</p>'
     +'<div class="subtabs">'
     +[['emp','Empresa'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
-      ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras']]
+      ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras'],
+      ['contab','Contabilidad']]
       .map(s=>'<button data-csub="'+s[0]+'" class="'+(CSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     +'</div>';
 
@@ -1619,6 +1651,7 @@ function vistaCfg(){
   if(CSUB==='marca') return h + cfgMarca();
   if(CSUB==='prod')  return h + cfgProd();
   if(CSUB==='cat')   return h + cfgCat();
+  if(CSUB==='contab') return h + cfgContab();
 
   if(CSUB==='vend'){
     h+='<div class="card"><h2>Agregar vendedor</h2>'
@@ -1805,7 +1838,7 @@ document.addEventListener('click',e=>{
     if(mm.ref&&ref.length<3)return aviso('El reintegro por '+mm.n.toLowerCase()+' necesita referencia.',true);
     DB.accionista.push({fecha:hoy,tipo:'reintegro',
       concepto:'Reintegro al accionista por '+mm.n.toLowerCase()+(bco?' · '+bco:''),
-      usd:-Math.round(v*100)/100,ref:ref,venta:''});
+      usd:-Math.round(v*100)/100,ref:ref,venta:'',op:'acc_rei'});
     aviso('Reintegro registrado desde tesorería.');pinta();return;}
   if(b.dataset.irtes){TAB='tes';TSUB=b.dataset.irtes;pinta();return;}
   if(b.dataset.tsub){TSUB=b.dataset.tsub;PSEL=null;pinta();return;}
@@ -1819,7 +1852,10 @@ document.addEventListener('click',e=>{
     if(!cuadro&&(CIERRE.motivo||'').trim().length<5)
       return aviso('Un cierre con diferencia necesita el motivo escrito.',true);
     DB.cierres.push({fecha:hoy,cajera:DB.turno,usd:pila(CIERRE.usd),bs:pila(CIERRE.bs),
-      difUSD:dU,difBS:dB,cuadro:cuadro,motivo:CIERRE.motivo||'',autoriza:cuadro?'':'Administrador'});
+      difUSD:dU,difBS:dB,cuadro:cuadro,motivo:CIERRE.motivo||'',autoriza:cuadro?'':'Administrador',
+      op:'dif_caja',afectado:[]});
+    bitacora('tes','Caja cerrada',fFecha(hoy)+' · USD '+fN(pila(CIERRE.usd))+' · Bs '+fN(pila(CIERRE.bs),0)
+      +(cuadro?' · cuadró exacto':' · diferencia USD '+fN(dU)+' y Bs '+fN(dB,0)+' · '+(CIERRE.motivo||'')));
     CIERRE=null;
     aviso(cuadro?'Caja cerrada · cuadró exacto.':'Caja cerrada con diferencia autorizada.');
     pinta();return;}
@@ -1978,7 +2014,10 @@ document.addEventListener('click',e=>{
 
   /* configuración */
   if(b.id==='nv_g'){
-    const nom=$('#nv_nom').value.trim(),ape=$('#nv_ape').value.trim(),ci=$('#nv_ci').value.trim(),
+    const nom=$('#nv_nom').value.trim(),ape=$('#nv_ape').value.trim();
+    {const vn=valNom(nom,'nombre'); if(!vn.ok) return aviso(vn.msg,true);
+     const va=valNom(ape,'apellido'); if(!va.ok) return aviso(va.msg,true);}
+    const _nv=1,ci=$('#nv_ci').value.trim(),
           com=pila($('#nv_com').value),banco=$('#nv_banco').value,op=$('#nv_op').value,tel=$('#nv_tel').value.trim();
     if(nom.length<2)return aviso('Escriba el nombre del vendedor.',true);
     if(ape.length<2)return aviso('Escriba el apellido del vendedor.',true);
@@ -1991,7 +2030,10 @@ document.addEventListener('click',e=>{
     aviso('Vendedor agregado con sus datos de pago.');pinta();return;}
   if(b.dataset.vtog){const v=DB.cfg.vendedores.find(x=>x.id===b.dataset.vtog);v.activo=!v.activo;pinta();return;}
   if(b.id==='nr_g'){
-    const nom=$('#nr_nom').value.trim(),ape=$('#nr_ape').value.trim(),ci=$('#nr_ci').value.trim(),
+    const nom=$('#nr_nom').value.trim(),ape=$('#nr_ape').value.trim();
+    {const vn=valNom(nom,'nombre'); if(!vn.ok) return aviso(vn.msg,true);
+     const va=valNom(ape,'apellido'); if(!va.ok) return aviso(va.msg,true);}
+    const _nr=1,ci=$('#nr_ci').value.trim(),
           pct=pila($('#nr_pct').value),banco=$('#nr_banco').value,op=$('#nr_op').value,tel=$('#nr_tel').value.trim();
     if(nom.length<2)return aviso('Escriba el nombre del repartidor.',true);
     if(ape.length<2)return aviso('Escriba el apellido del repartidor.',true);
@@ -2015,7 +2057,10 @@ document.addEventListener('click',e=>{
   if(b.dataset.cdel!==undefined&&b.dataset.cdel!==''){
     if(DB.cfg.canales.length<=1)return aviso('Debe quedar al menos un canal.',true);
     DB.cfg.canales.splice(+b.dataset.cdel,1);pinta();return;}
-  if(b.id==='nk_g'){const nom=$('#nk_nom').value.trim(),ape=$('#nk_ape').value.trim(),ci=$('#nk_ci').value.trim();
+  if(b.id==='nk_g'){const nom=$('#nk_nom').value.trim(),ape=$('#nk_ape').value.trim();
+    {const vn=valNom(nom,'nombre'); if(!vn.ok) return aviso(vn.msg,true);
+     const va=valNom(ape,'apellido'); if(!va.ok) return aviso(va.msg,true);}
+    const _nk=1,ci=$('#nk_ci').value.trim();
     if(nom.length<2)return aviso('Escriba el nombre de la cajera.',true);
     if(ape.length<2)return aviso('Escriba el apellido de la cajera.',true);
     if(!/^\d{6,9}$/.test(ci))return aviso('La cédula debe tener entre 6 y 9 dígitos.',true);
@@ -2032,8 +2077,17 @@ document.addEventListener('input',e=>{
   if(id==='cl_doc'){VTA.doc=v.replace(/\D/g,'');
     const s=e.target.selectionStart; buscaCli(); pinta();
     const n=$('#cl_doc'); if(n){n.focus();n.setSelectionRange(s,s);} return;}
-  if(id==='cl_nom'){VTA.nuevo.nom=v;e.target.className=v.trim().length>1?'bien':'mal';refrescaValid();return;}
-  if(id==='cl_ape'){VTA.nuevo.ape=v;e.target.className=v.trim().length>1?'bien':'mal';refrescaValid();return;}
+  if(id==='cl_nom'||id==='cl_ape'){
+    const que=id==='cl_nom'?'nombre':'apellido', lim=limpiaNom(v), pos=e.target.selectionStart;
+    if(e.target.value!==lim){ e.target.value=lim;
+      e.target.setSelectionRange(Math.max(0,pos-1),Math.max(0,pos-1)); }
+    if(id==='cl_nom') VTA.nuevo.nom=lim; else VTA.nuevo.ape=lim;
+    e.target.className=lim?(nomOK(lim)?'bien':'mal'):'';
+    const n=$('#'+id+'msg');
+    if(n) n.innerHTML = (v!==lim && /[^\s'\-A-Za-zÁÉÍÓÚáéíóúÑñÜüÀ-ÖØ-öø-ÿ]/.test(v))
+      ? '<div class="err">El '+que+' no lleva números ni símbolos.</div>'
+      : msgNom(lim,que);
+    refrescaValid();return;}
   if(id==='cl_tel'){VTA.nuevo.tel=v.replace(/\D/g,'').slice(0,7);
     if(e.target.value!==VTA.nuevo.tel)e.target.value=VTA.nuevo.tel;
     e.target.className=VTA.nuevo.tel?(/^\d{7}$/.test(VTA.nuevo.tel)?'bien':'mal'):'';refrescaValid();return;}
@@ -2128,6 +2182,9 @@ function normaliza(b){
   Object.keys(v.corr).forEach(k=>{ if(b.corr[k]===undefined) b.corr[k] = v.corr[k]; });
   Object.keys(v.empresa).forEach(k=>{ if(b.empresa[k]===undefined) b.empresa[k] = v.empresa[k]; });
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
+  if(!b.cuentas || !b.cuentas.length) b.cuentas = CUENTAS_BASE();
+  if(!b.mapaCtas) b.mapaCtas = MAPA_BASE();
+  b.vpend.forEach(p=>{ if(!p.tipo) p.tipo = 'vuelto'; });
   return b;
 }
 let ERRGUARDA = false;
@@ -2606,9 +2663,10 @@ function vistaGer(){
   let h = '<h1>Gerencial</h1>'
     + '<p class="sub">El estado del sistema, el rastro de todo lo que se hizo y el respaldo de la información.</p>'
     + '<div class="subtabs">'
-    + [['estado','Estado del sistema'],['aud','Auditoría'],['resp','Datos y respaldo']]
+    + [['estado','Estado del sistema'],['seg','Seguridad'],['aud','Auditoría'],['resp','Datos y respaldo']]
       .map(s=>'<button data-gsub="'+s[0]+'" class="'+(GSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     + '</div>';
+  if(GSUB==='seg')  return h + gerSeguridad();
   if(GSUB==='aud')  return h + gerAud();
   if(GSUB==='resp') return h + gerResp();
   return h + gerEstado();
@@ -2631,8 +2689,8 @@ function gerEstado(){
 
   const t = tasaEn(hoy), np = pendAbiertos();
   h += '<div class="card"><h2>Cómo va el negocio hoy</h2><div class="hero">'
-    + '<div class="h dest"><span class="k">Ventas de hoy</span><span class="v">'+ventasDe(hoy).length+'</span>'
-    + '<span class="s">USD '+fN(ventasDe(hoy).reduce((a,v)=>a+v.total,0))+' facturados</span></div>'
+    + '<div class="h dest"><span class="k">Ventas de hoy</span><span class="v">'+ventasVal(hoy).length+'</span>'
+    + '<span class="s">USD '+fN(ventasVal(hoy).reduce((a,v)=>a+netoVenta(v),0))+' facturados</span></div>'
     + '<div class="h"><span class="k">Tasa aplicada</span><span class="v">'+(t?fN(t.bcv,2):'—')+'</span>'
     + '<span class="s">'+(t?'BCV del '+fFecha(t.fecha):'sin tasa confirmada')+'</span></div>'
     + '<div class="h"><span class="k">Vueltos por entregar</span><span class="v">'+np.length+'</span>'
@@ -2929,6 +2987,696 @@ document.addEventListener('change', e=>{
   if(e.target.id === 'rs_arch'){
     const f = e.target.files && e.target.files[0]; if(!f) return;
     restauraRespaldo(f); e.target.value = ''; return;
+  }
+});
+
+/* ==========================================================================
+   SICOM v3 · nombres validados, anulaciones, devoluciones y tipificación
+   ========================================================================== */
+
+/* ---------- un nombre es un nombre: letras, no números ---------- */
+const LETRAS = "A-Za-zÁÉÍÓÚáéíóúÑñÜüÀ-ÖØ-öø-ÿ";
+const RE_NOM = new RegExp("^[" + LETRAS + "]+(?:[ '\\-][" + LETRAS + "]+)*$");
+
+function valNom(s, que){
+  const v = String(s == null ? '' : s).trim();
+  que = que || 'nombre';
+  if(!v) return {ok:false, msg:'Escriba el ' + que + '.'};
+  if(/\d/.test(v)) return {ok:false, msg:'El ' + que + ' no lleva números.'};
+  if(/[^\s'\-A-Za-zÁÉÍÓÚáéíóúÑñÜüÀ-ÖØ-öø-ÿ]/.test(v))
+    return {ok:false, msg:'El ' + que + ' solo lleva letras, espacios, apóstrofo y guion.'};
+  if(v.length < 2) return {ok:false, msg:'El ' + que + ' es muy corto.'};
+  if(!RE_NOM.test(v)) return {ok:false, msg:'Revise el ' + que + ': hay un espacio o un guion suelto.'};
+  return {ok:true, msg:''};
+}
+function nomOK(s){ return valNom(s).ok; }
+/* quita lo que no puede ir en un nombre, a medida que se escribe */
+function limpiaNom(s){
+  return String(s == null ? '' : s)
+    .replace(/[^\s'\-A-Za-zÁÉÍÓÚáéíóúÑñÜüÀ-ÖØ-öø-ÿ]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s+/, '');
+}
+
+/* mensaje vivo bajo el campo de nombre o apellido */
+function msgNom(v, que){
+  if(!String(v||'').trim()) return '<div class="ayuda">Como aparece en su cédula.</div>';
+  const r = valNom(v, que);
+  return r.ok ? '<div class="oki">✓ Correcto</div>' : '<div class="err">'+esc(r.msg)+'</div>';
+}
+
+/* ==========================================================================
+   Tipificación contable · cada movimiento nace sabiendo qué es
+   ========================================================================== */
+const OPS = [
+  {k:'vta',       g:'Ingresos',        n:'Venta de mercancía',                 d:'El monto de los artículos vendidos, sin el delivery.'},
+  {k:'deliv',     g:'Ingresos',        n:'Delivery facturado',                 d:'Lo que se le cobró al cliente por llevarle la compra.'},
+  {k:'dev',       g:'Ingresos',        n:'Devolución en ventas',               d:'Mercancía que el cliente regresó. Resta del ingreso.'},
+  {k:'anul',      g:'Ingresos',        n:'Anulación de venta',                 d:'La venta completa se deja sin efecto.'},
+  {k:'costo',     g:'Costos',          n:'Costo de la mercancía vendida',      d:'Lo que costó lo que se vendió. De aquí sale el margen.'},
+  {k:'cob_efec_usd', g:'Cobros',       n:'Cobro en efectivo · dólares',        d:''},
+  {k:'cob_efec_bs',  g:'Cobros',       n:'Cobro en efectivo · bolívares',      d:''},
+  {k:'cob_pm',       g:'Cobros',       n:'Cobro por pago móvil',               d:''},
+  {k:'cob_pdv',      g:'Cobros',       n:'Cobro por punto de venta',           d:''},
+  {k:'cob_usdt',     g:'Cobros',       n:'Cobro en USDT · Binance',            d:''},
+  {k:'cob_zelle',    g:'Cobros',       n:'Cobro por Zelle',                    d:''},
+  {k:'vue',       g:'Egresos de caja', n:'Vuelto entregado al cliente',        d:'El cambio que se le devolvió en el momento.'},
+  {k:'vue_pend',  g:'Pasivos',         n:'Vuelto pendiente por entregar',      d:'Deuda con el cliente mientras no se le entregue.'},
+  {k:'dev_pag',   g:'Egresos de caja', n:'Devolución pagada al cliente',       d:'El dinero que se le regresó por la mercancía devuelta.'},
+  {k:'acc_cob',   g:'Accionista',      n:'Cobro recibido por el accionista',   d:'Entró a su cuenta, no a la de la empresa.'},
+  {k:'acc_vue',   g:'Accionista',      n:'Vuelto pagado por el accionista',    d:'Salió de su bolsillo. La empresa se lo debe.'},
+  {k:'acc_rei',   g:'Accionista',      n:'Reintegro al accionista',            d:'Cuando se le repone lo que puso.'},
+  {k:'dif_caja',  g:'Caja',            n:'Diferencia en el cierre de caja',    d:'Sobrante o faltante del arqueo.'},
+  {k:'com_vend',  g:'Gastos',          n:'Comisión de vendedor',               d:'Pendiente de desarrollo.'},
+  {k:'pago_rep',  g:'Gastos',          n:'Pago a repartidor',                  d:'Pendiente de desarrollo.'}
+];
+function opNom(k){ const o = OPS.find(x=>x.k===k); return o ? o.n : k; }
+
+/* plan de cuentas de arranque, editable */
+function CUENTAS_BASE(){ return [
+  {c:'1.1.01', n:'Caja en efectivo · dólares',        t:'Activo'},
+  {c:'1.1.02', n:'Caja en efectivo · bolívares',      t:'Activo'},
+  {c:'1.1.03', n:'Bancos · cuentas en bolívares',     t:'Activo'},
+  {c:'1.1.04', n:'Cuentas en dólares y USDT',         t:'Activo'},
+  {c:'1.1.05', n:'Fondo de caja para vueltos',        t:'Activo'},
+  {c:'1.1.06', n:'Inventario de mercancía',           t:'Activo'},
+  {c:'2.1.01', n:'Vueltos por entregar a clientes',   t:'Pasivo'},
+  {c:'2.1.02', n:'Devoluciones por pagar a clientes', t:'Pasivo'},
+  {c:'2.1.03', n:'Cuentas por pagar al accionista',   t:'Pasivo'},
+  {c:'2.1.04', n:'Comisiones por pagar',              t:'Pasivo'},
+  {c:'4.1.01', n:'Ingresos por ventas',               t:'Ingreso'},
+  {c:'4.1.02', n:'Ingresos por delivery',             t:'Ingreso'},
+  {c:'4.1.03', n:'Devoluciones y anulaciones',        t:'Ingreso'},
+  {c:'5.1.01', n:'Costo de la mercancía vendida',     t:'Costo'},
+  {c:'6.1.01', n:'Comisiones de vendedores',          t:'Gasto'},
+  {c:'6.1.02', n:'Pagos de delivery',                 t:'Gasto'},
+  {c:'6.1.03', n:'Faltantes y sobrantes de caja',     t:'Gasto'}
+]; }
+function MAPA_BASE(){ return {
+  vta:'4.1.01', deliv:'4.1.02', dev:'4.1.03', anul:'4.1.03', costo:'5.1.01',
+  cob_efec_usd:'1.1.01', cob_efec_bs:'1.1.02', cob_pm:'1.1.03', cob_pdv:'1.1.03',
+  cob_usdt:'1.1.04', cob_zelle:'1.1.04',
+  vue:'1.1.01', vue_pend:'2.1.01', dev_pag:'2.1.02',
+  acc_cob:'2.1.03', acc_vue:'2.1.03', acc_rei:'2.1.03',
+  dif_caja:'6.1.03', com_vend:'6.1.01', pago_rep:'6.1.02'
+}; }
+function ctaDe(op){ return (DB.mapaCtas || {})[op] || ''; }
+function ctaNom(cod){ const c = (DB.cuentas||[]).find(x=>x.c===cod); return c ? c.n : ''; }
+
+/* ==========================================================================
+   Ventas válidas, anuladas y devueltas
+   ========================================================================== */
+function anulada(v){ return !!(v && v.anulada); }
+function ventasVal(f){ return DB.ventas.filter(v=>v.fecha===f && !anulada(v)); }
+function devDe(v){ return (v.devuelto || []); }
+function devueltoUSD(v){ return Math.round(devDe(v).reduce((a,d)=>a+d.usd,0)*100)/100; }
+function netoVenta(v){ return anulada(v) ? 0 : Math.round((v.total - devueltoUSD(v))*100)/100; }
+/* cuántas unidades de una línea ya regresaron */
+function devueltasDe(v, li){
+  let n = 0;
+  devDe(v).forEach(d=>d.lineas.forEach(l=>{ if(l.i === li) n += l.cant; }));
+  return n;
+}
+function estadoVenta(v){
+  if(anulada(v)) return {k:'anulada', t:'anulada', c:'mal'};
+  const d = devueltoUSD(v);
+  if(d > 0.005) return {k:'devuelta', t:(d >= v.total-0.005 ? 'devuelta entera' : 'con devolución'), c:'avi'};
+  if(v.pend > 0.005) return {k:'pend', t:'vuelto pendiente', c:'avi'};
+  return {k:'ok', t:'registrada', c:'ok'};
+}
+
+/* ---------- clave de administrador ---------- */
+function selloClave(s){ return hash('sicom·' + String(s||'') + '·casakeylis'); }
+function hayClave(){ return !!(DB.cfg && DB.cfg.claveAdmin); }
+function claveOK(s){ return hayClave() && selloClave(s) === DB.cfg.claveAdmin; }
+
+/* ---------- devolver la existencia al inventario ---------- */
+function reponeLinea(l){
+  const p = DB.productos.find(x=>x.sku === l.sku); if(!p) return false;
+  if(l.talla && p.tallas){
+    const t = p.tallas.find(x=>x.t === l.talla);
+    if(t){ t.e += l.cant; return true; }
+    p.tallas.push({t:l.talla, e:l.cant}); return true;
+  }
+  p.exi = (p.exi || 0) + l.cant;
+  return true;
+}
+/* ---------- bajar los acumulados del cliente ---------- */
+function ajustaCliente(cliId, dMonto, dCompras){
+  const c = DB.clientes.find(x=>x.id === cliId); if(!c) return;
+  c.monto = Math.round(Math.max(0, (c.monto||0) + dMonto) * 100) / 100;
+  c.compras = Math.max(0, (c.compras||0) + dCompras);
+}
+
+/* ==========================================================================
+   Anular una venta
+   ========================================================================== */
+function puedeAnular(v){
+  if(anulada(v)) return 'Esa venta ya está anulada.';
+  if(devueltoUSD(v) > 0.005) return 'Esa venta ya tiene una devolución registrada. Anular encima dejaría el inventario descuadrado: registre el resto como devolución.';
+  return '';
+}
+function anularVenta(num, motivo, clave){
+  const v = DB.ventas.find(x=>x.num === num);
+  if(!v) return aviso('No encontré esa venta.', true);
+  const no = puedeAnular(v); if(no) return aviso(no, true);
+  if(String(motivo||'').trim().length < 10)
+    return aviso('Escriba el motivo de la anulación: al menos una frase que explique qué pasó.', true);
+  if(!hayClave())
+    return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true);
+  if(!claveOK(clave)) return aviso('La clave de administrador no es correcta.', true);
+
+  /* la mercancía vuelve al inventario */
+  v.lineas.forEach(l=>reponeLinea(l));
+
+  /* el cliente deja de tener esa compra encima */
+  ajustaCliente(v.cliId, -v.total, -1);
+
+  /* el accionista: se revierte con un asiento contrario, no se borra nada */
+  DB.accionista.filter(m=>m.venta === v.num).slice().forEach(m=>{
+    DB.accionista.push({fecha:hoy, tipo:'reverso',
+      concepto:'Reverso por anulación de la venta ' + v.num + ' · ' + m.concepto,
+      usd:-m.usd, ref:m.ref, venta:v.num, op:'anul'});
+  });
+
+  /* el vuelto que quedó pendiente se cancela */
+  let vueltoCancelado = 0, yaEntregado = 0;
+  DB.vpend.filter(p=>p.venta === v.num && !p.anulado).forEach(p=>{
+    vueltoCancelado += p.saldo;
+    yaEntregado += (p.usd - p.saldo);
+    p.saldo = 0; p.anulado = true; p.anuladoEl = hoy;
+  });
+
+  /* si el día ya estaba cerrado, ese cierre deja de cuadrar y hay que decirlo */
+  const cie = DB.cierres.find(c=>c.fecha === v.fecha);
+  if(cie){
+    if(!cie.afectado) cie.afectado = [];
+    cie.afectado.push({venta:v.num, usd:v.total, motivo:'anulación', cuando:hoy});
+  }
+
+  v.anulada = {fecha:hoy, hora:horaAhora(), motivo:String(motivo).trim(),
+               por:cajeraNom(DB.turno), cierre: cie ? cie.fecha : null,
+               vueltoCancelado:Math.round(vueltoCancelado*100)/100,
+               yaEntregado:Math.round(yaEntregado*100)/100, op:'anul'};
+
+  bitacora('caja','Venta anulada', v.num + ' · USD ' + fN(v.total) + ' · ' + String(motivo).trim()
+    + (cie ? ' · afecta el cierre del ' + fFecha(cie.fecha) : '')
+    + (yaEntregado > 0.005 ? ' · ya se le había entregado USD ' + fN(yaEntregado) : ''));
+
+  aviso('Venta ' + v.num + ' anulada.' + (cie ? ' El cierre del ' + fFecha(cie.fecha) + ' quedó marcado como afectado.' : ''));
+  VSEL = v.num; VACC = null; VMOT = ''; VCLA = '';
+  pinta();
+}
+
+/* ==========================================================================
+   Devolver artículos
+   ========================================================================== */
+function totalDev(v){
+  if(!v || !DEV) return 0;
+  let t = 0;
+  v.lineas.forEach((l,i)=>{ const n = DEV[i] || 0; t += n * l.precio; });
+  return Math.round(t * 100) / 100;
+}
+function registraDevolucion(num, motivo){
+  const v = DB.ventas.find(x=>x.num === num);
+  if(!v) return aviso('No encontré esa venta.', true);
+  if(anulada(v)) return aviso('Esa venta está anulada: no hay nada que devolver.', true);
+  const usd = totalDev(v);
+  if(usd < 0.005) return aviso('Indique cuántas unidades regresan.', true);
+  if(String(motivo||'').trim().length < 5)
+    return aviso('Escriba por qué la devuelve: talla, defecto, cambio de opinión.', true);
+
+  const lineas = [];
+  v.lineas.forEach((l,i)=>{
+    const n = DEV[i] || 0; if(!n) return;
+    lineas.push({i:i, sku:l.sku, nom:l.nom, talla:l.talla, cant:n, precio:l.precio, costo:l.costo||0});
+    reponeLinea({sku:l.sku, talla:l.talla, cant:n});
+  });
+
+  const c = DB.clientes.find(x=>x.id === v.cliId) || {};
+  const entera = usd >= netoVenta(v) - 0.005;
+  ajustaCliente(v.cliId, -usd, entera ? -1 : 0);
+
+  const pid = nid('dv');
+  DB.vpend.push({id:pid, tipo:'devolucion', venta:v.num, fecha:hoy, cliId:v.cliId,
+                 usd:usd, saldo:usd, entregas:[], cajera:DB.turno, op:'dev_pag'});
+
+  if(!v.devuelto) v.devuelto = [];
+  v.devuelto.push({fecha:hoy, hora:horaAhora(), lineas:lineas, usd:usd,
+                   motivo:String(motivo).trim(), cajera:DB.turno, pendId:pid, op:'dev'});
+
+  const cie = DB.cierres.find(x=>x.fecha === v.fecha);
+  if(cie && cie.fecha !== hoy){
+    if(!cie.afectado) cie.afectado = [];
+    cie.afectado.push({venta:v.num, usd:usd, motivo:'devolución', cuando:hoy});
+  }
+
+  DB.correos.push({fecha:hoy, cli:nomComp(c), mail:c.mail||'', venta:v.num,
+                   arts:lineas.reduce((a,l)=>a+l.cant,0), tipo:'devolucion', estado:'enviado'});
+
+  bitacora('caja','Devolución registrada', v.num + ' · USD ' + fN(usd) + ' · '
+    + lineas.map(l=>l.cant + '× ' + l.nom + (l.talla ? ' ' + l.talla : '')).join(' · ')
+    + ' · ' + String(motivo).trim());
+
+  aviso('Devolución registrada por USD ' + fN(usd) + ' · entréguesela al cliente.');
+  DEV = null; VACC = null; VMOT = '';
+  TAB = 'tes'; TSUB = 'vueltos'; PSEL = pid;
+  pinta(); window.scrollTo(0, 0);
+}
+
+/* ==========================================================================
+   SICOM v3 · pantallas de ventas, seguridad y contabilidad
+   ========================================================================== */
+let VSEL = null, VACC = null, VMOT = '', VCLA = '', VQ = '', DEV = null, CTAED = null;
+
+/* ------------------------------------------------------------- VENTAS ---- */
+function buscaVentas(){
+  const q = VQ.toLowerCase().trim();
+  let ls = DB.ventas.slice().sort((a,b)=>
+    b.fecha === a.fecha ? String(b.hora).localeCompare(String(a.hora)) : b.fecha.localeCompare(a.fecha));
+  if(q) ls = ls.filter(v=>{
+    const c = DB.clientes.find(x=>x.id === v.cliId) || {};
+    return v.num.toLowerCase().includes(q)
+        || (c.nom ? nomComp(c).toLowerCase().includes(q) : false)
+        || (c.doc || '').includes(q)
+        || fFecha(v.fecha).includes(q)
+        || v.fecha.includes(q)
+        || v.lineas.some(l=>l.nom.toLowerCase().includes(q) || l.sku.toLowerCase().includes(q));
+  });
+  return ls;
+}
+
+function repVentas(){
+  const ls = buscaVentas(), t = tasaVigente();
+  const an = DB.ventas.filter(anulada), cd = DB.ventas.filter(v=>devueltoUSD(v) > 0.005 && !anulada(v));
+  const valTot = DB.ventas.filter(v=>!anulada(v)).reduce((a,v)=>a+netoVenta(v), 0);
+
+  let h = '<div class="hero">'
+    + '<div class="h dest"><span class="k">Vendido neto</span><span class="v">'+fN(valTot)+' <small>USD</small></span>'
+    + '<span class="s">'+DB.ventas.filter(v=>!anulada(v)).length+' ventas válidas</span></div>'
+    + '<div class="h"><span class="k">Anuladas</span><span class="v">'+an.length+'</span>'
+    + '<span class="s">USD '+fN(an.reduce((a,v)=>a+v.total,0))+' dejados sin efecto</span></div>'
+    + '<div class="h"><span class="k">Con devolución</span><span class="v">'+cd.length+'</span>'
+    + '<span class="s">USD '+fN(DB.ventas.reduce((a,v)=>a+devueltoUSD(v),0))+' regresados</span></div>'
+    + '<div class="h"><span class="k">Devoluciones por pagar</span><span class="v">'
+    + DB.vpend.filter(p=>p.tipo === 'devolucion' && p.saldo > 0.005 && !p.anulado).length+'</span>'
+    + '<span class="s">esperando en tesorería</span></div></div>';
+
+  h += '<div class="card" style="margin-top:18px"><h2>Buscar una venta</h2>'
+     + '<p class="cap">Por número, cliente, cédula, fecha o artículo. Desde aquí se anula y se devuelve.</p>'
+     + '<input id="vq" value="'+esc(VQ)+'" placeholder="Escriba el número de la venta, el nombre del cliente o la fecha" autocomplete="off">';
+
+  if(!ls.length){
+    h += '<div class="vacio"><div class="vi">⌕</div>'
+       + (VQ ? 'Ninguna venta coincide con «'+esc(VQ)+'».' : 'Todavía no hay ventas registradas.')+'</div></div>';
+    return h;
+  }
+
+  h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Venta</th><th>Fecha</th><th>Cliente</th>'
+     + '<th>Artículos</th><th class="n">Total USD</th><th class="n">Neto</th><th>Estado</th><th></th></tr></thead><tbody>';
+  ls.slice(0, 60).forEach(v=>{
+    const c = DB.clientes.find(x=>x.id === v.cliId) || {nom:'—', ape:''};
+    const e = estadoVenta(v), sel = VSEL === v.num;
+    h += '<tr'+(anulada(v) ? ' style="opacity:.62"' : '')+'>'
+      + '<td><b>'+esc(v.num)+'</b><div class="mini">'+esc(v.hora)+'</div></td>'
+      + '<td class="mini">'+fFecha(v.fecha)+'</td>'
+      + '<td>'+esc(nomComp(c))+'</td>'
+      + '<td class="mini">'+v.lineas.reduce((a,l)=>a+l.cant,0)+' und · '+esc(v.canal||'—')+'</td>'
+      + '<td class="n"'+(anulada(v) ? ' style="text-decoration:line-through"' : '')+'>'+fN(v.total)+'</td>'
+      + '<td class="n"><b>'+fN(netoVenta(v))+'</b></td>'
+      + '<td><span class="chip '+e.c+'">'+e.t+'</span></td>'
+      + '<td class="n"><button class="b sm '+(sel ? 'gh' : 'oro')+'" data-vsel="'+esc(v.num)+'">'
+      + (sel ? 'Cerrar' : 'Ver')+'</button></td></tr>';
+    if(sel) h += '<tr><td colspan="8" style="padding:0;background:var(--sup)">'+fichaVenta(v, c, t)+'</td></tr>';
+  });
+  h += '</tbody></table>';
+  if(ls.length > 60) h += '<div class="nota">Se muestran las 60 más recientes de '+ls.length+'. Afine la búsqueda para ver el resto.</div>';
+  h += '</div>';
+  return h;
+}
+
+function fichaVenta(v, c, t){
+  let h = '<div style="padding:20px">';
+
+  if(anulada(v)){
+    const a = v.anulada;
+    h += '<div class="nota rj" style="margin:0 0 18px"><b>Venta anulada el '+fFecha(a.fecha)+' a las '+esc(a.hora)+'</b> '
+       + 'por '+esc(a.por)+'.<br>Motivo: '+esc(a.motivo)
+       + (a.cierre ? '<br>Afecta el cierre de caja del <b>'+fFecha(a.cierre)+'</b>, que ya estaba firmado.' : '')
+       + (a.yaEntregado > 0.005 ? '<br>Ya se le había entregado USD <b>'+fN(a.yaEntregado)+'</b> de vuelto: ese dinero salió y no regresó solo.' : '')
+       + '</div>';
+  }
+
+  h += '<div class="g2b"><div>';
+  h += '<h3 style="font-size:14px;margin-bottom:10px">Lo que se llevó</h3><table class="dat"><tbody>';
+  v.lineas.forEach((l,i)=>{
+    const dv = devueltasDe(v, i);
+    h += '<tr><td><b>'+esc(l.nom)+(l.talla ? ' · '+esc(l.talla) : '')+'</b>'
+      + '<div class="mini">'+esc(l.sku)+' · '+esc(l.cat||'')+'</div></td>'
+      + '<td class="n">'+l.cant+' × '+fN(l.precio)+(dv ? '<div class="mini" style="color:var(--avi)">'+dv+' devuelta'+(dv>1?'s':'')+'</div>' : '')+'</td>'
+      + '<td class="n"><b>'+fN(l.cant*l.precio)+'</b></td></tr>';
+  });
+  if(v.deliv > 0) h += '<tr><td><b>🛵 Delivery</b><div class="mini">'+esc(v.repId ? repNom(v.repId) : '')+'</div></td>'
+    + '<td class="n"></td><td class="n"><b>'+fN(v.deliv)+'</b></td></tr>';
+  h += '<tr><td colspan="2" style="text-align:right"><b>Total de la venta</b></td>'
+     + '<td class="n"><b>USD '+fN(v.total)+'</b></td></tr>';
+  if(devueltoUSD(v) > 0.005) h += '<tr><td colspan="2" style="text-align:right">Devuelto</td>'
+     + '<td class="n" style="color:var(--mal-ink)"><b>−'+fN(devueltoUSD(v))+'</b></td></tr>'
+     + '<tr><td colspan="2" style="text-align:right"><b>Neto</b></td><td class="n"><b>USD '+fN(netoVenta(v))+'</b></td></tr>';
+  h += '</tbody></table>';
+
+  h += '<div class="mini" style="margin-top:12px">Cobrada por '+esc(cajeraNom(v.cajera))
+     + ' · '+(v.vendedorId ? esc(vendNom(v.vendedorId)) : 'sin vendedor asignado')
+     + ' · tasa Bs '+(v.tasa ? fN(v.tasa,2) : '—')+'</div>';
+  h += '</div><div>';
+
+  h += '<h3 style="font-size:14px;margin-bottom:10px">Cómo pagó</h3><table class="dat"><tbody>';
+  v.cobros.forEach(x=>{ const m = METODOS.find(y=>y.k === x.met) || {};
+    h += '<tr><td><b>'+(m.ic||'')+' '+esc(m.n||x.met)+'</b>'
+      + (x.banco ? '<div class="mini">'+esc(x.banco)+(x.ref ? ' · '+esc(x.ref) : '')+'</div>' : '')
+      + (x.fuente === 'accionista' ? '<div class="mini"><span class="chip acc">fondos del accionista</span></div>' : '')
+      + '</td><td class="n"><b>'+(m.mon === 'BS' ? 'Bs ' : 'USD ')+fN(x.monto)+'</b>'
+      + '<div class="mini">'+esc(ctaDe('cob_'+x.met) || 'sin cuenta')+'</div></td></tr>';
+  });
+  v.vueltos.forEach(x=>{ const m = METODOS.find(y=>y.k === x.met) || {};
+    h += '<tr><td>Vuelto por '+esc((m.n||'').toLowerCase())+'</td>'
+      + '<td class="n" style="color:var(--mal-ink)">−'+(m.mon === 'BS' ? 'Bs ' : 'USD ')+fN(x.monto)+'</td></tr>';
+  });
+  if(v.pend > 0.005) h += '<tr><td>Vuelto que quedó pendiente</td><td class="n"><b>USD '+fN(v.pend)+'</b></td></tr>';
+  h += '</tbody></table>';
+
+  if(devDe(v).length){
+    h += '<h3 style="font-size:14px;margin:18px 0 10px">Devoluciones</h3><table class="dat"><tbody>';
+    devDe(v).forEach(d=>{
+      const p = DB.vpend.find(x=>x.id === d.pendId);
+      h += '<tr><td><b>'+fFecha(d.fecha)+'</b><div class="mini">'+esc(d.motivo)+'</div>'
+        + '<div class="mini">'+d.lineas.map(l=>l.cant+'× '+esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join(' · ')+'</div></td>'
+        + '<td class="n"><b>USD '+fN(d.usd)+'</b><div class="mini">'
+        + (p && p.saldo > 0.005 ? '<span class="chip avi">por entregar</span>' : '<span class="chip ok">entregada</span>')
+        + '</div></td></tr>';
+    });
+    h += '</tbody></table>';
+  }
+  h += '</div></div>';
+
+  /* acciones */
+  if(!anulada(v)){
+    h += '<div class="acc" style="margin-top:18px;border-top:1px solid var(--linea);padding-top:16px">';
+    if(VACC !== 'anu') h += '<button class="b sm '+(VACC === 'dev' ? 'gh' : 'oro')+'" data-vacc="dev">'
+       + (VACC === 'dev' ? 'Cancelar la devolución' : 'Registrar una devolución')+'</button>';
+    if(VACC !== 'dev') h += '<button class="b sm '+(VACC === 'anu' ? 'gh' : '')+'" data-vacc="anu">'
+       + (VACC === 'anu' ? 'Cancelar la anulación' : 'Anular la venta')+'</button>';
+    h += '</div>';
+    if(VACC === 'dev') h += formDevolucion(v, t);
+    if(VACC === 'anu') h += formAnulacion(v);
+  }
+  h += '</div>';
+  return h;
+}
+
+/* -------------------------------------------------------- DEVOLUCIÓN ----- */
+function formDevolucion(v, t){
+  if(!DEV) DEV = v.lineas.map(()=>0);
+  const usd = totalDev(v);
+  let h = '<div class="card editando" style="margin-top:16px"><h2>¿Qué regresa?</h2>'
+    + '<p class="cap">Marque cuántas unidades vuelven. La mercancía entra otra vez al inventario y el dinero '
+    + 'queda como devolución por entregar en tesorería.</p><div class="lineas">';
+  v.lineas.forEach((l,i)=>{
+    const ya = devueltasDe(v, i), max = l.cant - ya, n = DEV[i] || 0;
+    h += '<div class="lin"><div class="li"><b>'+esc(l.nom)+(l.talla ? ' · '+esc(l.talla) : '')+'</b>'
+      + '<div class="mini">USD '+fN(l.precio)+' c/u · llevó '+l.cant
+      + (ya ? ' · ya devolvió '+ya : '')+(max <= 0 ? ' · <b>nada más por devolver</b>' : '')+'</div></div>'
+      + '<button class="b sm gh" data-dvm="'+i+'"'+(n <= 0 ? ' disabled' : '')+'>−</button>'
+      + '<b style="min-width:20px;text-align:center">'+n+'</b>'
+      + '<button class="b sm gh" data-dvp="'+i+'"'+(n >= max ? ' disabled' : '')+'>+</button>'
+      + '<span class="lm">'+fN(n*l.precio)+'</span></div>';
+  });
+  h += '</div>';
+  h += '<div class="visor"><span class="vk">Se le devuelve</span><div class="vn">USD '+fN(usd)+'</div>'
+     + (t ? '<span class="veq">Bs '+fN(usd*t.bcv)+' a la tasa de hoy · '+fN(t.bcv,2)+'</span>'
+          : '<span class="veq">Sin tasa confirmada</span>')+'</div>';
+  h += '<div class="nota az" style="margin-top:14px"><b>Por qué en dólares.</b> La compra se pactó en dólares, así que '
+     + 'eso es lo que se le devuelve. Si se le paga en bolívares, se calcula a la tasa del día de hoy, no a la del día '
+     + 'de la compra: es lo que le cuesta a ella reponer la prenda hoy.</div>';
+  h += '<div style="margin-top:14px"><label class="f">¿Por qué la devuelve?</label>'
+     + '<input id="dv_mot" value="'+esc(VMOT)+'" placeholder="Talla equivocada, defecto de fábrica, cambio de opinión…" maxlength="90">'
+     + '<div class="ayuda">Queda en la bitácora y en el correo al cliente.</div></div>';
+  h += '<div class="acc"><button class="b oro" id="dv_g"'+(usd < 0.005 ? ' disabled' : '')+'>'
+     + (usd < 0.005 ? 'Indique qué regresa' : 'Registrar la devolución de USD '+fN(usd))+'</button></div></div>';
+  return h;
+}
+
+/* --------------------------------------------------------- ANULACIÓN ----- */
+function formAnulacion(v){
+  const no = puedeAnular(v);
+  let h = '<div class="card editando" style="margin-top:16px"><h2>Anular la venta '+esc(v.num)+'</h2>';
+  if(no) return h + '<div class="nota rj" style="margin:0">'+esc(no)+'</div></div>';
+
+  const cie = DB.cierres.find(c=>c.fecha === v.fecha);
+  const vp = DB.vpend.filter(p=>p.venta === v.num && !p.anulado);
+  const entregado = vp.reduce((a,p)=>a+(p.usd-p.saldo), 0);
+
+  h += '<p class="cap">Anular deja la venta sin efecto: la mercancía vuelve al inventario y el cliente deja de tener '
+     + 'esa compra en su historial. La venta no se borra —queda marcada, con su motivo y su firma— porque el sistema '
+     + 'es auditable.</p>';
+
+  h += '<div class="lineas">'
+     + '<div class="lin"><div class="li"><b>Vuelven al inventario</b><div class="mini">'
+     + v.lineas.map(l=>l.cant+'× '+esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join(' · ')
+     + '</div></div><span class="lm">'+v.lineas.reduce((a,l)=>a+l.cant,0)+' und</span></div>'
+     + '<div class="lin"><div class="li"><b>El cliente deja de acumular</b><div class="mini">'
+     + 'una compra menos y USD '+fN(v.total)+' menos en su historial</div></div>'
+     + '<span class="lm">−'+fN(v.total)+'</span></div>';
+  if(DB.accionista.some(m=>m.venta === v.num))
+    h += '<div class="lin"><div class="li"><b>Se revierte el movimiento del accionista</b>'
+       + '<div class="mini">con un asiento contrario, no borrando el original</div></div></div>';
+  if(vp.length)
+    h += '<div class="lin"><div class="li"><b>Se cancela el vuelto pendiente</b><div class="mini">'
+       + 'USD '+fN(vp.reduce((a,p)=>a+p.saldo,0))+' que todavía no se le había entregado</div></div></div>';
+  h += '</div>';
+
+  if(cie) h += '<div class="nota rj" style="margin-top:14px"><b>Ojo: el '+fFecha(v.fecha)+' ya tiene cierre de caja firmado.</b> '
+     + 'Anular esta venta cambia lo que ese día debió haber en caja, y el arqueo que se contó y se firmó deja de coincidir. '
+     + 'El sistema va a marcar ese cierre como afectado y va a dejar constancia de la diferencia. Es lo correcto, pero '
+     + 'sépalo antes de hacerlo.</div>';
+  if(entregado > 0.005) h += '<div class="nota rj" style="margin-top:14px"><b>Ya se le entregó USD '+fN(entregado)+' de vuelto.</b> '
+     + 'Ese dinero salió de la caja y anular no lo trae de vuelta: hay que cobrárselo al cliente aparte.</div>';
+
+  h += '<div style="margin-top:16px"><label class="f">Motivo de la anulación</label>'
+     + '<input id="an_mot" value="'+esc(VMOT)+'" placeholder="Explique qué pasó, con sus palabras" maxlength="140">'
+     + '<div class="ayuda">Al menos una frase. Queda firmada en la bitácora con su nombre.</div></div>';
+
+  if(!hayClave()){
+    h += '<div class="nota rj" style="margin-top:14px"><b>Falta la clave de administrador.</b> '
+       + 'Anular una venta es una operación que no debería poder hacer cualquiera. '
+       + 'Defina la clave en Gerencial · Seguridad y vuelva.</div>'
+       + '<div class="acc"><button class="b oro" data-goto="ger|seg">Ir a definir la clave →</button></div></div>';
+    return h;
+  }
+  h += '<div style="margin-top:14px"><label class="f">Clave de administrador</label>'
+     + '<input id="an_cla" type="password" value="'+esc(VCLA)+'" placeholder="Escriba la clave" maxlength="40" autocomplete="off">'
+     + '<div class="ayuda">Sin ella la anulación no procede.</div></div>'
+     + '<div class="acc"><button class="b oro" id="an_g">Anular la venta '+esc(v.num)+'</button></div></div>';
+  return h;
+}
+
+/* --------------------------------------------------------- SEGURIDAD ----- */
+function gerSeguridad(){
+  const anu = DB.ventas.filter(anulada);
+  let h = '<div class="card"><h2>Clave de administrador</h2>'
+    + '<p class="cap">Hay operaciones que no debería poder hacer una cajera por su cuenta. Hoy es una: anular una venta. '
+    + 'Más adelante serán también el cierre con diferencia y el cambio de precios.</p>';
+
+  h += hayClave()
+    ? '<div class="estado cuadra"><span class="et">Estado</span><span class="mt">Clave definida</span>'
+      + '<span class="sb">Las anulaciones exigen escribirla.</span></div>'
+    : '<div class="estado pend"><span class="et">Estado</span><span class="mt">Sin clave</span>'
+      + '<span class="sb">Mientras no la defina, no se puede anular ninguna venta.</span></div>';
+
+  h += '<div class="fila" style="margin-top:16px">';
+  if(hayClave()) h += '<div><label class="f">Clave actual</label>'
+    + '<input id="sg_act" type="password" placeholder="Escriba la clave actual" maxlength="40" autocomplete="off"></div>';
+  h += '<div><label class="f">'+(hayClave() ? 'Clave nueva' : 'Clave')+'</label>'
+     + '<input id="sg_n1" type="password" placeholder="Al menos 6 caracteres" maxlength="40" autocomplete="new-password"></div>'
+     + '<div><label class="f">Repítala</label>'
+     + '<input id="sg_n2" type="password" placeholder="La misma otra vez" maxlength="40" autocomplete="new-password"></div>'
+     + '</div><div class="acc"><button class="b oro" id="sg_g">'+(hayClave() ? 'Cambiar la clave' : 'Definir la clave')+'</button></div>';
+
+  h += '<div class="nota rj">Sea honesto consigo mismo sobre qué protege esto. La clave se guarda sellada, no en claro, '
+     + 'pero el sistema entero vive en este navegador: quien tenga la computadora abierta puede llegarle a los datos. '
+     + 'Sirve para que nadie anule una venta de paso, no para detener a alguien decidido. La seguridad de verdad '
+     + '—usuario, contraseña y permisos por rol— llega cuando el sistema esté en el servidor.</div></div>';
+
+  h += '<div class="card"><h2>Ventas anuladas</h2>';
+  if(!anu.length) h += '<div class="vacio"><div class="vi">✓</div>No se ha anulado ninguna venta.</div>';
+  else{
+    h += '<table class="dat"><thead><tr><th>Venta</th><th>Era del</th><th>Anulada el</th><th>Quién</th>'
+       + '<th>Motivo</th><th class="n">Monto</th><th>Cierre</th></tr></thead><tbody>';
+    anu.slice().reverse().forEach(v=>{ const a = v.anulada;
+      h += '<tr><td><b>'+esc(v.num)+'</b></td><td class="mini">'+fFecha(v.fecha)+'</td>'
+        + '<td class="mini">'+fFecha(a.fecha)+' '+esc(a.hora)+'</td><td class="mini">'+esc(a.por)+'</td>'
+        + '<td class="mini">'+esc(a.motivo)+'</td><td class="n"><b>'+fN(v.total)+'</b></td>'
+        + '<td>'+(a.cierre ? '<span class="chip mal">afectó el del '+fFecha(a.cierre)+'</span>' : '<span class="chip">día abierto</span>')+'</td></tr>';
+    });
+    h += '</tbody></table><div class="nota">Ninguna venta anulada se borra. Esta tabla es la que hay que poder mostrar '
+       + 'cuando alguien pregunte por qué el correlativo tiene huecos.</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+/* ------------------------------------------------------- CONTABILIDAD ---- */
+function cfgContab(){
+  const sinCta = OPS.filter(o=>!ctaDe(o.k)).length;
+  let h = '<div class="card"><h2>Cómo se asienta cada operación</h2>'
+    + '<p class="cap">El módulo contable todavía no existe. Lo que sí existe desde ya es que cada movimiento de dinero '
+    + 'nace marcado con su tipo de operación. Cuando llegue la contabilidad, va a poder asentar todo el histórico de una '
+    + 'sola pasada, sin que nadie tenga que adivinar qué fue cada cosa.</p>';
+
+  h += sinCta
+    ? '<div class="nota">Quedan <b>'+sinCta+'</b> tipos de operación sin cuenta asignada. No frena nada hoy, pero conviene dejarlos listos.</div>'
+    : '<div class="nota"><b>Todos los tipos de operación tienen su cuenta.</b> El día que se active la contabilidad, el histórico se asienta solo.</div>';
+
+  const grupos = [];
+  OPS.forEach(o=>{ if(!grupos.includes(o.g)) grupos.push(o.g); });
+  grupos.forEach(g=>{
+    h += '<h3 style="font-size:13px;margin:20px 0 8px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">'+esc(g)+'</h3>'
+       + '<table class="dat"><tbody>';
+    OPS.filter(o=>o.g === g).forEach(o=>{
+      const cod = ctaDe(o.k);
+      h += '<tr><td style="width:44%"><b>'+esc(o.n)+'</b>'+(o.d ? '<div class="mini">'+esc(o.d)+'</div>' : '')+'</td>'
+        + '<td><select data-opcta="'+o.k+'"><option value="">Sin cuenta asignada</option>'
+        + (DB.cuentas||[]).map(c=>'<option value="'+esc(c.c)+'"'+(c.c === cod ? ' selected' : '')+'>'
+            +esc(c.c)+' · '+esc(c.n)+'</option>').join('')+'</select></td></tr>';
+    });
+    h += '</tbody></table>';
+  });
+  h += '</div>';
+
+  /* plan de cuentas */
+  h += '<div class="card"><h2>Plan de cuentas</h2>'
+     + '<p class="cap">El esqueleto viene cargado. Ajústelo a como lleva usted la contabilidad.</p>'
+     + '<div class="fila">'
+     + '<div style="flex:0 0 150px"><label class="f">Código</label>'
+     + '<input id="ct_c" placeholder="1.1.01" maxlength="14"></div>'
+     + '<div style="flex:2 1 280px"><label class="f">Nombre de la cuenta</label>'
+     + '<input id="ct_n" placeholder="Escriba el nombre" maxlength="60"></div>'
+     + '<div><label class="f">Tipo</label><select id="ct_t">'
+     + ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'].map(x=>'<option>'+x+'</option>').join('')
+     + '</select></div>'
+     + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="ct_g">Agregar</button></div></div>';
+
+  h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Código</th><th>Cuenta</th><th>Tipo</th>'
+     + '<th>Se usa en</th><th></th></tr></thead><tbody>';
+  (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c)).forEach(c=>{
+    const usos = OPS.filter(o=>ctaDe(o.k) === c.c);
+    h += '<tr><td><b>'+esc(c.c)+'</b></td><td>'+esc(c.n)+'</td>'
+      + '<td><span class="chip">'+esc(c.t)+'</span></td>'
+      + '<td class="mini">'+(usos.length ? usos.map(o=>esc(o.n)).join(' · ') : '—')+'</td>'
+      + '<td class="n">'+(usos.length
+          ? '<span class="mini">en uso</span>'
+          : '<button class="b sm gh" data-ctdel="'+esc(c.c)+'">Eliminar</button>')+'</td></tr>';
+  });
+  h += '</tbody></table>'
+     + '<div class="nota">Una cuenta asignada a alguna operación no se elimina: primero desasígnela arriba. '
+     + 'Así ningún movimiento ya registrado se queda apuntando a una cuenta que dejó de existir.</div></div>';
+  return h;
+}
+
+/* -------------------------------------- devoluciones pendientes en tesorería */
+function pendDev(){ return DB.vpend.filter(p=>p.tipo === 'devolucion' && p.saldo > 0.005 && !p.anulado); }
+function pendVue(){ return DB.vpend.filter(p=>p.tipo !== 'devolucion' && p.saldo > 0.005 && !p.anulado); }
+
+/* ==========================================================================
+   SICOM v3 · eventos de ventas, seguridad y contabilidad
+   ========================================================================== */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+
+  /* ---------------- ficha de la venta ---------------- */
+  if(b.dataset.vsel){
+    VSEL = (VSEL === b.dataset.vsel) ? null : b.dataset.vsel;
+    VACC = null; DEV = null; VMOT = ''; VCLA = '';
+    pinta(); return;
+  }
+  if(b.dataset.vacc){
+    VACC = (VACC === b.dataset.vacc) ? null : b.dataset.vacc;
+    DEV = null; VMOT = ''; VCLA = '';
+    pinta(); return;
+  }
+
+  /* ---------------- devolución ---------------- */
+  if(b.dataset.dvp !== undefined && b.dataset.dvp !== ''){
+    const v = DB.ventas.find(x=>x.num === VSEL); if(!v) return;
+    const i = +b.dataset.dvp, l = v.lineas[i];
+    if(!DEV) DEV = v.lineas.map(()=>0);
+    const max = l.cant - devueltasDe(v, i);
+    if(DEV[i] < max) DEV[i]++;
+    pinta(); return;
+  }
+  if(b.dataset.dvm !== undefined && b.dataset.dvm !== ''){
+    const i = +b.dataset.dvm;
+    if(DEV && DEV[i] > 0) DEV[i]--;
+    pinta(); return;
+  }
+  if(b.id === 'dv_g'){ registraDevolucion(VSEL, VMOT); return; }
+
+  /* ---------------- anulación ---------------- */
+  if(b.id === 'an_g'){ anularVenta(VSEL, VMOT, VCLA); return; }
+
+  /* ---------------- clave de administrador ---------------- */
+  if(b.id === 'sg_g'){
+    const n1 = ($('#sg_n1').value || ''), n2 = ($('#sg_n2').value || '');
+    if(hayClave()){
+      const act = ($('#sg_act').value || '');
+      if(!claveOK(act)) return aviso('La clave actual no es correcta.', true);
+    }
+    if(n1.length < 6) return aviso('La clave debe tener al menos 6 caracteres.', true);
+    if(n1 !== n2) return aviso('Las dos claves no coinciden. Escríbalas otra vez.', true);
+    if(/^\d+$/.test(n1)) return aviso('No use solo números: mezcle letras.', true);
+    const cambio = hayClave();
+    DB.cfg.claveAdmin = selloClave(n1);
+    bitacora('seguridad', cambio ? 'Clave de administrador cambiada' : 'Clave de administrador definida',
+             'a partir de ahora las anulaciones la exigen');
+    aviso(cambio ? 'Clave cambiada.' : 'Clave definida. Ya se pueden anular ventas.');
+    pinta(); return;
+  }
+
+  /* ---------------- plan de cuentas ---------------- */
+  if(b.id === 'ct_g'){
+    const c = ($('#ct_c').value || '').trim(), n = ($('#ct_n').value || '').trim(), t = $('#ct_t').value;
+    if(!/^[\d.]{3,14}$/.test(c)) return aviso('El código de la cuenta lleva números y puntos, como 1.1.01.', true);
+    if(n.length < 3) return aviso('Escriba el nombre de la cuenta.', true);
+    if((DB.cuentas||[]).some(x=>x.c === c)) return aviso('Ya existe una cuenta con el código '+c+'.', true);
+    DB.cuentas.push({c:c, n:n, t:t});
+    bitacora('contab','Cuenta agregada', c+' · '+n+' · '+t);
+    aviso('Cuenta '+c+' agregada.'); pinta(); return;
+  }
+  if(b.dataset.ctdel){
+    const c = b.dataset.ctdel;
+    if(OPS.some(o=>ctaDe(o.k) === c)) return aviso('Esa cuenta está asignada a una operación: desasígnela primero.', true);
+    DB.cuentas = DB.cuentas.filter(x=>x.c !== c);
+    bitacora('contab','Cuenta eliminada', c);
+    aviso('Cuenta eliminada.'); pinta(); return;
+  }
+});
+
+document.addEventListener('input', e=>{
+  const id = e.target.id, v = e.target.value;
+  if(id === 'vq'){ VQ = v; const s = e.target.selectionStart; pinta();
+    const n = $('#vq'); if(n){ n.focus(); n.setSelectionRange(s, s); } return; }
+  if(id === 'dv_mot' || id === 'an_mot'){ VMOT = v; return; }
+  if(id === 'an_cla'){ VCLA = v; return; }
+});
+
+document.addEventListener('change', e=>{
+  if(e.target.dataset.opcta !== undefined && e.target.dataset.opcta !== ''){
+    const k = e.target.dataset.opcta, c = e.target.value;
+    if(!DB.mapaCtas) DB.mapaCtas = {};
+    DB.mapaCtas[k] = c;
+    bitacora('contab','Operación mapeada', opNom(k)+' → '+(c ? c+' · '+ctaNom(c) : 'sin cuenta'));
+    aviso(c ? opNom(k)+' se asienta en '+c+'.' : opNom(k)+' quedó sin cuenta.');
+    guardar(); return;
   }
 });
 
