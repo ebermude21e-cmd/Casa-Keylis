@@ -395,7 +395,7 @@ function SEMILLA(){ return {
   fondoUSD:100,
   cfg:{
     claveAdmin:'',
-    motAnul:MOT_ANUL_BASE(), motDev:MOT_DEV_BASE(),
+    motivos:MOTIVOS_BASE(), diasDev:15,
     canales:['Presencial','Instagram','TikTok','WhatsApp','Facebook','Referido'],
     vendedores:[
       {id:'v1',nom:'Keylis',ape:'Bermúdez',ci:'12458001',com:3,banco:'Banesco',op:'0412',tel:'9597787',activo:true},
@@ -630,8 +630,9 @@ function cliListo(){
 /* ==========================================================================
    Render
    ========================================================================== */
-const TABS=[['caja','Ingresos'],['tes','Tesorería'],['rep','Reportes'],['correos','Clientes'],
-            ['tasas','Tasas'],['accion','Accionista'],['cfg','Configuración'],['ger','Gerencial']];
+const TABS=[['caja','Ingresos'],['dev','Devoluciones'],['tes','Tesorería'],['rep','Reportes'],
+            ['correos','Clientes'],['tasas','Tasas'],['accion','Accionista'],['cfg','Configuración'],
+            ['ger','Gerencial']];
 function pinta(){
   aplicaTema();
   pintaMarca();
@@ -642,7 +643,7 @@ function pinta(){
   $('#app').innerHTML =
       TAB==='tasas'?vistaTasas(): TAB==='accion'?vistaAcc(): TAB==='correos'?vistaCorreos()
     : TAB==='cfg'?vistaCfg(): TAB==='tes'?vistaTes(): TAB==='rep'?vistaRep()
-    : TAB==='ger'?vistaGer(): (avisoSetup()+vistaCaja());
+    : TAB==='ger'?vistaGer(): TAB==='dev'?vistaDev(): (avisoSetup()+vistaCaja());
   barra();
   guardar();
 }
@@ -1644,7 +1645,7 @@ function vistaCfg(){
     +'<div class="subtabs">'
     +[['emp','Empresa'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
       ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras'],
-      ['mot','Motivos'],['contab','Contabilidad']]
+      ['dev','Devoluciones'],['contab','Contabilidad']]
       .map(s=>'<button data-csub="'+s[0]+'" class="'+(CSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     +'</div>';
 
@@ -1652,7 +1653,7 @@ function vistaCfg(){
   if(CSUB==='marca') return h + cfgMarca();
   if(CSUB==='prod')  return h + cfgProd();
   if(CSUB==='cat')   return h + cfgCat();
-  if(CSUB==='mot')    return h + cfgMotivos();
+  if(CSUB==='dev')    return h + cfgDevol();
   if(CSUB==='contab') return h + cfgContab();
 
   if(CSUB==='vend'){
@@ -2186,8 +2187,8 @@ function normaliza(b){
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
   if(!b.cuentas || !b.cuentas.length) b.cuentas = CUENTAS_BASE();
   if(!b.mapaCtas) b.mapaCtas = MAPA_BASE();
-  if(!b.cfg.motAnul || !b.cfg.motAnul.length) b.cfg.motAnul = MOT_ANUL_BASE();
-  if(!b.cfg.motDev  || !b.cfg.motDev.length)  b.cfg.motDev  = MOT_DEV_BASE();
+  unificaMotivos(b);
+  if(!(+b.cfg.diasDev > 0)) b.cfg.diasDev = 15;
   b.vpend.forEach(p=>{ if(!p.tipo) p.tipo = 'vuelto'; });
   return b;
 }
@@ -2451,7 +2452,9 @@ function pasos(){
     {ok: DB.cfg.canales.length > 0, t:'Canales de venta',
      d:'Por dónde llega la venta: presencial, Instagram, WhatsApp…', tab:'cfg', sub:'can'},
     {ok: DB.fondoUSD > 0, t:'Fondo de caja para vueltos',
-     d:'El efectivo en dólares con el que abre el día.', tab:'tes', sub:'cierre'}
+     d:'El efectivo en dólares con el que abre el día.', tab:'tes', sub:'cierre'},
+    {ok: motActivosU().length > 0, t:'Motivos de devolución y anulación',
+     d:'Sin ellos no se puede registrar por qué regresó una compra.', tab:'cfg', sub:'dev'}
   ];
 }
 function listoParaVender(){ return pasos().every(p=>p.ok); }
@@ -3390,14 +3393,10 @@ function fichaVenta(v, c, t){
 
   /* acciones */
   if(!anulada(v)){
-    h += '<div class="acc" style="margin-top:18px;border-top:1px solid var(--linea);padding-top:16px">';
-    if(VACC !== 'anu') h += '<button class="b sm '+(VACC === 'dev' ? 'gh' : 'oro')+'" data-vacc="dev">'
-       + (VACC === 'dev' ? 'Cancelar la devolución' : 'Registrar una devolución')+'</button>';
-    if(VACC !== 'dev') h += '<button class="b sm '+(VACC === 'anu' ? 'gh' : '')+'" data-vacc="anu">'
-       + (VACC === 'anu' ? 'Cancelar la anulación' : 'Anular la venta')+'</button>';
-    h += '</div>';
-    if(VACC === 'dev') h += formDevolucion(v, t);
-    if(VACC === 'anu') h += formAnulacion(v);
+    h += '<div class="acc" style="margin-top:18px;border-top:1px solid var(--linea);padding-top:16px">'
+       + '<button class="b sm oro" data-rvir="'+esc(v.num)+'">Devolver o anular esta venta →</button>'
+       + '<span class="mini" style="align-self:center">Se hace en el módulo de Devoluciones, con la cédula del comprador.</span>'
+       + '</div>';
   }
   h += '</div>';
   return h;
@@ -3903,41 +3902,8 @@ function cardPorQue(tipo, solo){
 /* ==========================================================================
    SICOM v4 · eventos de los motivos
    ========================================================================== */
-document.addEventListener('click', e=>{
-  const b = e.target.closest('button'); if(!b) return;
-
-  if(b.dataset.mottipo){ MOTTIPO = b.dataset.mottipo; pinta(); return; }
-
-  if(b.id === 'mo_g'){
-    const n = ($('#mo_n').value || '').trim(), d = ($('#mo_d').value || '').trim();
-    if(n.length < 4) return aviso('Escriba el motivo: al menos cuatro letras.', true);
-    if(motLista(MOTTIPO).some(m=>m.n.toLowerCase() === n.toLowerCase()))
-      return aviso('Ese motivo ya está en la lista.', true);
-    const c = motProxCod(MOTTIPO);
-    motLista(MOTTIPO).push({c:c, n:n, d:d, pide:false, activo:true});
-    bitacora('cfg','Motivo agregado', (MOTTIPO === 'anul' ? 'anulación' : 'devolución')+' · '+c+' · '+n);
-    aviso('Motivo '+c+' agregado.'); pinta(); return;
-  }
-  if(b.dataset.motog){
-    const p = b.dataset.motog.split('|'), m = motDe(p[0], p[1]); if(!m) return;
-    if(m.activo && motActivos(p[0]).length === 1)
-      return aviso('Es el último motivo activo: sin ninguno no se podría anular ni devolver.', true);
-    m.activo = !m.activo;
-    bitacora('cfg', m.activo ? 'Motivo reactivado' : 'Motivo desactivado', p[1]+' · '+m.n);
-    aviso(m.activo ? 'Motivo reactivado.' : 'Motivo desactivado: deja de ofrecerse.');
-    pinta(); return;
-  }
-  if(b.dataset.motdel){
-    const p = b.dataset.motdel.split('|');
-    if(/-99$/.test(p[1])) return aviso('«Otro motivo» no se elimina: es la salida para lo que no estaba previsto.', true);
-    if(motUsado(p[0], p[1])) return aviso('Ese motivo ya se usó: desactívelo en lugar de borrarlo.', true);
-    const m = motDe(p[0], p[1]); if(!m) return;
-    if(p[0] === 'anul') DB.cfg.motAnul = DB.cfg.motAnul.filter(x=>x.c !== p[1]);
-    else                DB.cfg.motDev  = DB.cfg.motDev.filter(x=>x.c !== p[1]);
-    bitacora('cfg','Motivo eliminado', p[1]+' · '+m.n);
-    aviso('Motivo eliminado.'); pinta(); return;
-  }
-});
+/* Los motivos ahora se administran desde una sola lista: los manejadores
+   de las dos listas viejas se retiraron para no pisar los nuevos. */
 
 document.addEventListener('input', e=>{
   if(e.target.id === 'dv_det' || e.target.id === 'an_det'){ VDET = e.target.value; return; }
@@ -3959,12 +3925,527 @@ document.addEventListener('change', e=>{
 });
 
 /* ==========================================================================
+   SICOM v5 · una sola puerta: el motivo decide si anula o si devuelve
+   ==========================================================================
+   La cajera nunca elige tratamiento contable. Elige qué pasó.
+   El sistema sabe que «error al registrar» anula y «talla equivocada» devuelve,
+   y por dentro conserva la diferencia, que es la que hace falta después para
+   las estadísticas, las comisiones y la nota de crédito.
+   ========================================================================== */
+
+function MOTIVOS_BASE(){ return [
+  /* la venta nunca debió existir → anula */
+  {c:'AN-01', n:'Error al registrar la venta',        d:'Se cargó el artículo, la talla o la cantidad equivocada.', trato:'anula',    pide:false, activo:true},
+  {c:'AN-02', n:'Error en el precio cobrado',         d:'Se cobró de más o de menos y hay que rehacer la venta.',   trato:'anula',    pide:false, activo:true},
+  {c:'AN-03', n:'Venta duplicada',                    d:'La misma compra se registró dos veces.',                   trato:'anula',    pide:false, activo:true},
+  {c:'AN-04', n:'El cliente desistió',                d:'Se arrepintió antes de llevarse la mercancía.',            trato:'anula',    pide:false, activo:true},
+  {c:'AN-05', n:'El pago no se confirmó',             d:'El pago móvil o la transferencia nunca entró.',            trato:'anula',    pide:false, activo:true},
+  {c:'AN-06', n:'Prueba del sistema',                 d:'Venta de ensayo, no es una operación real.',               trato:'anula',    pide:false, activo:true},
+  {c:'AN-99', n:'Otro caso de venta mal registrada',  d:'Hay que explicarlo por escrito.',                          trato:'anula',    pide:true,  activo:true},
+  /* la venta fue buena y la mercancía volvió → devuelve */
+  {c:'DV-01', n:'Talla equivocada',                   d:'No le sirvió la talla que se llevó.',                      trato:'devuelve', pide:false, activo:true},
+  {c:'DV-02', n:'Defecto de fábrica',                 d:'Costura, cierre, herraje o material en mal estado.',       trato:'devuelve', pide:false, activo:true},
+  {c:'DV-03', n:'No era el color o el modelo pedido', d:'Llegó distinto a lo que encargó.',                         trato:'devuelve', pide:false, activo:true},
+  {c:'DV-04', n:'No le gustó al verlo',               d:'Compró por foto y en persona cambió de opinión.',          trato:'devuelve', pide:false, activo:true},
+  {c:'DV-05', n:'Llegó dañado en el traslado',        d:'Se estropeó en el delivery.',                              trato:'devuelve', pide:false, activo:true},
+  {c:'DV-06', n:'Cambio por otro artículo',           d:'Devuelve este para llevarse otro.',                        trato:'devuelve', pide:false, activo:true},
+  {c:'DV-07', n:'Entrega fuera de tiempo',            d:'Llegó tarde y ya no lo necesitaba.',                        trato:'devuelve', pide:false, activo:true},
+  {c:'DV-99', n:'Otro motivo de devolución',          d:'Hay que explicarlo por escrito.',                          trato:'devuelve', pide:true,  activo:true}
+]; }
+
+/* migración: las dos listas viejas pasan a una, conservando los códigos
+   para que las operaciones ya registradas sigan resolviendo su motivo */
+function unificaMotivos(b){
+  if(b.cfg.motivos && b.cfg.motivos.length) return;
+  const out = [];
+  (b.cfg.motAnul || []).forEach(m=>out.push({...m, trato:'anula'}));
+  (b.cfg.motDev  || []).forEach(m=>out.push({...m, trato:'devuelve'}));
+  b.cfg.motivos = out.length ? out : MOTIVOS_BASE();
+}
+
+/* ---------- la lista unificada, y los mismos nombres de antes ---------- */
+function motivos(){ return DB.cfg.motivos || []; }
+function motUni(cod){ return motivos().find(m=>m.c === cod) || null; }
+function motActivosU(){ return motivos().filter(m=>m.activo); }
+function motLista(tipo){
+  if(tipo === 'anul') return motivos().filter(m=>m.trato === 'anula');
+  if(tipo === 'dev')  return motivos().filter(m=>m.trato === 'devuelve');
+  return motivos();
+}
+function motActivos(tipo){ return motLista(tipo).filter(m=>m.activo); }
+function motDe(tipo, cod){ return motUni(cod); }
+function motUsado(tipo, cod){
+  if(DB.ventas.some(v=>v.anulada && v.anulada.motivoC === cod)) return true;
+  return DB.ventas.some(v=>(v.devuelto||[]).some(d=>d.motivoC === cod));
+}
+function motProxCod(trato){
+  const pre = trato === 'anula' ? 'AN-' : 'DV-';
+  const ns = motivos().filter(m=>String(m.c).startsWith(pre))
+    .map(m=>parseInt(String(m.c).replace(pre,''), 10))
+    .filter(n=>isFinite(n) && n < 90);
+  const n = (ns.length ? Math.max.apply(null, ns) : 0) + 1;
+  return pre + String(n).padStart(2, '0');
+}
+function tratoDe(cod){ const m = motUni(cod); return m ? m.trato : 'devuelve'; }
+function anulaCon(cod){ return tratoDe(cod) === 'anula'; }
+
+function valMotivo(tipo, cod, det){
+  if(!cod) return {ok:false, msg:'Elija el motivo de la lista.'};
+  const m = motUni(cod);
+  if(!m) return {ok:false, msg:'Ese motivo ya no existe en la lista.'};
+  if(!m.activo) return {ok:false, msg:'Ese motivo está desactivado. Elija otro.'};
+  if(m.pide && String(det||'').trim().length < 10)
+    return {ok:false, msg:'Con «'+m.n+'» hay que explicar por escrito qué pasó.'};
+  return {ok:true, msg:''};
+}
+function motTexto(tipo, cod, det){
+  const m = motUni(cod);
+  const base = m ? m.n : (cod || 'Sin motivo');
+  const d = String(det || '').trim();
+  return d ? base + ' · ' + d : base;
+}
+
+/* ---------- el plazo para devolver ---------- */
+function plazoDias(){ const n = +((DB.cfg||{}).diasDev); return isFinite(n) && n > 0 ? n : 15; }
+function diasDesde(v){ return dias(v.fecha); }
+function dentroPlazo(v){ return diasDesde(v) <= plazoDias(); }
+
+/* ---------- las compras que un cliente puede devolver ---------- */
+function comprasDe(cliId){
+  return DB.ventas.filter(v=>v.cliId === cliId && !anulada(v))
+    .filter(v=>v.lineas.some((l,i)=>l.cant - devueltasDe(v, i) > 0))
+    .sort((a,b)=> b.fecha === a.fecha
+      ? String(b.hora).localeCompare(String(a.hora))
+      : b.fecha.localeCompare(a.fecha));
+}
+/* unidades que todavía se pueden devolver de una venta */
+function porDevolver(v){
+  return v.lineas.reduce((a,l,i)=>a + (l.cant - devueltasDe(v, i)), 0);
+}
+/* ¿esta operación necesita la firma del administrador? */
+function pideClave(v, cod){
+  if(!v) return false;
+  if(anulaCon(cod)) return true;      // dejar una venta sin efecto nunca es rutina
+  if(!dentroPlazo(v)) return true;    // fuera del plazo es una excepción, no la norma
+  return false;
+}
+function razonClave(v, cod){
+  if(anulaCon(cod)) return 'Va a dejar la venta sin efecto: eso lo autoriza el administrador.';
+  if(!dentroPlazo(v)) return 'Pasaron ' + diasDesde(v) + ' días y el plazo es de ' + plazoDias()
+    + ': fuera de plazo lo autoriza el administrador.';
+  return '';
+}
+
+/* ==========================================================================
+   SICOM v5 · pantalla de devoluciones y anulaciones, por cédula
+   ========================================================================== */
+let RV = null;
+function nuevaRV(){
+  RV = {doc:'', cliId:null, buscado:false, num:null, items:null, cod:'', det:'', clave:''};
+}
+
+function rvCliente(){
+  if(!RV.cliId) return null;
+  return DB.clientes.find(c=>c.id === RV.cliId) || null;
+}
+function rvVenta(){
+  if(!RV.num) return null;
+  return DB.ventas.find(v=>v.num === RV.num) || null;
+}
+function rvTotal(){
+  const v = rvVenta(); if(!v || !RV.items) return 0;
+  let t = 0;
+  v.lineas.forEach((l,i)=>{ t += (RV.items[i] || 0) * l.precio; });
+  return Math.round(t * 100) / 100;
+}
+/* con un motivo que anula, regresa la venta entera: no se negocia */
+function rvSincroniza(){
+  const v = rvVenta(); if(!v) return;
+  if(!RV.items) RV.items = v.lineas.map(()=>0);
+  if(anulaCon(RV.cod)) RV.items = v.lineas.map((l,i)=>l.cant - devueltasDe(v, i));
+}
+
+/* ========================================================================== */
+function vistaDev(){
+  if(!RV) nuevaRV();
+  let h = '<h1>Devoluciones</h1>'
+    + '<p class="sub">La clienta volvió con algo. Escriba su cédula, busque la compra y diga qué pasó: '
+    + 'el sistema se encarga de si eso anula la venta o le devuelve el dinero.</p>';
+  h += rvPasoCedula();
+  if(RV.cliId) h += rvPasoCompras();
+  if(RV.num)   h += rvPasoItems();
+  return h;
+}
+
+/* ------------------------------------------------------ 1 · la cédula ---- */
+function rvPasoCedula(){
+  const c = rvCliente();
+  let h = '<div class="card"><h2>¿Quién devuelve?</h2>'
+    + '<p class="cap">La cédula del comprador. Solo se puede devolver contra una compra registrada a su nombre.</p>'
+    + '<div class="fila"><div style="flex:0 1 280px"><label class="f">Cédula</label>'
+    + '<input id="rv_doc" value="'+esc(RV.doc)+'" inputmode="numeric" maxlength="9" autocomplete="off" '
+    + 'placeholder="Escriba la cédula"'+(RV.doc ? ' class="'+(valDoc(RV.doc) ? 'bien' : 'mal')+'"' : '')+'></div>';
+  if(RV.doc && !valDoc(RV.doc))
+    h += '<div style="align-self:flex-end"><div class="err" style="margin:0 0 12px">La cédula lleva entre 6 y 9 dígitos.</div></div>';
+  h += '</div>';
+
+  if(valDoc(RV.doc) && RV.buscado && !c)
+    h += '<div class="nota rj" style="margin-top:14px"><b>No hay ningún cliente con esa cédula.</b> '
+       + 'Si la compra se hizo a nombre de otra persona, busque con esa cédula. '
+       + 'Sin venta registrada no hay nada que devolver.</div>';
+
+  if(c){
+    const cs = comprasDe(c.id);
+    h += '<div class="hallado" style="margin-top:14px"><span class="av">'+esc(ini(c))+'</span>'
+      + '<div style="flex:1"><b>'+esc(nomComp(c))+'</b>'
+      + '<div class="mini" style="margin-top:4px">V-'+esc(c.doc)+' · '+esc(telComp(c))+' · '+esc(c.mail||'sin correo')+'</div>'
+      + '<div class="mini">'+c.compras+' '+(c.compras === 1 ? 'compra' : 'compras')+' · USD '+fN(c.monto)
+      + ' acumulados · '+cs.length+' '+(cs.length === 1 ? 'devolvible' : 'devolvibles')+'</div></div>'
+      + '<button class="b sm gh" id="rv_otro">Otra cédula</button></div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+/* ----------------------------------------------------- 2 · las compras --- */
+function rvPasoCompras(){
+  const c = rvCliente(), cs = comprasDe(c.id), t = tasaVigente();
+  let h = '<div class="card"><h2>Sus compras</h2>'
+    + '<p class="cap">El plazo para devolver es de <b>'+plazoDias()+' días</b> desde la compra. '
+    + 'Lo que esté fuera de plazo sigue apareciendo, pero hace falta la clave del administrador.</p>';
+
+  if(!cs.length){
+    h += '<div class="vacio"><div class="vi">🧾</div>'
+       + esc(c.nom)+' no tiene compras con artículos por devolver.</div></div>';
+    return h;
+  }
+
+  h += '<table class="dat"><thead><tr><th>Venta</th><th>Cuándo</th><th>Artículos</th>'
+     + '<th class="n">Total USD</th><th>Plazo</th><th></th></tr></thead><tbody>';
+  cs.forEach(v=>{
+    const d = diasDesde(v), ok = dentroPlazo(v), sel = RV.num === v.num;
+    h += '<tr'+(ok ? '' : ' style="opacity:.7"')+'>'
+      + '<td><b>'+esc(v.num)+'</b><div class="mini">'+esc(v.canal||'')+'</div></td>'
+      + '<td class="mini">'+fFecha(v.fecha)+'<div class="mini">'
+      + (d === 0 ? 'hoy' : 'hace '+d+' '+(d === 1 ? 'día' : 'días'))+'</div></td>'
+      + '<td class="mini">'+v.lineas.filter((l,i)=>l.cant - devueltasDe(v,i) > 0)
+          .map(l=>esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join(' · ')
+      + '<div class="mini">'+porDevolver(v)+' '+(porDevolver(v) === 1 ? 'unidad' : 'unidades')+' por devolver</div></td>'
+      + '<td class="n"><b>'+fN(v.total)+'</b>'+(t ? '<div class="mini">Bs '+fN(v.total*t.bcv,0)+'</div>' : '')+'</td>'
+      + '<td>'+(ok ? '<span class="chip ok">dentro</span>'
+                   : '<span class="chip avi">fuera · '+d+' días</span>')+'</td>'
+      + '<td class="n"><button class="b sm '+(sel ? 'gh' : 'oro')+'" data-rvsel="'+esc(v.num)+'">'
+      + (sel ? 'Cerrar' : 'Elegir')+'</button></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  return h;
+}
+
+/* -------------------------------------------------- 3 · qué regresa ------ */
+function rvPasoItems(){
+  const v = rvVenta(); if(!v) return '';
+  rvSincroniza();
+  const c = rvCliente(), t = tasaVigente();
+  const m = motUni(RV.cod), anula = anulaCon(RV.cod);
+  const usd = rvTotal();
+  const necesita = pideClave(v, RV.cod);
+  const bloqueo = anula ? puedeAnular(v) : '';
+
+  let h = '<div class="card editando"><h2>¿Qué pasó con la venta '+esc(v.num)+'?</h2>'
+    + '<p class="cap">Diga qué pasó y el sistema hace lo que corresponda. Usted no tiene que decidir si eso '
+    + 'se anula o se devuelve.</p>';
+
+  /* el motivo manda */
+  h += '<div class="fila">'
+     + '<div><label class="f">¿Qué pasó?</label>'
+     + '<select id="rv_mot"><option value="">Elija lo que pasó</option>'
+     + motActivosU().map(x=>'<option value="'+esc(x.c)+'"'+(x.c === RV.cod ? ' selected' : '')+'>'
+         + esc(x.n)+'</option>').join('')+'</select>'
+     + '<div class="ayuda" id="rv_motayuda">'+(m ? esc(m.d) : 'De la lista, para que después se pueda contar.')+'</div></div>'
+     + '<div style="flex:2 1 320px"><label class="f">Detalle'+(m && m.pide ? '' : ' (opcional)')+'</label>'
+     + '<input id="rv_det" value="'+esc(RV.det)+'" maxlength="140" placeholder="'
+     + (m && m.pide ? 'Obligatorio: explique qué pasó' : 'Opcional: agregue el detalle si hace falta')+'">'
+     + '<div class="ayuda">El motivo se cuenta en el reporte; el detalle queda en la bitácora.</div></div>'
+     + '</div>';
+
+  /* qué va a pasar, dicho antes de que pase */
+  if(m){
+    h += anula
+      ? '<div class="nota rj" style="margin-top:16px"><b>Esto deja la venta sin efecto.</b> '
+        + 'Regresa la venta completa: '+porDevolver(v)+' '+(porDevolver(v) === 1 ? 'unidad vuelve' : 'unidades vuelven')
+        + ' al inventario, '+esc(c.nom)+' pierde esa compra de su historial y la venta deja de contar en los reportes. '
+        + 'Queda marcada con su motivo, nunca se borra.</div>'
+      : '<div class="nota az" style="margin-top:16px"><b>Esto es una devolución.</b> '
+        + 'La venta sigue siendo válida y el vendedor la hizo; lo que regresa se descuenta de ella. '
+        + 'Marque abajo cuánto vuelve —puede ser una parte— y el dinero queda como devolución por entregar en tesorería.</div>';
+  }
+
+  if(bloqueo) h += '<div class="nota rj" style="margin-top:14px">'+esc(bloqueo)+'</div>';
+
+  /* las líneas */
+  h += '<div class="lineas" style="margin-top:16px">';
+  v.lineas.forEach((l,i)=>{
+    const ya = devueltasDe(v, i), max = l.cant - ya, n = (RV.items || [])[i] || 0;
+    h += '<div class="lin"><div class="li"><b>'+esc(l.nom)+(l.talla ? ' · '+esc(l.talla) : '')+'</b>'
+      + '<div class="mini">USD '+fN(l.precio)+' c/u · se llevó '+l.cant
+      + (ya ? ' · ya devolvió '+ya : '')+(max <= 0 ? ' · <b>nada más por devolver</b>' : '')+'</div></div>';
+    if(anula){
+      h += '<b style="min-width:20px;text-align:center">'+n+'</b>'
+        + '<span class="mini">todo</span>';
+    }else{
+      h += '<button class="b sm gh" data-rvm="'+i+'"'+(n <= 0 ? ' disabled' : '')+'>−</button>'
+        + '<b style="min-width:20px;text-align:center">'+n+'</b>'
+        + '<button class="b sm gh" data-rvp="'+i+'"'+(n >= max ? ' disabled' : '')+'>+</button>';
+    }
+    h += '<span class="lm">'+fN(n*l.precio)+'</span></div>';
+  });
+  h += '</div>';
+
+  h += '<div class="visor"><span class="vk">'+(anula ? 'Se deja sin efecto' : 'Se le devuelve')+'</span>'
+     + '<div class="vn">USD '+fN(usd)+'</div>'
+     + (anula
+        ? '<span class="veq">'+(v.tasa ? 'Se cobró a Bs '+fN(v.tasa,2)+' el '+fFecha(v.fecha) : 'Sin tasa registrada')+'</span>'
+        : t ? '<span class="veq">Bs '+fN(usd*t.bcv)+' a la tasa de hoy · '+fN(t.bcv,2)+'</span>'
+            : '<span class="veq">Sin tasa confirmada</span>')+'</div>';
+
+  if(!anula && m) h += '<div class="nota az" style="margin-top:14px"><b>Por qué en dólares.</b> '
+     + 'La compra se pactó en dólares, así que eso es lo que se le devuelve. Si se le paga en bolívares, se calcula '
+     + 'a la tasa de hoy, no a la del día de la compra: es lo que le cuesta a ella reponer la prenda hoy.</div>';
+
+  /* la clave, solo cuando la operación se sale de lo normal */
+  if(m && necesita){
+    if(!hayClave()){
+      h += '<div class="nota rj" style="margin-top:16px"><b>Falta la clave de administrador.</b> '
+         + esc(razonClave(v, RV.cod))+' Defínala en Gerencial · Seguridad y vuelva.</div>'
+         + '<div class="acc"><button class="b oro" data-goto="ger|seg">Ir a definir la clave →</button></div></div>';
+      return h;
+    }
+    h += '<div style="margin-top:16px"><label class="f">Clave de administrador</label>'
+       + '<input id="rv_cla" type="password" value="'+esc(RV.clave)+'" maxlength="40" autocomplete="off" '
+       + 'placeholder="Escriba la clave"><div class="ayuda">'+esc(razonClave(v, RV.cod))+'</div></div>';
+  }
+
+  const listo = !!m && !bloqueo && (anula || usd > 0.005);
+  h += '<div class="acc"><button class="b oro" id="rv_g"'+(listo ? '' : ' disabled')+'>'
+     + (!m ? 'Diga primero qué pasó'
+          : bloqueo ? 'No se puede continuar'
+          : anula ? 'Anular la venta '+esc(v.num)
+          : usd > 0.005 ? 'Registrar la devolución de USD '+fN(usd)
+          : 'Indique qué regresa')+'</button>'
+     + '<button class="b gh" id="rv_can">← Elegir otra compra</button></div>';
+  h += '</div>';
+  return h;
+}
+
+/* ================================================= CONFIGURACIÓN ========= */
+function cfgDevol(){
+  let h = '<div class="card"><h2>Plazo para devolver</h2>'
+    + '<p class="cap">Los días que acepta una devolución contados desde la compra. Es una política suya, no una ley: '
+    + 'fuera de plazo el sistema no cierra la puerta, pide su clave y deja anotado que fue una excepción.</p>'
+    + '<div class="fila"><div style="flex:0 0 200px"><label class="f">Días máximo</label>'
+    + '<input id="pl_d" inputmode="numeric" maxlength="3" value="'+plazoDias()+'"></div>'
+    + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="pl_g">Guardar el plazo</button></div>'
+    + '</div>'
+    + '<div class="ayuda" style="margin-top:8px">Hoy son '+plazoDias()+' días. En ropa lo común son 8 o 15; '
+    + 'en artículos de alta gama, 30.</div></div>';
+
+  const ls = motivos();
+  h += '<div class="card"><h2>Qué puede pasar con una venta</h2>'
+    + '<p class="cap">Una sola lista. Cada motivo trae marcado qué hace: si <b>anula</b> la venta —porque nunca debió '
+    + 'existir— o si la <b>devuelve</b> —porque fue buena y la mercancía volvió—. La cajera nunca elige eso: elige '
+    + 'qué pasó, y el sistema aplica lo que toca.</p>';
+
+  h += '<div class="fila">'
+     + '<div style="flex:2 1 260px"><label class="f">Nuevo motivo</label>'
+     + '<input id="mo_n" placeholder="Escriba el motivo, corto y claro" maxlength="50"></div>'
+     + '<div style="flex:2 1 260px"><label class="f">Cuándo se usa</label>'
+     + '<input id="mo_d" placeholder="Explique en qué caso aplica" maxlength="90"></div>'
+     + '<div><label class="f">¿Qué hace?</label><select id="mo_t">'
+     + '<option value="devuelve">Devuelve la mercancía</option>'
+     + '<option value="anula">Anula la venta completa</option></select></div>'
+     + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="mo_g">Agregar</button></div>'
+     + '</div>'
+     + '<div class="ayuda" style="margin-top:8px">El código se asigna solo: AN para los que anulan, DV para los que '
+     + 'devuelven. Los que terminan en 99 exigen explicación escrita y no se eliminan.</div>';
+
+  h += '<table class="dat" style="margin-top:18px"><thead><tr><th>Código</th><th>Motivo</th><th>Qué hace</th>'
+     + '<th>Cuándo se usa</th><th class="n">Veces</th><th>Estado</th><th></th></tr></thead><tbody>';
+  ['anula','devuelve'].forEach(tr=>{
+    const g = ls.filter(m=>m.trato === tr);
+    if(!g.length) return;
+    h += '<tr><td colspan="7" style="background:var(--sup);font-size:11px;letter-spacing:.07em;'
+       + 'text-transform:uppercase;color:var(--muted);font-weight:800">'
+       + (tr === 'anula' ? 'Dejan la venta sin efecto' : 'La venta vale, la mercancía vuelve')+'</td></tr>';
+    g.forEach(m=>{
+      const usos = DB.ventas.filter(v=>v.anulada && v.anulada.motivoC === m.c).length
+        + DB.ventas.reduce((a,v)=>a+(v.devuelto||[]).filter(d=>d.motivoC === m.c).length, 0);
+      h += '<tr><td><b>'+esc(m.c)+'</b></td>'
+        + '<td><b>'+esc(m.n)+'</b>'+(m.pide ? ' <span class="chip avi">pide explicación</span>' : '')+'</td>'
+        + '<td>'+(m.trato === 'anula' ? '<span class="chip mal">anula</span>' : '<span class="chip acc">devuelve</span>')+'</td>'
+        + '<td class="mini">'+esc(m.d||'')+'</td>'
+        + '<td class="n">'+(usos || '—')+'</td>'
+        + '<td>'+(m.activo ? '<span class="chip ok">activo</span>' : '<span class="chip">inactivo</span>')+'</td>'
+        + '<td class="n" style="white-space:nowrap">'
+        + '<button class="b sm gh" data-motog="'+esc(m.c)+'">'+(m.activo ? 'Desactivar' : 'Activar')+'</button>'
+        + (usos || /-99$/.test(m.c) ? '' : ' <button class="b sm gh" data-motdel="'+esc(m.c)+'">Eliminar</button>')
+        + '</td></tr>';
+    });
+  });
+  h += '</tbody></table>'
+     + '<div class="nota">Un motivo que ya se usó no se elimina: se desactiva. Deja de ofrecerse, pero las operaciones '
+     + 'viejas conservan el suyo y siguen contando en el reporte.</div></div>';
+
+  h += cardPorQue('dev');
+  h += cardPorQue('anul');
+  return h;
+}
+
+/* ==========================================================================
+   SICOM v5 · eventos de la pantalla de devoluciones
+   ========================================================================== */
+function rvBusca(){
+  const d = (RV.doc || '').replace(/\D/g, '');
+  if(!valDoc(d)){ RV.cliId = null; RV.buscado = false; RV.num = null; RV.items = null; return; }
+  const c = DB.clientes.find(x=>x.doc === d);
+  const antes = RV.cliId;
+  RV.cliId = c ? c.id : null;
+  RV.buscado = true;
+  if(RV.cliId !== antes){ RV.num = null; RV.items = null; RV.cod = ''; RV.det = ''; RV.clave = ''; }
+  if(c && c.id !== antes) aviso('Compras de ' + nomComp(c));
+}
+
+/* ejecuta lo que el motivo mande: anular o devolver */
+function rvEjecuta(){
+  const v = rvVenta(); if(!v) return aviso('Elija primero la compra.', true);
+  const vm = valMotivo(null, RV.cod, RV.det); if(!vm.ok) return aviso(vm.msg, true);
+  rvSincroniza();
+  const anula = anulaCon(RV.cod);
+
+  if(pideClave(v, RV.cod)){
+    if(!hayClave()) return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true);
+    if(!claveOK(RV.clave)) return aviso('La clave de administrador no es correcta.', true);
+  }
+  if(!dentroPlazo(v))
+    bitacora('dev','Autorizada fuera de plazo',
+      v.num + ' · ' + diasDesde(v) + ' días desde la compra, el plazo es de ' + plazoDias());
+
+  if(anula){
+    const no = puedeAnular(v); if(no) return aviso(no, true);
+    /* anularVenta ya valida clave y motivo; se le pasa lo mismo */
+    anularVenta(v.num, RV.cod, RV.det, RV.clave);
+    if(anulada(v)){ nuevaRV(); TAB = 'dev'; pinta(); window.scrollTo(0, 0); }
+    return;
+  }
+
+  /* devolución: se apoya en el mismo motor de siempre */
+  DEV = RV.items.slice();
+  VSEL = v.num;
+  registraDevolucion(v.num, RV.cod, RV.det);
+  nuevaRV();
+}
+
+document.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+
+  if(b.dataset.rvir){
+    const v = DB.ventas.find(x=>x.num === b.dataset.rvir); if(!v) return;
+    const c = DB.clientes.find(x=>x.id === v.cliId);
+    nuevaRV();
+    if(c){ RV.doc = c.doc; RV.cliId = c.id; RV.buscado = true; RV.num = v.num; }
+    TAB = 'dev'; pinta(); window.scrollTo(0, 0);
+    if(!c) aviso('Esa venta no tiene cliente registrado.', true);
+    return;
+  }
+  if(b.id === 'rv_otro'){ nuevaRV(); pinta(); return; }
+  if(b.id === 'rv_can'){ RV.num = null; RV.items = null; RV.cod = ''; RV.det = ''; RV.clave = ''; pinta(); return; }
+  if(b.dataset.rvsel){
+    RV.num = (RV.num === b.dataset.rvsel) ? null : b.dataset.rvsel;
+    RV.items = null; RV.cod = ''; RV.det = ''; RV.clave = '';
+    pinta(); window.scrollTo(0, document.body.scrollHeight); return;
+  }
+  if(b.dataset.rvp !== undefined && b.dataset.rvp !== ''){
+    const v = rvVenta(); if(!v) return;
+    const i = +b.dataset.rvp, max = v.lineas[i].cant - devueltasDe(v, i);
+    if(!RV.items) RV.items = v.lineas.map(()=>0);
+    if(RV.items[i] < max) RV.items[i]++;
+    pinta(); return;
+  }
+  if(b.dataset.rvm !== undefined && b.dataset.rvm !== ''){
+    const i = +b.dataset.rvm;
+    if(RV.items && RV.items[i] > 0) RV.items[i]--;
+    pinta(); return;
+  }
+  if(b.id === 'rv_g'){ rvEjecuta(); return; }
+
+  /* ------------ configuración: plazo y motivos unificados ------------ */
+  if(b.id === 'pl_g'){
+    const n = Math.round(pila($('#pl_d').value));
+    if(!(n > 0)) return aviso('El plazo tiene que ser de al menos un día.', true);
+    if(n > 365) return aviso('Un plazo mayor a un año no es un plazo.', true);
+    const antes = plazoDias();
+    DB.cfg.diasDev = n;
+    bitacora('cfg','Plazo de devolución cambiado', antes + ' → ' + n + ' días');
+    aviso('El plazo quedó en ' + n + ' días.'); pinta(); return;
+  }
+  if(b.id === 'mo_g'){
+    const n = ($('#mo_n').value || '').trim(), d = ($('#mo_d').value || '').trim(), tr = $('#mo_t').value;
+    if(n.length < 4) return aviso('Escriba el motivo: al menos cuatro letras.', true);
+    if(motivos().some(m=>m.n.toLowerCase() === n.toLowerCase()))
+      return aviso('Ese motivo ya está en la lista.', true);
+    const c = motProxCod(tr);
+    motivos().push({c:c, n:n, d:d, trato:tr, pide:false, activo:true});
+    bitacora('cfg','Motivo agregado', c + ' · ' + n + ' · ' + (tr === 'anula' ? 'anula la venta' : 'devuelve mercancía'));
+    aviso('Motivo ' + c + ' agregado.'); pinta(); return;
+  }
+  if(b.dataset.motog){
+    const m = motUni(b.dataset.motog); if(!m) return;
+    if(m.activo && motActivos(m.trato === 'anula' ? 'anul' : 'dev').length === 1)
+      return aviso('Es el último motivo activo de ese tipo: sin ninguno no se podría registrar el caso.', true);
+    m.activo = !m.activo;
+    bitacora('cfg', m.activo ? 'Motivo reactivado' : 'Motivo desactivado', m.c + ' · ' + m.n);
+    aviso(m.activo ? 'Motivo reactivado.' : 'Motivo desactivado: deja de ofrecerse.');
+    pinta(); return;
+  }
+  if(b.dataset.motdel){
+    const cod = b.dataset.motdel;
+    if(/-99$/.test(cod)) return aviso('Ese motivo no se elimina: es la salida para lo que no estaba previsto.', true);
+    if(motUsado(null, cod)) return aviso('Ese motivo ya se usó: desactívelo en lugar de borrarlo.', true);
+    const m = motUni(cod); if(!m) return;
+    DB.cfg.motivos = motivos().filter(x=>x.c !== cod);
+    bitacora('cfg','Motivo eliminado', cod + ' · ' + m.n);
+    aviso('Motivo eliminado.'); pinta(); return;
+  }
+});
+
+document.addEventListener('input', e=>{
+  const id = e.target.id, v = e.target.value;
+  if(id === 'rv_doc'){
+    RV.doc = v.replace(/\D/g, '');
+    const s = e.target.selectionStart;
+    rvBusca(); pinta();
+    const n = $('#rv_doc'); if(n){ n.focus(); n.setSelectionRange(s, s); }
+    return;
+  }
+  if(id === 'rv_det'){ RV.det = v; return; }
+  if(id === 'rv_cla'){ RV.clave = v; return; }
+});
+
+document.addEventListener('change', e=>{
+  if(e.target.id === 'rv_mot'){
+    RV.cod = e.target.value;
+    RV.items = null;
+    pinta(); return;
+  }
+});
+
+/* ==========================================================================
    Arranque
    ========================================================================== */
 DB = cargar();
 if(!DB.bitacora.length) bitacora('datos','Sistema iniciado','base de calidad con datos de prueba');
 if(!DB.cfg.cajeras.some(k=>k.id===DB.turno)){ const a=DB.cfg.cajeras.find(k=>k.activo); if(a) DB.turno=a.id; }
 nuevaVenta();
+nuevaRV();
 aplicaTema();
 pinta();
 </script>
