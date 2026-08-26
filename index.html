@@ -404,8 +404,10 @@ const BANCOS=['Banesco','Mercantil','Provincial (BBVA)','Banco de Venezuela','Ba
 
 function SEMILLA(){ return {
   v:2, creado:isoLocal(), ultResp:null,
-  empresa:{nom:'Casa Keylis Boutique Femine', tipoRif:'J', rif:'J-50123456-7',
-    dir:'Av. Francisco Solano López, Edif. San Germán, Caracas',
+  empresa:{nom:'CASA KEYLIS BOUTIQUE FEMINE, C.A.', marca:'Casa Keylis',
+    tipoRif:'J', rif:'J-50863887-5',
+    dir:'Av. Libertador, Edif. Torre Maracaibo, Piso 15, Of. 15-G, La Campiña',
+    ciudad:'Caracas, Distrito Capital', zp:'1061', condIVA:'ordinario',
     mail:'casakeilysboutiquefemine@gmail.com', op:'0412', tel:'9597787', logo:''},
   tema:null, paleta:[], bitacora:[],
   cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(),
@@ -594,6 +596,41 @@ function valMail(s){
 }
 function valDoc(d){ return /^\d{6,9}$/.test(d||''); }
 
+/* El RIF venezolano lleva dígito verificador. No es adorno: un RIF con el
+   verificador malo lo rechaza el portal del SENIAT y deja el libro inservible.
+   Se calcula con pesos 4,3,2,7,6,5,4,3,2 sobre el tipo y los ocho dígitos. */
+const RIF_TIPO = {V:1, E:2, J:3, P:4, G:5};
+function digitoRif(tipo, ocho){
+  const pesos = [3,2,7,6,5,4,3,2];
+  let suma = (RIF_TIPO[tipo] || 0) * 4;
+  for(let i = 0; i < 8; i++) suma += (+ocho[i]) * pesos[i];
+  const r = 11 - (suma % 11);
+  return r > 9 ? 0 : r;
+}
+function valRif(tipo, cuerpo){
+  const c = String(cuerpo || '').replace(/[^0-9]/g, '');
+  if(!RIF_TIPO[tipo]) return {ok:false, msg:'Elija el tipo de RIF.'};
+  if(!c) return {ok:false, msg:'Falta el RIF. Sin él no se puede emitir ningún libro.'};
+  if(c.length < 9) return {ok:false, msg:'Al RIF le faltan dígitos: van ocho y el verificador.'};
+  if(c.length > 9) return {ok:false, msg:'El RIF tiene dígitos de más: van ocho y el verificador.'};
+  const d = digitoRif(tipo, c.slice(0, 8));
+  if(d !== +c[8]) return {ok:false,
+    msg:'El dígito verificador no cuadra: para ' + tipo + '-' + c.slice(0,8)
+        + ' debería terminar en ' + d + ', no en ' + c[8] + '.'};
+  return {ok:true, msg:'RIF válido · dígito verificador correcto', fmt: tipo + '-' + c.slice(0,8) + '-' + c[8]};
+}
+/* el nombre corto, para hablarle al cliente; la razón social, para el fisco */
+function marcaDe(){ const e = DB.empresa; return (e.marca || '').trim() || e.nom || 'Su tienda'; }
+function dirFiscal(){
+  const e = DB.empresa;
+  return [e.dir, e.ciudad, e.zp ? 'Zona Postal ' + e.zp : ''].filter(Boolean).join(', ');
+}
+const COND_IVA = {ordinario:'Contribuyente Ordinario del IVA',
+                  formal:'Contribuyente Formal del IVA',
+                  especial:'Sujeto Pasivo Especial',
+                  no:'No contribuyente del IVA'};
+function condIVA(){ return COND_IVA[(DB.empresa||{}).condIVA] || COND_IVA.ordinario; }
+
 function tasaEn(f){const c=DB.tasas.filter(t=>t.estado==='confirmada'&&t.fecha<=f).sort((a,b)=>b.fecha.localeCompare(a.fecha));return c[0]||null;}
 function tasaVigente(){return tasaEn(hoy);}
 function tasaDeHoyCargada(){return DB.tasas.some(t=>t.fecha===hoy&&t.estado==='confirmada');}
@@ -674,7 +711,7 @@ function pinta(){
 }
 /* el logo de la tienda manda en el encabezado; si no hay, va el monograma */
 function pintaMarca(){
-  const e=DB.empresa, nom=e.nom||'Su tienda';
+  const e=DB.empresa, nom=marcaDe();
   const box=$('#marcabox'); if(!box) return;
   box.innerHTML = e.logo
     ? '<img class="mklogo" src="'+e.logo+'" alt="'+esc(nom)+'">'
@@ -694,7 +731,7 @@ function logoRecibo(){
   const e=DB.empresa;
   return e.logo
     ? '<img class="logo logoimg" src="'+e.logo+'" alt="'+esc(e.nom)+'">'
-    : '<div class="logo">'+esc(((e.nom||'S').trim()[0]||'S').toUpperCase())+'</div>';
+    : '<div class="logo">'+esc((marcaDe().trim()[0]||'S').toUpperCase())+'</div>';
 }
 function telEmpresa(){ const e=DB.empresa; return e.op&&e.tel ? e.op+'-'+e.tel : (e.tel||'—'); }
 function cinta(){
@@ -1111,11 +1148,11 @@ function catalogo(){return DB.productos.filter(p=>p.activo!==false&&exi(p)>0).so
 function correoHTML(){
   const c=VTA.cli,t=tasaVigente(),v=VTA.hecha,tr=trato(c.gen);
   let h='<div class="mail"><div class="mailhd">'
-    +'<div><span class="mk">De</span><b>'+esc(DB.empresa.nom)+'</b> &lt;'+esc(DB.empresa.mail)+'&gt;</div>'
+    +'<div><span class="mk">De</span><b>'+esc(marcaDe())+'</b> &lt;'+esc(DB.empresa.mail)+'&gt;</div>'
     +'<div><span class="mk">Para</span>'+esc(nomComp(c))+' &lt;'+esc(c.mail)+'&gt;</div>'
     +'<div><span class="mk">Asunto</span><b>Gracias por su compra, '+esc(c.nom)+' · recibo '+esc(v.num)+'</b></div>'
     +'</div><div class="mailbd">'
-    +logoRecibo()+'<h3>Gracias, '+esc(c.nom)+'</h3><p class="lead">'+esc(DB.empresa.nom)+'</p>'
+    +logoRecibo()+'<h3>Gracias, '+esc(c.nom)+'</h3><p class="lead">'+esc(marcaDe())+'</p>'
     +'<p>Hola '+esc(c.nom)+', qué alegría tener'+tr.le+' de vuelta'
     +(c.compras>1?' — esta es su compra número <b>'+c.compras+'</b> con nosotras':'')+'. '
     +'Cada pieza que sale de aquí la escogemos pensando en '+tr.gente+', y que nos haya elegido hoy es exactamente '
@@ -1148,8 +1185,9 @@ function correoHTML(){
     +'<div class="cat">'+cat.map(p=>'<div class="ci"><div class="ce">'+p.ico+'</div><b>'+esc(p.nom)+'</b>'
       +'<span>'+esc(p.cat)+'</span><span class="pz">USD '+fN(p.precio)+'</span><span class="mini">'+exi(p)+' disponibles</span></div>').join('')+'</div></div>';
   h+='<p>Si algo no le quedó como esperaba, escríbanos y lo resolvemos. Y si le gustó, cuéntele a alguien: así hemos crecido.</p>'
-    +'<p style="margin-bottom:0"><b>Un abrazo,</b><br>El equipo de '+esc(DB.empresa.nom)+'</p>'
-    +'<div class="firma">'+esc(DB.empresa.nom)+' · RIF '+esc(DB.empresa.rif)+'<br>'+esc(DB.empresa.dir)+' · '+esc(telEmpresa())+'<br>'
+    +'<p style="margin-bottom:0"><b>Un abrazo,</b><br>El equipo de '+esc(marcaDe())+'</p>'
+    +'<div class="firma">'+esc(DB.empresa.nom)+' · RIF '+esc(DB.empresa.rif)+' · '+esc(condIVA())+'<br>'
+    +esc(dirFiscal())+' · '+esc(telEmpresa())+'<br>'
     +(c.mkt?'Recibe novedades porque lo autorizó. Puede darse de baja respondiendo «BAJA».':'Este es el recibo de su compra; no recibirá promociones.')+'</div>'
     +'</div></div>';
   return h;
@@ -2215,6 +2253,14 @@ function normaliza(b){
   Object.keys(v.cfg).forEach(k=>{ if(b.cfg[k]===undefined) b.cfg[k] = v.cfg[k]; });
   Object.keys(v.corr).forEach(k=>{ if(b.corr[k]===undefined) b.corr[k] = v.corr[k]; });
   Object.keys(v.empresa).forEach(k=>{ if(b.empresa[k]===undefined) b.empresa[k] = v.empresa[k]; });
+  /* el RIF de relleno con el que nació el prototipo no puede seguir saliendo
+     impreso: si nadie lo tocó, se sustituye por el del documento del SENIAT */
+  if(b.empresa.rif === 'J-50123456-7'){
+    b.empresa.rif = v.empresa.rif; b.empresa.tipoRif = 'J';
+    b.empresa.nom = v.empresa.nom; b.empresa.marca = v.empresa.marca;
+    b.empresa.dir = v.empresa.dir; b.empresa.ciudad = v.empresa.ciudad;
+    b.empresa.zp = v.empresa.zp;   b.empresa.condIVA = v.empresa.condIVA;
+  }
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
   if(!b.cuentas || !b.cuentas.length) b.cuentas = CUENTAS_BASE();
   if(!b.mapaCtas) b.mapaCtas = MAPA_BASE();
@@ -2470,8 +2516,10 @@ function leeComprobante(file, cb){
 function pasos(){
   const t = tasaEn(hoy);
   return [
-    {ok: !!(DB.empresa.nom && DB.empresa.rif), t:'Datos de la empresa',
-     d:'Razón social y RIF. Salen impresos en cada recibo y en cada correo.', tab:'cfg', sub:'emp'},
+    {ok: !!(DB.empresa.nom && valRif(DB.empresa.tipoRif, String(DB.empresa.rif||'').replace(/^[JGVEP]-/,'')).ok),
+     t:'Datos de la empresa',
+     d:'Razón social y RIF con el dígito verificador correcto. Salen impresos en cada recibo y en cada correo.',
+     tab:'cfg', sub:'emp'},
     {ok: !!t, t:'Tasa de cambio confirmada',
      d:'Sin una tasa confirmada no se puede cobrar en bolívares.', tab:'tasas', sub:''},
     {ok: DB.categorias.length > 0, t:'Categorías del catálogo',
@@ -2499,18 +2547,35 @@ let GSUB = 'estado', CLIED = null, PRED = null;
 /* ------------------------------------------------------------- EMPRESA -- */
 function cfgEmpresa(){
   const e = DB.empresa;
+  const vr = valRif(e.tipoRif, String(e.rif||'').replace(/^[JGVEP]-/,''));
   let h = '<div class="card"><h2>Datos de la empresa</h2>'
-    + '<p class="cap">Salen impresos en cada recibo y en el pie de cada correo al cliente.</p>'
+    + '<p class="cap">Es la identidad que sale impresa en cada recibo, en el pie de cada correo '
+    + 'y en el encabezado de los libros de compra y venta.</p>'
     + '<div class="fila">'
     + '<div style="flex:2 1 320px"><label class="f">Razón social</label>'
-    + '<input id="em_nom" value="'+esc(e.nom)+'" placeholder="Escriba el nombre de la tienda" maxlength="70"></div>'
+    + '<input id="em_nom" value="'+esc(e.nom)+'" placeholder="Como aparece en el RIF" maxlength="70">'
+    + '<div class="ayuda">Tal cual figura en el documento del SENIAT.</div></div>'
     + '<div><label class="f">RIF</label><div class="tel">'
     + '<select id="em_trif">'+['J','G','V','E','P'].map(k=>'<option'+(e.tipoRif===k?' selected':'')+'>'+k+'</option>').join('')+'</select>'
-    + '<input id="em_rif" value="'+esc(String(e.rif||'').replace(/^[JGVEP]-/,''))+'" placeholder="50123456-7" maxlength="12"></div>'
-    + '<div class="ayuda">Ocho dígitos y el dígito verificador.</div></div>'
+    + '<input id="em_rif" value="'+esc(String(e.rif||'').replace(/^[JGVEP]-/,''))+'" placeholder="508638875" maxlength="12"></div>'
+    + '<div class="ayuda">'+(vr.ok ? esc(vr.msg) : 'Ocho dígitos y el dígito verificador.')+'</div></div>'
+    + '</div>'
+    + (vr.ok ? '' : '<div class="err">'+esc(vr.msg)+'</div>')
+    + '<div class="fila" style="margin-top:14px">'
+    + '<div style="flex:2 1 260px"><label class="f">Nombre comercial</label>'
+    + '<input id="em_marca" value="'+esc(e.marca||'')+'" placeholder="Como la conoce la clienta" maxlength="40">'
+    + '<div class="ayuda">Con este nombre le habla el correo a la clienta. La razón social queda para el fisco.</div></div>'
+    + '<div style="flex:2 1 260px"><label class="f">Condición ante el IVA</label>'
+    + '<select id="em_civa">'+Object.keys(COND_IVA).map(k=>'<option value="'+k+'"'
+        +(((e.condIVA||'ordinario')===k)?' selected':'')+'>'+COND_IVA[k]+'</option>').join('')+'</select>'
+    + '<div class="ayuda">Sale impresa en el recibo y decide cómo se arman los libros.</div></div>'
     + '</div><div class="fila" style="margin-top:14px">'
     + '<div style="flex:2 1 320px"><label class="f">Dirección fiscal</label>'
-    + '<input id="em_dir" value="'+esc(e.dir)+'" placeholder="Escriba la dirección" maxlength="140"></div>'
+    + '<input id="em_dir" value="'+esc(e.dir)+'" placeholder="Avenida, edificio, piso, oficina" maxlength="140"></div>'
+    + '<div><label class="f">Ciudad</label>'
+    + '<input id="em_ciu" value="'+esc(e.ciudad||'')+'" placeholder="Caracas, Distrito Capital" maxlength="60"></div>'
+    + '<div><label class="f">Zona postal</label>'
+    + '<input id="em_zp" value="'+esc(e.zp||'')+'" placeholder="1061" inputmode="numeric" maxlength="5"></div>'
     + '</div><div class="fila" style="margin-top:14px">'
     + '<div><label class="f">Correo de la tienda</label>'
     + '<input id="em_mail" value="'+esc(e.mail)+'" placeholder="Escriba el correo" maxlength="80"></div>'
@@ -2521,8 +2586,9 @@ function cfgEmpresa(){
   const mm = e.mail ? valMail(e.mail) : null;
   if(mm && !mm.ok) h += '<div class="err">'+esc(mm.msg)+'</div>';
   h += '<div class="acc"><button class="b oro" id="em_g">Guardar los datos</button></div>'
-    + '<div class="nota">Estos datos identifican a la tienda ante el cliente. Cambiarlos no altera los recibos ya emitidos: '
-    + 'cada venta guarda el texto con el que salió.</div></div>';
+    + '<div class="nota">Así queda la identidad en el pie del recibo:<br><b>'+esc(e.nom)+'</b> · RIF '+esc(e.rif)
+    + ' · '+esc(condIVA())+'<br>'+esc(dirFiscal())+' · '+esc(telEmpresa())+'</div>'
+    + '<div class="nota">Cambiarlos no altera los recibos ya emitidos: cada venta guarda el texto con el que salió.</div></div>';
   return h;
 }
 
@@ -2881,17 +2947,26 @@ document.addEventListener('click', e=>{
     const dir = ($('#em_dir').value||'').trim();
     const mail = ($('#em_mail').value||'').trim();
     const op = $('#em_op').value, tel = ($('#em_tel').value||'').trim();
+    const trif = $('#em_trif').value;
     if(!nom) return aviso('Escriba la razón social: sale en cada recibo.', true);
-    if(!/^\d{6,9}-?\d?$/.test(rif.replace(/\s/g,''))) return aviso('El RIF no tiene la forma esperada: ocho dígitos y el verificador.', true);
+    const vr = valRif(trif, rif);
+    if(!vr.ok) return aviso(vr.msg, true);
     if(mail){ const m = valMail(mail); if(!m.ok) return aviso(m.msg, true); }
     if(tel && !/^\d{7}$/.test(tel)) return aviso('El teléfono debe tener exactamente 7 dígitos.', true);
     if(tel && !op) return aviso('Elija la operadora del teléfono.', true);
-    const ant = DB.empresa.nom;
+    const zp = ($('#em_zp').value||'').trim();
+    if(zp && !/^\d{4,5}$/.test(zp)) return aviso('La zona postal son cuatro dígitos.', true);
+    const ant = DB.empresa.nom, antR = DB.empresa.rif;
     DB.empresa.nom = nom;
-    DB.empresa.tipoRif = $('#em_trif').value;
-    DB.empresa.rif = DB.empresa.tipoRif + '-' + rif.replace(/^-/,'');
+    DB.empresa.marca = ($('#em_marca').value||'').trim();
+    DB.empresa.tipoRif = trif;
+    DB.empresa.rif = vr.fmt;
+    DB.empresa.condIVA = $('#em_civa').value;
+    DB.empresa.ciudad = ($('#em_ciu').value||'').trim();
+    DB.empresa.zp = zp;
     DB.empresa.dir = dir; DB.empresa.mail = mail;
     DB.empresa.op = op; DB.empresa.tel = tel;
+    if(antR !== vr.fmt) bitacora('empresa','RIF cambiado', antR + ' → ' + vr.fmt);
     bitacora('empresa','Datos actualizados', nom + (ant && ant!==nom ? ' (antes «'+ant+'»)' : ''));
     aviso('Datos de la empresa guardados.'); pinta(); return;
   }
