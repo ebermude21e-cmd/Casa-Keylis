@@ -387,10 +387,10 @@ function SEMILLA(){ return {
   categorias:['Ropa de Dama','Lentes de Sol','Cartera Alta Gama','Carteras Eyes Theme','Bisutería Dama'],
   corr:{venta:7, cli:3, id:100},
   tasas:[
-    {fecha:'2026-08-25',bcv:857.55,par:912.30,estado:'confirmada'},
-    {fecha:'2026-08-22',bcv:851.10,par:905.00,estado:'confirmada'},
-    {fecha:'2026-08-21',bcv:848.72,par:900.40,estado:'confirmada'},
-    {fecha:'2026-08-20',bcv:845.03,par:898.10,estado:'confirmada'}
+    {fecha:dHoy(0),bcv:857.55,par:912.30,estado:'confirmada'},
+    {fecha:dHoy(3),bcv:851.10,par:905.00,estado:'confirmada'},
+    {fecha:dHoy(4),bcv:848.72,par:900.40,estado:'confirmada'},
+    {fecha:dHoy(5),bcv:845.03,par:898.10,estado:'confirmada'}
   ],
   fondoUSD:100,
   cfg:{
@@ -412,11 +412,11 @@ function SEMILLA(){ return {
   turno:'k1',
   clientes:[
     {id:'c1',doc:'12458963',nom:'Ana Carolina',ape:'Rodríguez',gen:'F',op:'0414',tel:'1234567',
-     mail:'anacarolina@gmail.com',compras:3,monto:142.50,ultima:'2026-08-19',mkt:true},
+     mail:'anacarolina@gmail.com',compras:3,monto:142.50,ultima:dHoy(6),mkt:true},
     {id:'c2',doc:'19874521',nom:'Mariela',ape:'Quintero',gen:'F',op:'0424',tel:'9876543',
-     mail:'marielaq@hotmail.com',compras:1,monto:32.00,ultima:'2026-08-12',mkt:false},
+     mail:'marielaq@hotmail.com',compras:1,monto:32.00,ultima:dHoy(13),mkt:false},
     {id:'c3',doc:'15332107',nom:'Luis Alberto',ape:'Contreras',gen:'M',op:'0412',tel:'5551122',
-     mail:'lacontreras@gmail.com',compras:2,monto:97.00,ultima:'2026-08-16',mkt:true}
+     mail:'lacontreras@gmail.com',compras:2,monto:97.00,ultima:dHoy(9),mkt:true}
   ],
   productos:[
     {id:'p1',activo:true,costo:9.50,sku:'RD-001',nom:'Blusa manga larga satinada',cat:'Ropa de Dama',ico:'👚',precio:18.00,
@@ -430,32 +430,32 @@ function SEMILLA(){ return {
     {id:'p7',activo:true,costo:6.40,sku:'BD-030',nom:'Collar perlas con dije',cat:'Bisutería Dama',ico:'📿',precio:15.00,tallas:null,exi:0}
   ],
   accionista:[
-    {fecha:'2026-08-19',tipo:'vuelto',concepto:'Vuelto venta V-00005 con fondos del accionista',usd:14.20,ref:'889001',venta:'V-00005'},
-    {fecha:'2026-08-17',tipo:'vuelto',concepto:'Vuelto venta V-00004 con fondos del accionista',usd:38.60,ref:'884512',venta:'V-00004'},
-    {fecha:'2026-08-14',tipo:'cobro', concepto:'Cobro venta V-00003 recibido en su cuenta',usd:-12.00,ref:'772310',venta:'V-00003'},
-    {fecha:'2026-08-11',tipo:'reintegro',concepto:'Reintegro al accionista en efectivo USD',usd:-15.00,ref:'',venta:''}
+    {fecha:dHoy(6),tipo:'vuelto',concepto:'Vuelto venta V-00005 con fondos del accionista',usd:14.20,ref:'889001',venta:'V-00005'},
+    {fecha:dHoy(8),tipo:'vuelto',concepto:'Vuelto venta V-00004 con fondos del accionista',usd:38.60,ref:'884512',venta:'V-00004'},
+    {fecha:dHoy(11),tipo:'cobro', concepto:'Cobro venta V-00003 recibido en su cuenta',usd:-12.00,ref:'772310',venta:'V-00003'},
+    {fecha:dHoy(14),tipo:'reintegro',concepto:'Reintegro al accionista en efectivo USD',usd:-15.00,ref:'',venta:''}
   ],
   ventas:[
-    {num:'V-00001',fecha:'2026-08-25',hora:'09:14',cliId:'c1',canal:'Presencial',vendedorId:'v1',repId:null,
+    {num:'V-00001',fecha:dHoy(0),hora:'09:14',cliId:'c1',canal:'Presencial',vendedorId:'v1',repId:null,
      entrega:'oficina',deliv:0,cajera:'k1',total:26.50,tasa:857.55,
      lineas:[{sku:'BD-021',nom:'Juego de zarcillos dorados',talla:'',cant:1,precio:8.50,cat:'Bisutería Dama'},
              {sku:'LS-007',nom:'Lentes de sol cat-eye',talla:'',cant:1,precio:12.00,cat:'Lentes de Sol'},
              {sku:'BD-021',nom:'Juego de zarcillos dorados',talla:'',cant:1,precio:6.00,cat:'Bisutería Dama'}],
      cobros:[{met:'efec_usd',mon:'USD',monto:26.50,ref:'',banco:'',fuente:'empresa'}],vueltos:[],pend:0},
-    {num:'V-00002',fecha:'2026-08-25',hora:'10:41',cliId:'c3',canal:'Instagram',vendedorId:'v2',repId:'r1',
+    {num:'V-00002',fecha:dHoy(0),hora:'10:41',cliId:'c3',canal:'Instagram',vendedorId:'v2',repId:'r1',
      entrega:'delivery',deliv:5,cajera:'k1',total:29.50,tasa:857.55,
      lineas:[{sku:'RD-014',nom:'Pantalón de vestir alto',talla:'M',cant:1,precio:24.50,cat:'Ropa de Dama'}],
      cobros:[{met:'pm',mon:'BS',monto:25297.73,ref:'110022',banco:'Banesco',fuente:'empresa'}],vueltos:[],pend:0},
-    {num:'V-00003',fecha:'2026-08-25',hora:'12:07',cliId:'c2',canal:'TikTok',vendedorId:'v1',repId:null,
+    {num:'V-00003',fecha:dHoy(0),hora:'12:07',cliId:'c2',canal:'TikTok',vendedorId:'v1',repId:null,
      entrega:'oficina',deliv:0,cajera:'k2',total:32.00,tasa:857.55,
      lineas:[{sku:'CE-005',nom:'Cartera Eyes Theme mediana',talla:'',cant:1,precio:32.00,cat:'Carteras Eyes Theme'}],
      cobros:[{met:'efec_usd',mon:'USD',monto:40.00,ref:'',banco:'',fuente:'empresa'}],
      vueltos:[{met:'efec_usd',mon:'USD',monto:8.00,ref:'',banco:'',fuente:'empresa'}],pend:0},
-    {num:'V-00004',fecha:'2026-08-25',hora:'14:22',cliId:'c1',canal:'Presencial',vendedorId:'v2',repId:null,
+    {num:'V-00004',fecha:dHoy(0),hora:'14:22',cliId:'c1',canal:'Presencial',vendedorId:'v2',repId:null,
      entrega:'oficina',deliv:0,cajera:'k2',total:18.00,tasa:857.55,
      lineas:[{sku:'RD-001',nom:'Blusa manga larga satinada',talla:'M',cant:1,precio:18.00,cat:'Ropa de Dama'}],
      cobros:[{met:'zelle',mon:'USD',monto:18.00,ref:'ZL8891',banco:'Bank of America',fuente:'accionista'}],vueltos:[],pend:0},
-    {num:'V-00007',fecha:'2026-08-25',hora:'15:48',cliId:'c3',canal:'Facebook',vendedorId:'v1',repId:null,
+    {num:'V-00007',fecha:dHoy(0),hora:'15:48',cliId:'c3',canal:'Facebook',vendedorId:'v1',repId:null,
      entrega:'oficina',deliv:0,cajera:'k2',total:45.00,tasa:857.55,
      lineas:[{sku:'RD-014',nom:'Pantalón de vestir alto',talla:'L',cant:1,precio:24.50,cat:'Ropa de Dama'},
              {sku:'LS-007',nom:'Lentes de sol cat-eye',talla:'',cant:1,precio:12.00,cat:'Lentes de Sol'},
@@ -464,11 +464,11 @@ function SEMILLA(){ return {
              {met:'pm',mon:'BS',monto:12863.25,ref:'337712',banco:'Banco de Venezuela',fuente:'empresa'},
              {met:'zelle',mon:'USD',monto:15.00,ref:'ZL9042',banco:'Chase',fuente:'empresa'}],
      vueltos:[],pend:0},
-    {num:'V-00005',fecha:'2026-08-24',hora:'11:30',cliId:'c1',canal:'WhatsApp',vendedorId:'v1',repId:'r2',
+    {num:'V-00005',fecha:dHoy(1),hora:'11:30',cliId:'c1',canal:'WhatsApp',vendedorId:'v1',repId:'r2',
      entrega:'delivery',deliv:3,cajera:'k1',total:68.00,tasa:851.10,
      lineas:[{sku:'CA-002',nom:'Cartera alta gama cuero',talla:'',cant:1,precio:65.00,cat:'Cartera Alta Gama'}],
      cobros:[{met:'efec_bs',mon:'BS',monto:57874.80,ref:'',banco:'',fuente:'empresa'}],vueltos:[],pend:0},
-    {num:'V-00006',fecha:'2026-08-24',hora:'16:05',cliId:'c2',canal:'Instagram',vendedorId:'v2',repId:null,
+    {num:'V-00006',fecha:dHoy(1),hora:'16:05',cliId:'c2',canal:'Instagram',vendedorId:'v2',repId:null,
      entrega:'oficina',deliv:0,cajera:'k1',total:20.50,tasa:851.10,
      lineas:[{sku:'BD-021',nom:'Juego de zarcillos dorados',talla:'',cant:1,precio:8.50,cat:'Bisutería Dama'},
              {sku:'RD-001',nom:'Blusa manga larga satinada',talla:'S',cant:1,precio:12.00,cat:'Ropa de Dama'}],
@@ -477,10 +477,10 @@ function SEMILLA(){ return {
   ],
   cierres:[],
   vpend:[
-    {id:'vp1',venta:'V-00006',fecha:'2026-08-22',cliId:'c2',usd:6.40,saldo:6.40,entregas:[],cajera:'k1'}
+    {id:'vp1',venta:'V-00006',fecha:dHoy(3),cliId:'c2',usd:6.40,saldo:6.40,entregas:[],cajera:'k1'}
   ],
   correos:[
-    {fecha:'2026-08-19',cli:'Ana Carolina Rodríguez',mail:'anacarolina@gmail.com',venta:'V-00005',arts:2,tipo:'recibo',estado:'enviado'}
+    {fecha:dHoy(6),cli:'Ana Carolina Rodríguez',mail:'anacarolina@gmail.com',venta:'V-00005',arts:2,tipo:'recibo',estado:'enviado'}
   ]
 }; }
 let DB = null;
@@ -643,7 +643,7 @@ function pinta(){
   $('#app').innerHTML =
       TAB==='tasas'?vistaTasas(): TAB==='accion'?vistaAcc(): TAB==='correos'?vistaCorreos()
     : TAB==='cfg'?vistaCfg(): TAB==='tes'?vistaTes(): TAB==='rep'?vistaRep()
-    : TAB==='ger'?vistaGer(): TAB==='dev'?vistaDev(): (avisoSetup()+vistaCaja());
+    : TAB==='ger'?vistaGer(): TAB==='dev'?vistaDevMod(): (avisoSetup()+vistaCaja());
   barra();
   guardar();
 }
@@ -1511,7 +1511,7 @@ function vistaTasas(){
          +'<div class="mininota">archivo leído · revise el resultado abajo</div></div>'
          +'<button class="b sm gh" id="m_quita">Quitar</button></div>':'')
       +'<label class="f" style="margin-top:18px">O pegue las líneas</label>'
-      +'<textarea id="m_txt" rows="6" placeholder="25/08/2026  857,55  912,30&#10;2026-08-20;845,03;898,10">'+esc(MTXT)+'</textarea>'
+      +'<textarea id="m_txt" rows="6" placeholder="'+fFecha(dHoy(0))+'  857,55  912,30&#10;'+dHoy(5)+';845,03;898,10">'+esc(MTXT)+'</textarea>'
       +'<p class="mini" style="margin-top:8px">Acepta <b>dd/mm/aaaa</b> o <b>aaaa-mm-dd</b>; separadores de espacio, tabulación o punto y coma.</p>'
       +'<div class="acc"><button class="b gh" id="m_prev">Revisar antes de importar</button>'
       +'<button class="b gh sm" id="m_ej">Pegar un ejemplo</button></div>';
@@ -1814,7 +1814,11 @@ document.addEventListener('click',e=>{
   if(b.dataset.conf){const x=DB.tasas.find(t=>t.fecha===b.dataset.conf);
     if(x){x.estado='confirmada';bitacora('tasas','Tasa confirmada',fFecha(x.fecha)+' · Bs '+fN(x.bcv,2));aviso('Confirmada.');}
     pinta();return;}
-  if(b.id==='m_ej'){MTXT='25/08/2026\t857,55\t912,30\n22/08/2026\t851,10\t905,00\n21/08/2026\t848,72\n19/08/2026\t842,90\t894,00\n18/08/2026\t840,15\t891,20\n15/08/2026\tabc\n2026-08-14;836,44;886,00\n30/08/2026\t900,00';
+  if(b.id==='m_ej'){MTXT=[fFecha(dHoy(0))+'\t857,55\t912,30',
+      fFecha(dHoy(3))+'\t851,10\t905,00', fFecha(dHoy(4))+'\t848,72',
+      fFecha(dHoy(6))+'\t842,90\t894,00', fFecha(dHoy(7))+'\t840,15\t891,20',
+      fFecha(dHoy(10))+'\tabc', dHoy(11)+';836,44;886,00',
+      fFecha(dHoy(-5))+'\t900,00'].join('\n');
     PREV=null;pinta();return;}
   if(b.id==='m_prev'){MTXT=$('#m_txt').value;if(!MTXT.trim())return aviso('Pegue primero el histórico.',true);
     PREV=parseMasivo(MTXT);pinta();return;}
@@ -2163,6 +2167,8 @@ document.addEventListener('keydown',e=>{
 
 const CLAVE = 'sicom.casakeylis.v2';
 
+/* una fecha de hace n días, sin que el huso horario la corra */
+function dHoy(n){ const d = new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate() - (n||0)); return isoLocal(d); }
 function isoLocal(d){ d = d || new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function horaLocal(d){ d = d || new Date();
@@ -3542,22 +3548,22 @@ function gerSeguridad(){
      + 'firma que sí valga como prueba, llegan cuando el sistema esté en el servidor. Mientras tanto, opere sabiendo '
      + 'esto.</div></div>';
 
-  h += '<div class="card"><h2>Ventas anuladas</h2>';
-  if(!anu.length) h += '<div class="vacio"><div class="vi">✓</div>No se ha anulado ninguna venta.</div>';
-  else{
-    h += '<table class="dat"><thead><tr><th>Venta</th><th>Era del</th><th>Anulada el</th><th>Quién</th>'
-       + '<th>Motivo</th><th class="n">Monto</th><th>Cierre</th></tr></thead><tbody>';
-    anu.slice().reverse().forEach(v=>{ const a = v.anulada;
-      h += '<tr><td><b>'+esc(v.num)+'</b></td><td class="mini">'+fFecha(v.fecha)+'</td>'
-        + '<td class="mini">'+fFecha(a.fecha)+' '+esc(a.hora)+'</td><td class="mini">'+esc(a.por)+'</td>'
-        + '<td class="mini">'+(a.motivoC?'<b>'+esc(a.motivoC)+'</b> · ':'')+esc(a.motivo)+'</td>'
-        + '<td class="n"><b>'+fN(v.total)+'</b></td>'
-        + '<td>'+(a.cierre ? '<span class="chip mal">afectó el del '+fFecha(a.cierre)+'</span>' : '<span class="chip">día abierto</span>')+'</td></tr>';
-    });
-    h += '</tbody></table><div class="nota">Ninguna venta anulada se borra. Esta tabla es la que hay que poder mostrar '
-       + 'cuando alguien pregunte por qué el correlativo tiene huecos.</div>';
-  }
-  h += '</div>';
+  const cc = anu.filter(v=>v.anulada.cierre).length;
+  h += '<div class="card"><h2>Uso de la clave</h2>'
+     + '<p class="cap">Lo que se ha autorizado con ella hasta ahora.</p><div class="hero">'
+     + '<div class="h dest"><span class="k">Ventas anuladas</span><span class="v">'+anu.length+'</span>'
+     + '<span class="s">USD '+fN(anu.reduce((a,v)=>a+v.total, 0))+' dejados sin efecto</span></div>'
+     + '<div class="h"><span class="k">Sobre cierres firmados</span><span class="v">'+cc+'</span>'
+     + '<span class="s">'+(cc ? '<b style="color:var(--mal)">revíselas</b>' : 'ninguna')+'</span></div>'
+     + '<div class="h"><span class="k">Fuera de plazo</span><span class="v">'
+     + (DB.bitacora||[]).filter(r=>r.accion === 'Autorizada fuera de plazo').length+'</span>'
+     + '<span class="s">devoluciones autorizadas por excepción</span></div>'
+     + '<div class="h"><span class="k">Plazo vigente</span><span class="v">'+plazoDias()+' <small>días</small></span>'
+     + '<span class="s">desde la compra</span></div></div>'
+     + '<div class="acc" style="margin-top:16px">'
+     + '<button class="b sm oro" data-irdev="anu">Ver el detalle de las anulaciones →</button></div>'
+     + '<div class="nota">El detalle vive en el módulo de Devoluciones y anulaciones, para no tener la misma tabla '
+     + 'en dos sitios diciendo cosas distintas.</div></div>';
   return h;
 }
 
@@ -3884,7 +3890,7 @@ function cardPorQue(tipo, solo){
     const pct = Math.round(x.n / tot * 100);
     h += '<div class="lin"><div class="li"><b>'+esc(x.nom)+'</b>'
       + '<div class="mini">'+esc(x.c)+' · '+x.n+' '+(x.n === 1 ? 'caso' : 'casos')
-      + (x.uds ? ' · '+x.uds+' unidades' : '')+'</div>'
+      + (x.uds ? ' · '+x.uds+' '+(x.uds === 1 ? 'unidad' : 'unidades') : '')+'</div>'
       + '<div class="bar" style="margin:7px 0 0"><div class="bt"><i style="width:'+Math.max(2,pct)+'%"></i></div></div></div>'
       + '<span class="lm">USD '+fN(x.usd)+'<div class="mini" style="text-align:right">'+pct+' %</div></span></div>';
   });
@@ -4066,11 +4072,11 @@ function rvSincroniza(){
 }
 
 /* ========================================================================== */
-function vistaDev(){
+function devRegistrar(){
   if(!RV) nuevaRV();
-  let h = '<h1>Devoluciones</h1>'
-    + '<p class="sub">La clienta volvió con algo. Escriba su cédula, busque la compra y diga qué pasó: '
-    + 'el sistema se encarga de si eso anula la venta o le devuelve el dinero.</p>';
+  let h = '<div class="nota az" style="margin:0 0 18px"><b>La clienta volvió con algo.</b> '
+    + 'Escriba su cédula, busque la compra y diga qué pasó. Usted no tiene que decidir si eso devuelve o anula: '
+    + 'el sistema lo sabe por el motivo.</div>';
   h += rvPasoCedula();
   if(RV.cliId) h += rvPasoCompras();
   if(RV.num)   h += rvPasoItems();
@@ -4295,8 +4301,11 @@ function cfgDevol(){
      + '<div class="nota">Un motivo que ya se usó no se elimina: se desactiva. Deja de ofrecerse, pero las operaciones '
      + 'viejas conservan el suyo y siguen contando en el reporte.</div></div>';
 
-  h += cardPorQue('dev');
-  h += cardPorQue('anul');
+  h += '<div class="card"><h2>¿Y el reporte de por qué?</h2>'
+     + '<p class="cap">Vive donde se usa: en el módulo de Devoluciones y anulaciones, cada uno en su pestaña. '
+     + 'Aquí solo se administran la política y la lista.</p>'
+     + '<div class="acc"><button class="b sm oro" data-irdev="dev">Ver por qué nos devuelven →</button>'
+     + '<button class="b sm gh" data-irdev="anu">Ver por qué anulamos →</button></div></div>';
   return h;
 }
 
@@ -4352,7 +4361,7 @@ document.addEventListener('click', e=>{
     const c = DB.clientes.find(x=>x.id === v.cliId);
     nuevaRV();
     if(c){ RV.doc = c.doc; RV.cliId = c.id; RV.buscado = true; RV.num = v.num; }
-    TAB = 'dev'; pinta(); window.scrollTo(0, 0);
+    TAB = 'dev'; DSUB = 'reg'; pinta(); window.scrollTo(0, 0);
     if(!c) aviso('Esa venta no tiene cliente registrado.', true);
     return;
   }
@@ -4436,6 +4445,169 @@ document.addEventListener('change', e=>{
     RV.items = null;
     pinta(); return;
   }
+});
+
+/* ==========================================================================
+   SICOM v6 · el módulo se abre en tres: registrar, devoluciones, anulaciones
+   ==========================================================================
+   El registro sigue siendo una sola puerta —la cajera dice qué pasó y el
+   sistema decide—. Lo que se separa es la consulta, porque son dos preguntas
+   distintas: las devoluciones hablan del producto, las anulaciones de la
+   operación.
+   ========================================================================== */
+let DSUB = 'reg';
+
+function vistaDevMod(){
+  const np = pendDev().length, na = DB.ventas.filter(anulada).length;
+  const nd = DB.ventas.reduce((a,v)=>a+(v.devuelto||[]).length, 0);
+  let h = '<h1>Devoluciones y anulaciones</h1>'
+    + '<p class="sub">Para registrar, entre por «Registrar» y diga qué pasó: el sistema sabe si eso devuelve o anula. '
+    + 'Las otras dos pestañas son para mirar hacia atrás, cada una con su propia pregunta.</p>'
+    + '<div class="subtabs">'
+    + [['reg','Registrar'],
+       ['dev','Devoluciones'+(nd ? ' ('+nd+')' : '')+(np ? ' · '+np+' por pagar' : '')],
+       ['anu','Anulaciones'+(na ? ' ('+na+')' : '')]]
+      .map(x=>'<button data-dsub="'+x[0]+'" class="'+(DSUB === x[0] ? 'on' : '')+'">'+x[1]+'</button>').join('')
+    + '</div>';
+  if(DSUB === 'dev') return h + histDevoluciones();
+  if(DSUB === 'anu') return h + histAnulaciones();
+  return h + devRegistrar();
+}
+
+/* ---------- todas las devoluciones, con su venta al lado ---------- */
+function devTodas(){
+  const out = [];
+  DB.ventas.forEach(v=>(v.devuelto||[]).forEach((d,i)=>out.push({v:v, d:d, i:i})));
+  return out.sort((a,b)=> b.d.fecha === a.d.fecha
+    ? String(b.d.hora).localeCompare(String(a.d.hora))
+    : b.d.fecha.localeCompare(a.d.fecha));
+}
+
+/* ==================================================== DEVOLUCIONES ======= */
+function histDevoluciones(){
+  const ls = devTodas(), pend = pendDev(), t = tasaVigente();
+  const usd = ls.reduce((a,x)=>a+x.d.usd, 0);
+  const uds = ls.reduce((a,x)=>a+x.d.lineas.reduce((b,l)=>b+l.cant, 0), 0);
+  const vendido = DB.ventas.filter(v=>!anulada(v)).reduce((a,v)=>a+v.total, 0);
+
+  let h = '<div class="hero">'
+    + '<div class="h dest"><span class="k">Mercancía devuelta</span><span class="v">'+fN(usd)+' <small>USD</small></span>'
+    + '<span class="s">'+ls.length+' '+(ls.length === 1 ? 'devolución' : 'devoluciones')+' · '+uds+' '+(uds === 1 ? 'unidad' : 'unidades')+'</span></div>'
+    + '<div class="h"><span class="k">Sobre lo vendido</span><span class="v">'
+    + (vendido > 0 ? fN(usd/vendido*100, 1) : '0,0')+' <small>%</small></span>'
+    + '<span class="s">de USD '+fN(vendido)+' facturados</span></div>'
+    + '<div class="h"><span class="k">Por pagarle al cliente</span><span class="v">'+pend.length+'</span>'
+    + '<span class="s">USD '+fN(pend.reduce((a,p)=>a+p.saldo, 0))+' esperando en tesorería</span></div>'
+    + '<div class="h"><span class="k">Artículo que más regresa</span><span class="v" style="font-size:19px;line-height:1.25">'
+    + esc(artQueMasRegresa() || '—')+'</span><span class="s">por unidades devueltas</span></div></div>';
+
+  if(pend.length) h += '<div class="card" style="margin-top:18px"><div class="nota rj" style="margin:0">'
+    + '<b>Hay '+pend.length+' '+(pend.length === 1 ? 'devolución' : 'devoluciones')+' sin pagar</b>, por USD <b>'
+    + fN(pend.reduce((a,p)=>a+p.saldo, 0))+'</b>. Ese dinero es del cliente y bloquea el cierre de caja hasta que se le entregue.</div>'
+    + '<div class="acc"><button class="b oro" data-goto="tes|vueltos">Ir a pagarlas →</button></div></div>';
+
+  h += '<div class="card" style="margin-top:18px"><h2>Todas las devoluciones</h2>';
+  if(!ls.length){
+    h += '<div class="vacio"><div class="vi">↩</div>Todavía no le han devuelto nada.</div></div>';
+    return h + cardPorQue('dev');
+  }
+  h += '<table class="dat"><thead><tr><th>Cuándo</th><th>Venta</th><th>Cliente</th><th>Qué regresó</th>'
+     + '<th>Por qué</th><th class="n">USD</th><th>Estado</th><th></th></tr></thead><tbody>';
+  ls.slice(0, 80).forEach(x=>{
+    const c = DB.clientes.find(y=>y.id === x.v.cliId) || {nom:'—', ape:''};
+    const p = DB.vpend.find(y=>y.id === x.d.pendId);
+    const sinPagar = p && p.saldo > 0.005 && !p.anulado;
+    h += '<tr><td><b>'+fFecha(x.d.fecha)+'</b><div class="mini">'+esc(x.d.hora||'')+'</div></td>'
+      + '<td><b>'+esc(x.v.num)+'</b><div class="mini">del '+fFecha(x.v.fecha)+'</div></td>'
+      + '<td>'+esc(nomComp(c))+'</td>'
+      + '<td class="mini">'+x.d.lineas.map(l=>l.cant+'× '+esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join('<br>')+'</td>'
+      + '<td class="mini"><b>'+esc(x.d.motivoC||'')+'</b> · '+esc((motUni(x.d.motivoC)||{}).n || x.d.motivo)
+      + (x.d.detalle ? '<div class="mini">'+esc(x.d.detalle)+'</div>' : '')+'</td>'
+      + '<td class="n"><b>'+fN(x.d.usd)+'</b>'+(t ? '<div class="mini">Bs '+fN(x.d.usd*t.bcv, 0)+'</div>' : '')+'</td>'
+      + '<td>'+(sinPagar ? '<span class="chip avi">por pagar</span>' : '<span class="chip ok">pagada</span>')+'</td>'
+      + '<td class="n"><button class="b sm gh" data-rvir="'+esc(x.v.num)+'">Ver la venta</button></td></tr>';
+  });
+  h += '</tbody></table>';
+  if(ls.length > 80) h += '<div class="nota">Se muestran las 80 más recientes de '+ls.length+'.</div>';
+  h += '<div class="nota">La venta de una devolución sigue siendo válida: el vendedor la hizo y cuenta para su comisión. '
+     + 'Lo devuelto se descuenta del neto, no borra la operación.</div></div>';
+
+  return h + cardPorQue('dev');
+}
+
+function artQueMasRegresa(){
+  const c = {};
+  DB.ventas.forEach(v=>(v.devuelto||[]).forEach(d=>d.lineas.forEach(l=>{
+    c[l.nom] = (c[l.nom] || 0) + l.cant;
+  })));
+  const ls = Object.keys(c).sort((a,b)=>c[b] - c[a]);
+  return ls.length ? ls[0] : null;
+}
+
+/* ===================================================== ANULACIONES ======= */
+function histAnulaciones(){
+  const ls = DB.ventas.filter(anulada)
+    .sort((a,b)=> b.anulada.fecha === a.anulada.fecha
+      ? String(b.anulada.hora).localeCompare(String(a.anulada.hora))
+      : b.anulada.fecha.localeCompare(a.anulada.fecha));
+  const usd = ls.reduce((a,v)=>a+v.total, 0);
+  const conCierre = ls.filter(v=>v.anulada.cierre);
+  const rs = resumenMotivos('anul');
+  const emitidas = DB.ventas.length;
+
+  let h = '<div class="hero">'
+    + '<div class="h dest"><span class="k">Ventas anuladas</span><span class="v">'+ls.length+'</span>'
+    + '<span class="s">USD '+fN(usd)+' dejados sin efecto</span></div>'
+    + '<div class="h"><span class="k">Sobre lo registrado</span><span class="v">'
+    + (emitidas > 0 ? fN(ls.length/emitidas*100, 1) : '0,0')+' <small>%</small></span>'
+    + '<span class="s">de '+emitidas+' ventas registradas</span></div>'
+    + '<div class="h'+(conCierre.length ? '' : '')+'"><span class="k">Sobre cierres firmados</span><span class="v">'+conCierre.length+'</span>'
+    + '<span class="s">'+(conCierre.length ? '<b style="color:var(--mal)">esos arqueos ya no cuadran</b>' : 'ninguna tocó un cierre')+'</span></div>'
+    + '<div class="h"><span class="k">Motivo más frecuente</span><span class="v" style="font-size:19px;line-height:1.25">'
+    + esc(rs.length ? rs[0].nom : '—')+'</span><span class="s">'+(rs.length ? rs[0].n+' de '+ls.length+' casos' : 'sin datos')+'</span></div></div>';
+
+  if(conCierre.length) h += '<div class="card" style="margin-top:18px"><div class="nota rj" style="margin:0">'
+    + '<b>'+conCierre.length+' '+(conCierre.length === 1 ? 'anulación cayó' : 'anulaciones cayeron')+' sobre '
+    + (conCierre.length === 1 ? 'un cierre' : 'cierres')+' de caja ya firmado'+(conCierre.length === 1 ? '' : 's')+'.</b> '
+    + 'El arqueo que se contó esos días sigue siendo el que se contó; lo que cambió es lo que debió haber. '
+    + 'La diferencia acumulada es de USD <b>'+fN(conCierre.reduce((a,v)=>a+v.total, 0))+'</b>. '
+    + 'Si esto se repite, el problema no son las anulaciones: es que se está cerrando la caja antes de tiempo.</div></div>';
+
+  h += '<div class="card" style="margin-top:18px"><h2>Todas las anulaciones</h2>';
+  if(!ls.length){
+    h += '<div class="vacio"><div class="vi">✓</div>No se ha anulado ninguna venta.</div></div>';
+    return h + cardPorQue('anul');
+  }
+  h += '<table class="dat"><thead><tr><th>Venta</th><th>Era del</th><th>Anulada el</th><th>Quién</th>'
+     + '<th>Por qué</th><th class="n">USD</th><th>Cierre</th><th></th></tr></thead><tbody>';
+  ls.slice(0, 80).forEach(v=>{
+    const a = v.anulada, c = DB.clientes.find(y=>y.id === v.cliId) || {nom:'—', ape:''};
+    h += '<tr><td><b>'+esc(v.num)+'</b><div class="mini">'+esc(nomComp(c))+'</div></td>'
+      + '<td class="mini">'+fFecha(v.fecha)+'</td>'
+      + '<td class="mini">'+fFecha(a.fecha)+'<div class="mini">'+esc(a.hora||'')+'</div></td>'
+      + '<td class="mini">'+esc(a.por||'—')+'</td>'
+      + '<td class="mini"><b>'+esc(a.motivoC||'')+'</b> · '+esc((motUni(a.motivoC)||{}).n || a.motivo)
+      + (a.detalle ? '<div class="mini">'+esc(a.detalle)+'</div>' : '')+'</td>'
+      + '<td class="n"><b>'+fN(v.total)+'</b></td>'
+      + '<td>'+(a.cierre ? '<span class="chip mal">afectó el del '+fFecha(a.cierre)+'</span>'
+                         : '<span class="chip">día abierto</span>')+'</td>'
+      + '<td class="n"><button class="b sm gh" data-rvir="'+esc(v.num)+'">Ver la venta</button></td></tr>';
+  });
+  h += '</tbody></table>';
+  if(ls.length > 80) h += '<div class="nota">Se muestran las 80 más recientes de '+ls.length+'.</div>';
+  h += '<div class="nota">Ninguna venta anulada se borra. Esta es la tabla que hay que poder mostrar cuando alguien '
+     + 'pregunte por qué el correlativo tiene huecos.</div></div>';
+
+  return h + cardPorQue('anul');
+}
+
+/* ==========================================================================
+   SICOM v6 · eventos del módulo abierto en tres
+   ========================================================================== */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.dsub){ DSUB = b.dataset.dsub; pinta(); window.scrollTo(0, 0); return; }
+  if(b.dataset.irdev){ TAB = 'dev'; DSUB = b.dataset.irdev; pinta(); window.scrollTo(0, 0); return; }
 });
 
 /* ==========================================================================
