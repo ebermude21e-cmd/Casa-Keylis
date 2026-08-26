@@ -375,6 +375,92 @@ input[type=password]::placeholder{letter-spacing:normal;font-family:inherit}
 /* logo de la tienda dentro del recibo por correo */
 .mailbd .logo.logoimg{width:auto;max-width:180px;height:56px;object-fit:contain;
   background:var(--logo-bg,transparent);border-radius:12px;padding:4px 8px;display:block;margin:0 auto}
+
+/* ---------- Contabilidad · modelos de asiento ---------- */
+.kpis-mod{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.kpis-mod .kpi{
+  border:1px solid var(--linea);border-radius:12px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:3px;background:var(--panel)
+}
+.kpis-mod .kpi .kn{font-size:28px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kpis-mod .kpi .kt{font-size:12.5px;font-weight:600}
+.kpis-mod .kpi .kd{font-size:11.5px;opacity:.6;line-height:1.4}
+.kpis-mod .kpi.bien{border-color:color-mix(in srgb,var(--ok) 45%,var(--linea))}
+.kpis-mod .kpi.bien .kn{color:var(--ok)}
+.kpis-mod .kpi.mal{border-color:color-mix(in srgb,var(--mal) 55%,var(--linea));background:color-mix(in srgb,var(--mal) 6%,var(--panel))}
+.kpis-mod .kpi.mal .kn{color:var(--mal)}
+.kpis-mod .kpi.avi .kn{color:var(--oro)}
+
+.fams{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px;margin:18px 0}
+.fams .fam{
+  display:flex;flex-direction:column;gap:5px;text-align:left;
+  border:1px solid var(--linea);border-radius:12px;padding:14px;background:var(--panel);
+  cursor:pointer;transition:border-color .12s,transform .12s
+}
+.fams .fam:hover{transform:translateY(-1px)}
+.fams .fam .fic{font-size:21px;line-height:1}
+.fams .fam b{font-size:13.5px;line-height:1.3}
+.fams .fam .fn{font-size:11.5px;opacity:.6}
+.fams .fam.on{border-color:var(--oro);background:color-mix(in srgb,var(--oro) 10%,var(--panel))}
+.fams .fam.mal{border-color:var(--mal)}
+
+.card.modelo{padding-top:16px}
+.card.modelo.apagado{opacity:.62}
+.card.modelo.roto{border-color:var(--mal)}
+.modhd{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.modid{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto}
+.modid .cod{
+  font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px;font-weight:600;
+  border:1px solid var(--linea);border-radius:7px;padding:5px 9px;letter-spacing:.02em
+}
+.modid .ver{font-size:10.5px;opacity:.55;font-variant-numeric:tabular-nums}
+.modtx{flex:1 1 240px;display:flex;flex-direction:column;gap:3px}
+.modtx b{font-size:15.5px}
+.modtx span{font-size:12.5px;opacity:.65;line-height:1.45}
+.modest{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.modcap{margin:-2px 0 12px;max-width:84ch}
+
+.tabwrap{overflow-x:auto;border:1px solid var(--linea);border-radius:10px}
+table.asiento{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
+table.asiento th{
+  text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  opacity:.55;font-weight:600;padding:9px 12px;border-bottom:1px solid var(--linea)
+}
+table.asiento th.n,table.asiento td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.asiento td{padding:9px 12px;border-bottom:1px solid color-mix(in srgb,var(--linea) 55%,transparent);vertical-align:top}
+table.asiento tr:last-child td{border-bottom:none}
+table.asiento tr.muda{opacity:.42}
+table.asiento tr.falta td.cta .ctn{color:var(--mal)}
+table.asiento tr.tot td{border-top:1px solid var(--linea);font-size:12.5px;padding-top:11px}
+td.cta{min-width:230px;display:table-cell}
+td.cta .cnt{
+  display:block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;font-weight:600
+}
+td.cta .cnt.din{color:var(--oro)}
+td.cta .ctn{display:block;font-size:11.5px;opacity:.62;line-height:1.4;margin-top:1px}
+td.org b{display:block;font-size:12.5px;font-weight:600}
+td.org .ord{display:block;font-size:11.5px;opacity:.58;line-height:1.42;margin-top:2px;max-width:52ch}
+select.selcta{width:100%;min-width:210px;font-size:12.5px}
+
+.chip.apg{opacity:.7}
+
+/* --- IVA e IGTF en la caja --- */
+.met.condiv{border-color:var(--oro)}
+.met.condiv span{color:var(--oro);font-weight:600}
+.igtfavi{
+  margin-top:14px;padding:14px 16px;border-radius:10px;
+  border:1px solid var(--oro);background:color-mix(in srgb, var(--oro) 9%, transparent);
+  display:flex;flex-direction:column;gap:6px;
+}
+.igtfavi b{font-size:13.5px}
+.igtfavi span{font-size:12.5px;line-height:1.55;opacity:.88}
+.pct{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch}
+.pct .sufijo{
+  display:flex;align-items:center;padding:0 14px;font-weight:600;opacity:.65;
+  border:1px solid var(--linea);border-radius:10px;
+}
+.mets-cfg{margin-top:8px}
+.mets-cfg .met{cursor:pointer}
 </style>
 </head>
 <body>
@@ -409,8 +495,10 @@ function SEMILLA(){ return {
     dir:'Av. Libertador, Edif. Torre Maracaibo, Piso 15, Of. 15-G, La Campiña',
     ciudad:'Caracas, Distrito Capital', zp:'1061', condIVA:'ordinario',
     mail:'casakeilysboutiquefemine@gmail.com', op:'0412', tel:'9597787', logo:''},
+  fisc:{ivaActivo:true, alic:16, delivGravado:true,
+        igtfActivo:true, igtfPct:3, igtfMet:['efec_usd','zelle','usdt'], desde:isoLocal()},
   tema:null, paleta:[], bitacora:[],
-  cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(),
+  cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(), modelos:MODELOS_BASE(),
   categorias:['Ropa de Dama','Lentes de Sol','Cartera Alta Gama','Carteras Eyes Theme','Bisutería Dama'],
   corr:{venta:7, cli:3, id:100},
   tasas:[
@@ -662,15 +750,101 @@ function nuevaVenta(){
        hecha:null,correoEnviado:false};
 }
 nuevaVenta();
+/* ==================================================================
+   IVA e IGTF
+   El precio del catálogo YA incluye el IVA: la base sale dividiendo.
+   El IGTF se causa sobre la porción de la FACTURA saldada en divisas,
+   no sobre el efectivo que la clienta pone sobre el mostrador.
+   ================================================================== */
+/* Redondeo comercial. El empujón de una milmillonésima existe porque 1,275
+   no se puede representar exacto en binario: sin él, Math.round devuelve 1,27
+   y el IGTF queda un centavo corto. Con él, medio centavo siempre sube. */
+function r2(n){
+  n = Number(n) || 0;
+  return Math.round((n + (n < 0 ? -1e-9 : 1e-9)) * 100) / 100;
+}
+function fisc(){ return DB.fisc || {}; }
+function ivaActivo(){ return fisc().ivaActivo !== false; }
+function alicIVA(){ return ivaActivo() ? (+fisc().alic || 0)/100 : 0; }
+function igtfActivo(){ return fisc().igtfActivo !== false; }
+function pctIGTF(){ return igtfActivo() ? (+fisc().igtfPct || 0)/100 : 0; }
+function esDivisa(k){ return (fisc().igtfMet || []).indexOf(k) >= 0; }
+function metDivisas(){ return METODOS.filter(m=>esDivisa(m.k)); }
+
+/* de un monto que ya trae el IVA adentro, cuánto es base */
+function baseDe(monto){
+  const a = alicIVA();
+  return a ? r2(monto / (1 + a)) : r2(monto);
+}
+/* el IVA es el resto, nunca un segundo redondeo: así base + iva === monto */
+function ivaDe(monto){ return r2(monto - baseDe(monto)); }
+function gravado(l){ return l.exento !== true; }
+
+/* desglose de un juego de líneas más el delivery */
+function desglosaVenta(lineas, deliv){
+  let base = 0, iva = 0, exe = 0;
+  (lineas||[]).forEach(l=>{
+    const m = r2(l.precio * l.cant);
+    if(!gravado(l) || !alicIVA()){ exe += m; }
+    else { const b = baseDe(m); base += b; iva += r2(m - b); }
+  });
+  const d = deliv || 0;
+  if(d > 0.005){
+    if(fisc().delivGravado === false || !alicIVA()) exe += d;
+    else { const b = baseDe(d); base += b; iva += r2(d - b); }
+  }
+  return {base:r2(base), iva:r2(iva), exento:r2(exe), total:r2(base + iva + exe)};
+}
+
+/* cuánto de la factura queda sin saldar después de una lista de cobros */
+function saldoFactura(cobros, totalFac){
+  const t = tasaVigente();
+  let saldo = totalFac;
+  (cobros||[]).forEach(c=>{
+    const usd = c.mon === 'BS' ? (t ? c.monto / t.bcv : 0) : c.monto;
+    saldo = r2(saldo - Math.min(usd, Math.max(0, saldo)));
+  });
+  return Math.max(0, saldo);
+}
+/* el IGTF causado: 3 % de lo que cada cobro en divisas alcanzó a saldar */
+function igtfDe(cobros, totalFac){
+  const p = pctIGTF(); if(!p) return 0;
+  const t = tasaVigente();
+  let saldo = totalFac, g = 0;
+  (cobros||[]).forEach(c=>{
+    const usd = c.mon === 'BS' ? (t ? c.monto / t.bcv : 0) : c.monto;
+    const aplica = Math.min(usd, Math.max(0, saldo));
+    if(esDivisa(c.met)) g = r2(g + r2(aplica * p));
+    saldo = r2(saldo - aplica);
+  });
+  return r2(g);
+}
 function totalArts(){return VTA.lineas.reduce((a,l)=>a+l.precio*l.cant,0);}
 function montoDeliv(){if(VTA.entrega!=='delivery'||!VTA.zonaId)return 0;
   const z=DB.cfg.zonas.find(x=>x.id===VTA.zonaId);return z?z.usd:0;}
+/* el total de la FACTURA: no cambia al activarse el IVA, porque el precio
+   ya lo traía adentro. Lo que cambia es qué parte de él es ingreso. */
 function totalVenta(){return Math.round((totalArts()+montoDeliv())*100)/100;}
+function desgVenta(){ return desglosaVenta(VTA.lineas, montoDeliv()); }
+function igtfVenta(){ return igtfDe(VTA.cobros, totalVenta()); }
+/* lo que de verdad hay que cobrar hoy, con el IGTF ya causado encima */
+function totalCobrar(){ return r2(totalVenta() + igtfVenta()); }
+/* si la clienta salda lo que falta con ESTA vía, ¿cuánto entrega? */
+function exactoPara(k){
+  const falta = r2(totalCobrar() - pagadoUSD());
+  if(falta <= 0.005) return 0;
+  if(!esDivisa(k) || !pctIGTF()) return falta;
+  const fac  = Math.min(falta, saldoFactura(VTA.cobros, totalVenta()));
+  const otro = r2(falta - fac);
+  return r2(fac + r2(fac * pctIGTF()) + otro);
+}
+/* cuánto IGTF agregaría pagar lo que falta por esta vía */
+function igtfSiPaga(k){ return r2(exactoPara(k) - r2(totalCobrar() - pagadoUSD())); }
 function pagoRep(){const r=DB.cfg.repartidores.find(x=>x.id===VTA.repId);
   return r?Math.round(montoDeliv()*r.pct)/100:0;}
 function pagadoUSD(){const t=tasaVigente();
   return VTA.cobros.reduce((a,c)=>a+(c.mon==='BS'?c.monto/(t?t.bcv:1):c.monto),0);}
-function faltaUSD(){return Math.round((totalVenta()-pagadoUSD())*100)/100;}
+function faltaUSD(){return Math.round((totalCobrar()-pagadoUSD())*100)/100;}
 function vueltoTotal(){const f=faltaUSD();return f<-0.005?Math.abs(f):0;}
 function vueltoDado(){const t=tasaVigente();
   return VTA.vueltos.reduce((a,v)=>a+(v.mon==='BS'?v.monto/(t?t.bcv:1):v.monto),0);}
@@ -693,19 +867,22 @@ function cliListo(){
    Render
    ========================================================================== */
 const TABS=[['caja','Ingresos'],['dev','Devoluciones'],['tes','Tesorería'],['rep','Reportes'],
-            ['correos','Clientes'],['tasas','Tasas'],['accion','Accionista'],['cfg','Configuración'],
-            ['ger','Gerencial']];
+            ['correos','Clientes'],['tasas','Tasas'],['accion','Accionista'],['conta','Contabilidad'],
+            ['cfg','Configuración'],['ger','Gerencial']];
 function pinta(){
   aplicaTema();
   pintaMarca();
   const np=pendAbiertos().length;
+  const nr = DB.modelos ? modelosRotos().length + modelosHuerfanos().length : 0;
   $('#tabs').innerHTML=TABS.map(t=>'<button data-tab="'+t[0]+'"'+(TAB===t[0]?' class="on"':'')+'>'+t[1]
-    +(t[0]==='tes'&&np?'<span class="pip">'+np+'</span>':'')+'</button>').join('');
+    +(t[0]==='tes'&&np?'<span class="pip">'+np+'</span>':'')
+    +(t[0]==='conta'&&nr?'<span class="pip">'+nr+'</span>':'')+'</button>').join('');
   cinta();
   $('#app').innerHTML =
       TAB==='tasas'?vistaTasas(): TAB==='accion'?vistaAcc(): TAB==='correos'?vistaCorreos()
     : TAB==='cfg'?vistaCfg(): TAB==='tes'?vistaTes(): TAB==='rep'?vistaRep()
-    : TAB==='ger'?vistaGer(): TAB==='dev'?vistaDevMod(): (avisoSetup()+vistaCaja());
+    : TAB==='ger'?vistaGer(): TAB==='dev'?vistaDevMod(): TAB==='conta'?vistaCont()
+    : (avisoSetup()+vistaCaja());
   barra();
   guardar();
 }
@@ -734,6 +911,20 @@ function logoRecibo(){
     : '<div class="logo">'+esc((marcaDe().trim()[0]||'S').toUpperCase())+'</div>';
 }
 function telEmpresa(){ const e=DB.empresa; return e.op&&e.tel ? e.op+'-'+e.tel : (e.tel||'—'); }
+/* El desglose de una venta ya registrada sale de lo que se guardó con ella.
+   Las ventas anteriores al IVA no guardaron nada: se deriva con la alícuota
+   de hoy y se marca como derivado, para no hacer pasar por hecho lo que es
+   un cálculo posterior. */
+function desgDe(v){
+  if(v && v.fis && v.fis.base !== undefined)
+    return {base:v.fis.base, iva:v.fis.iva, exento:v.fis.exento||0,
+            total:r2(v.fis.base + v.fis.iva + (v.fis.exento||0)),
+            alic:v.fis.alic, igtf:v.fis.igtf||0, igtfPct:v.fis.igtfPct||0, derivado:false};
+  const d = desglosaVenta((v&&v.lineas)||[], (v&&v.deliv)||0);
+  d.alic = fisc().alic; d.igtf = 0; d.igtfPct = 0; d.derivado = true;
+  return d;
+}
+function hayDerivadas(){ return DB.ventas.some(v=>!v.fis); }
 function cinta(){
   const t=tasaVigente(),s=saldoAcc(),np=pendAbiertos();
   let h='<span><span class="pt'+(tasaDeHoyCargada()?'':' avi')+'"></span>'
@@ -946,7 +1137,8 @@ function pasoArts(){
 /* precarga automática del monto que falta, en la moneda del método elegido */
 function precarga(cual){
   if(cual==='cobro'){
-    const f=Math.max(0,faltaUSD());
+    /* lo que salda la venta POR ESTA VÍA: si causa IGTF, ya viene incluido */
+    const f=Math.max(0,exactoPara(VTA.met));
     VTA.buf = f>0.005 ? f.toFixed(2).replace('.',',') : '';
   }else{
     const m=METODOS.find(x=>x.k===VTA.vmet);
@@ -972,14 +1164,23 @@ function pasoCobro(){
     +'<p class="cap">'+(ed?'El comprador cambió de opinión: elija la vía correcta, ajuste el monto y guarde. Mientras tanto ese cobro está fuera de la cuenta, por eso ve que falta USD '+fN(Math.max(0,falta))+'.'
         :(nc?'Este es un <b>pago mixto</b>: lleva '+nc+' '+(nc===1?'método':'métodos')+' y todavía falta USD '+fN(Math.max(0,falta))+'. Agregue los que hagan falta.'
         :'Si paga con una sola vía, agréguela y listo. Si paga con varias, agréguelas una por una — el sistema va restando.'))+'</p>'
-    +'<div class="mets">'+METODOS.map(x=>'<button class="met'+(x.k===VTA.met?' on':'')+'" data-met="'+x.k+'">'
-      +'<span class="ic">'+x.ic+'</span><b>'+x.n+'</b><span>'+(x.mon==='BS'?'bolívares':'dólares')+'</span></button>').join('')+'</div>'
+    +'<div class="mets">'+METODOS.map(x=>{
+        const ex = esDivisa(x.k) && pctIGTF() && falta > 0.005 ? igtfSiPaga(x.k) : 0;
+        return '<button class="met'+(x.k===VTA.met?' on':'')+(ex>0.005?' condiv':'')+'" data-met="'+x.k+'">'
+          +'<span class="ic">'+x.ic+'</span><b>'+x.n+'</b><span>'
+          +(ex>0.005 ? '+ IGTF '+fN(ex) : (x.mon==='BS'?'bolívares':'dólares'))+'</span></button>';}).join('')+'</div>'
+    +(esDivisa(VTA.met) && pctIGTF() && falta > 0.005
+      ? '<div class="igtfavi"><b>Es un pago en divisas: se le agrega el IGTF del '+fN(fisc().igtfPct,0)+' %.</b>'
+        +'<span>Para saldar lo que falta por esta vía la clienta entrega <b>USD '+fN(exactoPara(VTA.met))+'</b>'
+        +' — USD '+fN(r2(totalCobrar()-pagadoUSD()))+' de la cuenta más USD '+fN(igtfSiPaga(VTA.met))+' de impuesto. '
+        +'Dígaselo antes de recibir el dinero.</span></div>' : '')
     +'<div class="visor"><span class="vk">Recibe en '+m.n.toLowerCase()+'</span>'
     +'<div class="vrow"><span class="vu">USD</span>'
     +'<input class="vin" id="c_monto" inputmode="decimal" autocomplete="off" placeholder="0,00" value="'+esc(VTA.buf)+'"></div>'
     +'<span class="veq" id="c_eq">'+eqTexto(VTA.buf,enBs,t)+'</span></div>'
     +'<div class="rapidos">'
-    +(falta>0.005?'<button class="ex" data-exacto="1">Todo lo que falta · USD '+fN(Math.max(0,falta))+'</button>':'')
+    +(falta>0.005?'<button class="ex" data-exacto="1">Todo lo que falta · USD '+fN(exactoPara(VTA.met))
+      +(esDivisa(VTA.met)&&igtfSiPaga(VTA.met)>0.005?' <small>con IGTF</small>':'')+'</button>':'')
     +'<button class="gh" data-climpia="1">Borrar el monto</button></div>';
   if(m.banco){
     h+='<div style="margin-top:18px"><label class="f">¿A qué cuenta entró el dinero?</label><div class="fuente">'
@@ -994,9 +1195,18 @@ function pasoCobro(){
   }
   h+='<div class="acc"><button class="b oro" id="c_add">'+(ed?'Guardar el cambio':(nc?'Agregar otro cobro':'Agregar este cobro'))+'</button>'
     +(ed?'<button class="b gh" id="c_cancel">Cancelar y dejarlo como estaba</button>':'')+'</div></div>';
+  const dg = desgVenta(), gi = igtfVenta();
   h+='<div class="card peg"><h2>Cobro</h2><table class="dat"><tbody>'
+    +(alicIVA()&&dg.base>0.005?'<tr><td>Base imponible</td><td class="n">USD '+fN(dg.base)+'</td></tr>'
+      +'<tr><td>IVA '+fN(fisc().alic,0)+' %</td><td class="n">USD '+fN(dg.iva)+'</td></tr>':'')
+    +(dg.exento>0.005?'<tr><td>No gravado</td><td class="n">USD '+fN(dg.exento)+'</td></tr>':'')
     +'<tr><td>Total de la venta</td><td class="n"><b>USD '+fN(totalVenta())+'</b>'
-    +(t?'<div class="mini">Bs '+fN(totalVenta()*t.bcv)+'</div>':'')+'</td></tr></tbody></table>';
+    +(t?'<div class="mini">Bs '+fN(totalVenta()*t.bcv)+'</div>':'')+'</td></tr>'
+    +(gi>0.005?'<tr><td>IGTF '+fN(fisc().igtfPct,0)+' % <div class="mini">sobre lo saldado en divisas</div></td>'
+      +'<td class="n">USD '+fN(gi)+'</td></tr>'
+      +'<tr><td><b>Total a cobrar</b></td><td class="n"><b>USD '+fN(totalCobrar())+'</b>'
+      +(t?'<div class="mini">Bs '+fN(totalCobrar()*t.bcv)+'</div>':'')+'</td></tr>':'')
+    +'</tbody></table>';
   if(VTA.cobros.length){h+='<div class="lineas">';
     VTA.cobros.forEach((c,i)=>{const mm=METODOS.find(x=>x.k===c.met);
       h+='<div class="lin"><div class="li"><b>'+mm.ic+' '+mm.n+'</b>'
@@ -1008,12 +1218,23 @@ function pasoCobro(){
         +'<button class="x ed" data-edc="'+i+'" title="Modificar este cobro">✎</button>'
         +'<button class="x" data-qc="'+i+'" title="Quitarlo">×</button></div>';});
     h+='</div>';}
-  if(falta>0.005) h+='<div class="estado falta"><span class="et">Falta por cobrar</span><span class="mt">USD '+fN(falta)+'</span>'
-    +(t?'<span class="sb">Bs '+fN(falta*t.bcv)+'</span>':'')+'</div>';
+  if(falta>0.005){
+    /* si la factura ya está saldada, lo que falta es el impuesto y solo el impuesto */
+    const soloIGTF = saldoFactura(VTA.cobros, totalVenta()) < 0.005 && gi > 0.005;
+    const conImp = !soloIGTF && esDivisa(VTA.met) && igtfSiPaga(VTA.met) > 0.005;
+    h+='<div class="estado falta"><span class="et">'
+      +(soloIGTF ? 'Falta el IGTF' : 'Falta por cobrar')+'</span><span class="mt">USD '+fN(falta)+'</span>'
+      +(conImp ? '<span class="sb">por '+esc(METODOS.find(x=>x.k===VTA.met).n.toLowerCase())
+          +' son <b>USD '+fN(exactoPara(VTA.met))+'</b> con el IGTF</span>'
+        : (t?'<span class="sb">Bs '+fN(falta*t.bcv)+'</span>':''))+'</div>'
+      +(soloIGTF ? '<div class="igtfavi"><b>La mercancía está pagada; lo que falta es el impuesto.</b>'
+        +'<span>Al cobrar en divisas se causa el IGTF del '+fN(fisc().igtfPct,0)+' %, que no estaba en el total original. '
+        +'Cóbrele los USD '+fN(falta)+' o cambie la vía de pago a una que no lo cause.</span></div>' : '');
+  }
   else if(vue>0) h+='<div class="estado vuelto"><span class="et">Pagó de más · hay vuelto</span><span class="mt">USD '+fN(vue)+'</span>'
     +(t?'<span class="sb">Bs '+fN(vue*t.bcv)+'</span>':'')+'</div>'
     +'<div class="acc"><button class="b oro" id="c_ir" style="width:100%">Continuar al vuelto →</button></div>';
-  else h+='<div class="estado cuadra"><span class="et">Cuadrado</span><span class="mt">USD '+fN(totalVenta())+'</span>'
+  else h+='<div class="estado cuadra"><span class="et">Cuadrado</span><span class="mt">USD '+fN(totalCobrar())+'</span>'
     +'<span class="sb">pagó exacto</span></div><div class="acc"><button class="b" id="c_reg" style="width:100%">Registrar la venta</button></div>';
   h+='</div></div>';
   return h;
@@ -1124,6 +1345,8 @@ function registrar(){
 
   DB.ventas.push({num,fecha:hoy,hora:horaAhora(),cliId:c.id,canal:VTA.canal,vendedorId:VTA.vendedorId==='sin'?null:VTA.vendedorId,
     repId:VTA.repId,entrega:VTA.entrega,deliv:montoDeliv(),cajera:DB.turno,total:totalVenta(),tasa:t?t.bcv:null,
+    fis:(function(){ const d=desgVenta(); return {alic:fisc().alic, base:d.base, iva:d.iva, exento:d.exento,
+      igtfPct:fisc().igtfPct, igtf:igtfVenta(), cobrado:totalCobrar()}; })(),
     lineas:VTA.lineas.map(l=>{const p=DB.productos.find(x=>x.id===l.id)||{};
       return {sku:l.sku,nom:l.nom,talla:l.talla,cant:l.cant,precio:l.precio,cat:p.cat||'',costo:p.costo||0};}),
     op:'vta',
@@ -1145,6 +1368,9 @@ function registrar(){
 
 /* 6 · CORREO */
 function catalogo(){return DB.productos.filter(p=>p.activo!==false&&exi(p)>0).sort((a,b)=>exi(b)-exi(a)).slice(0,6);}
+/* cada línea se lleva la condición del artículo al momento de venderlo:
+   si mañana cambia el catálogo, la venta de ayer no se mueve */
+function marcaExento(l){ const p = DB.productos.find(x=>x.id===l.id); if(p && p.exento) l.exento = true; return l; }
 function correoHTML(){
   const c=VTA.cli,t=tasaVigente(),v=VTA.hecha,tr=trato(c.gen);
   let h='<div class="mail"><div class="mailhd">'
@@ -1163,8 +1389,17 @@ function correoHTML(){
     +'<td style="text-align:right;font-variant-numeric:tabular-nums"><b>USD '+fN(l.precio*l.cant)+'</b></td></tr>';});
   if(montoDeliv()>0) h+='<tr><td>Delivery · '+esc((DB.cfg.zonas.find(z=>z.id===VTA.zonaId)||{}).nom||'')+'</td>'
     +'<td style="text-align:right"><b>USD '+fN(montoDeliv())+'</b></td></tr>';
+  const dgc = desgVenta(), gic = igtfVenta();
+  if(alicIVA() && dgc.base > 0.005)
+    h+='<tr><td class="mini" style="padding-top:10px">Base imponible</td>'
+      +'<td class="mini" style="text-align:right;padding-top:10px">USD '+fN(dgc.base)+'</td></tr>'
+      +'<tr><td class="mini">IVA '+fN(fisc().alic,0)+' %</td>'
+      +'<td class="mini" style="text-align:right">USD '+fN(dgc.iva)+'</td></tr>';
+  if(gic > 0.005)
+    h+='<tr><td class="mini">IGTF '+fN(fisc().igtfPct,0)+' % · pago en divisas</td>'
+      +'<td class="mini" style="text-align:right">USD '+fN(gic)+'</td></tr>';
   h+='</tbody></table><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:12px;border-top:1px solid var(--linea)">'
-    +'<span>Total</span><span class="tt">USD '+fN(totalVenta())+'</span></div>'
+    +'<span>Total</span><span class="tt">USD '+fN(r2(totalVenta()+gic))+'</span></div>'
     +(t?'<div class="mini" style="text-align:right">Bs '+fN(totalVenta()*t.bcv)+' · tasa BCV '+fN(t.bcv,2)+' del '+fFecha(t.fecha)+'</div>':'')+'</div>';
   h+='<div class="bloque"><h4>Detalle del pago</h4><table><tbody>';
   VTA.cobros.forEach(x=>{const mm=METODOS.find(y=>y.k===x.met);
@@ -1701,23 +1936,162 @@ function vistaCorreos(){
   return h;
 }
 
+/* ==========================================================================
+   SICOM · CONTABILIDAD · pantalla de modelos de asiento
+   ========================================================================== */
+let KSUB = 'modelos', KFAM = 'venta', KMOD = null;
+
+function vistaCont(){
+  let h = '<h1>Contabilidad</h1>'
+    + '<p class="sub">Aquí se define cómo el sistema contabiliza cada cosa que pasa en la tienda. '
+    + 'Los modelos de asiento son la columna vertebral: todo lo demás cuelga de ellos.</p>'
+    + '<div class="subtabs">'
+    + [['modelos','Modelos de asiento'],['ctas','Catálogo de cuentas'],['mapa','Cuentas por operación']]
+      .map(s=>'<button data-ksub="'+s[0]+'" class="'+(KSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
+    + '</div>';
+  if(KSUB === 'ctas' || KSUB === 'mapa') return h + cfgContab();
+  return h + contModelos();
+}
+
+/* --------------------------------------------------------- LOS MODELOS -- */
+function contModelos(){
+  const rotos = modelosRotos(), huerf = modelosHuerfanos(), apag = modelosApagados();
+  let h = '';
+
+  /* el estado de salud, primero: si algo está roto se ve antes que nada */
+  h += '<div class="card"><h2>Estado de los modelos</h2>'
+    + '<div class="kpis kpis-mod">'
+    + kpiMod(modelos().length, 'Modelos definidos', 'uno por cada transacción que el sistema sabe hacer', '')
+    + kpiMod(FAMILIAS.length, 'Familias', 'cada transacción pertenece a una', '')
+    + kpiMod(rotos.length, 'Sin cuadrar', rotos.length ? 'debe y haber no se cancelan' : 'todos cuadran para cualquier monto', rotos.length?'mal':'bien')
+    + kpiMod(huerf.length, 'Con cuenta inexistente', huerf.length ? 'apuntan a una cuenta que no está en el catálogo' : 'todas las cuentas existen', huerf.length?'mal':'bien')
+    + kpiMod(apag.length, 'Desactivados', apag.length ? 'no generan asiento' : 'todos activos', apag.length?'avi':'')
+    + '</div>';
+  if(rotos.length) h += '<div class="err">Hay '+rotos.length+' '+(rotos.length===1?'modelo que no cuadra':'modelos que no cuadran')
+    + ': '+rotos.map(m=>esc(m.c)).join(' · ')+'. Un modelo que no cuadra produce un comprobante descuadrado cada vez que se dispara.</div>';
+  if(huerf.length) h += '<div class="err">Hay '+huerf.length+' '+(huerf.length===1?'modelo que apunta':'modelos que apuntan')
+    + ' a una cuenta que ya no existe: '+huerf.map(m=>esc(m.c)).join(' · ')+'. Corrija la cuenta o vuelva a crearla en el catálogo.</div>';
+  h += '<div class="nota">Un modelo <b>cuadra</b> cuando el debe y el haber se cancelan pieza por pieza — no para el ejemplo de abajo, '
+    + 'sino para cualquier monto que se le presente. Eso es lo que el sistema comprueba antes de dejarle guardar un cambio.</div></div>';
+
+  /* las familias */
+  h += '<div class="fams">'+FAMILIAS.map(f=>{
+    const ms = modelosDe(f.k), ro = ms.filter(m=>m.activo!==false && !cuadraModelo(m).ok).length;
+    return '<button class="fam'+(KFAM===f.k?' on':'')+(ro?' mal':'')+'" data-kfam="'+f.k+'">'
+      +'<span class="fic">'+f.ic+'</span><b>'+esc(f.n)+'</b>'
+      +'<span class="fn">'+ms.length+' '+(ms.length===1?'modelo':'modelos')
+      +(ro?' · '+ro+' sin cuadrar':'')+'</span></button>';}).join('')+'</div>';
+
+  const fa = familiaDe(KFAM);
+  h += '<div class="card"><h2>'+fa.ic+' '+esc(fa.n)+'</h2><p class="cap">'+esc(fa.d)+'</p></div>';
+
+  modelosDe(KFAM).forEach(m=>{ h += tarjetaModelo(m); });
+  return h;
+}
+
+function kpiMod(n, t, d, cl){
+  return '<div class="kpi'+(cl?' '+cl:'')+'"><span class="kn">'+n+'</span>'
+    + '<span class="kt">'+esc(t)+'</span><span class="kd">'+esc(d)+'</span></div>';
+}
+
+/* ------------------------------------------------------- UNA TARJETA --- */
+function tarjetaModelo(m){
+  const cu = cuadraModelo(m), hu = ctasHuerfanas(m), sim = simulaModelo(m);
+  const ab = (KMOD === m.c);
+  let h = '<div class="card modelo'+(m.activo===false?' apagado':'')+(cu.ok?'':' roto')+'">'
+    + '<div class="modhd">'
+    + '<div class="modid"><span class="cod">'+esc(m.c)+'</span>'
+    + '<span class="ver" title="Versión del modelo">v'+(m.ver||1)+'</span></div>'
+    + '<div class="modtx"><b>'+esc(m.n)+'</b><span>'+esc(m.disp)+'</span></div>'
+    + '<div class="modest">'
+    + (m.activo===false ? '<span class="chip apg">Desactivado</span>'
+        : (cu.ok ? '<span class="chip ok">Cuadra</span>' : '<span class="chip mal">No cuadra</span>'))
+    + (hu.length ? '<span class="chip mal">Cuenta inexistente</span>' : '')
+    + '</div>'
+    + '<button class="b sm gh" data-kmod="'+esc(m.c)+'">'+(ab?'Cerrar':'Ver y editar')+'</button>'
+    + '</div>';
+
+  if(m.d) h += '<p class="cap modcap">'+esc(m.d)+'</p>';
+
+  /* el asiento, siempre visible: es lo que el usuario vino a ver */
+  h += '<div class="tabwrap"><table class="asiento"><thead><tr>'
+    + '<th>Cuenta</th><th>De dónde sale el monto</th><th class="n">Debe</th><th class="n">Haber</th>'
+    + '</tr></thead><tbody>';
+  sim.lineas.forEach((l,i)=>{
+    const mudo = Math.abs(l.monto) < 0.005;
+    const din = esCtaDin(l.cta), falta = !din && !ctaNom(l.cta);
+    h += '<tr class="'+(mudo?'muda':'')+(falta?' falta':'')+'">'
+      + '<td class="cta">'
+      + (ab ? selCta('mo_c_'+m.c+'_'+i, l.cta)
+            : '<span class="cnt'+(din?' din':'')+'">'+esc(din ? l.cta : l.cta)+'</span>'
+              +'<span class="ctn">'+esc(din ? CTAS_DIN[l.cta] : (ctaNom(l.cta) || '⚠ no está en el catálogo'))+'</span>')
+      + '</td>'
+      + '<td class="org"><b>'+esc(orgNom(l.org))+'</b>'
+      + (l.d ? '<span class="ord">'+esc(l.d)+'</span>' : '')+'</td>'
+      + '<td class="n">'+(l.nat==='D' ? fN(l.monto) : '')+'</td>'
+      + '<td class="n">'+(l.nat==='H' ? fN(l.monto) : '')+'</td></tr>';
+  });
+  h += '<tr class="tot"><td colspan="2">Sobre el ejemplo de la matriz'
+    + (sim.mudas ? ' <span class="mininota">('+sim.mudas+' '+(sim.mudas===1?'línea no aplica':'líneas no aplican')+' en este caso)</span>' : '')
+    + '</td><td class="n"><b>'+fN(sim.debe)+'</b></td><td class="n"><b>'+fN(sim.haber)+'</b></td></tr>'
+    + '</tbody></table></div>';
+
+  if(!cu.ok) h += '<div class="err">Este modelo no cuadra. Sobra en el '
+    + (cu.desc[0].neto > 0 ? 'debe' : 'haber') + ': '
+    + cu.desc.map(x=>esc(x.n)).join(' · ')
+    + '. Mientras no cuadre, cada vez que se dispare va a producir un comprobante descuadrado.</div>';
+
+  if(ab){
+    h += '<div class="nota">Puede cambiar <b>a qué cuenta</b> va cada línea y <b>activar o desactivar</b> el modelo. '
+      + 'La estructura del asiento y el origen de cada monto no se editan: son lo que hace que cuadre siempre. '
+      + 'Si necesita agregar o quitar una línea, dígamelo — eso sí requiere programación.</div>'
+      + '<div class="acc">'
+      + '<button class="b oro" data-kgua="'+esc(m.c)+'">Guardar las cuentas</button>'
+      + '<button class="b gh" data-kmtog="'+esc(m.c)+'">'+(m.activo===false?'Activar el modelo':'Desactivar el modelo')+'</button>'
+      + '<button class="b gh" data-krest="'+esc(m.c)+'">Volver al modelo de fábrica</button>'
+      + '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+/* selector de cuenta: el catálogo más las cuentas que dependen de la operación */
+function selCta(id, val){
+  const ds = Object.keys(CTAS_DIN);
+  let o = '<optgroup label="Depende de la operación">'
+    + ds.map(k=>'<option value="'+k+'"'+(val===k?' selected':'')+'>'+esc(CTAS_DIN[k])+'</option>').join('')
+    + '</optgroup>';
+  const tipos = ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'];
+  tipos.forEach(t=>{
+    const cs = (DB.cuentas||[]).filter(c=>c.t===t);
+    if(!cs.length) return;
+    o += '<optgroup label="'+t+'">'
+      + cs.map(c=>'<option value="'+esc(c.c)+'"'+(val===c.c?' selected':'')+'>'+esc(c.c+' · '+c.n)+'</option>').join('')
+      + '</optgroup>';
+  });
+  if(val && !esCtaDin(val) && !ctaNom(val))
+    o = '<option value="'+esc(val)+'" selected>⚠ '+esc(val)+' · ya no está en el catálogo</option>' + o;
+  return '<select class="selcta" id="'+id+'" data-ctasel="1">'+o+'</select>';
+}
+
 /* ------------------------------------------------------ CONFIGURACIÓN ---- */
 function vistaCfg(){
   let h='<h1>Configuración</h1>'
     +'<p class="sub">Todo lo que la caja ofrece se administra aquí. Cambie una tarifa o agregue un canal y aparece en la venta al instante.</p>'
     +'<div class="subtabs">'
-    +[['emp','Empresa'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
+    +[['emp','Empresa'],['imp','Impuestos'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
       ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras'],
-      ['dev','Devoluciones'],['contab','Contabilidad']]
+      ['dev','Devoluciones']]
       .map(s=>'<button data-csub="'+s[0]+'" class="'+(CSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     +'</div>';
 
   if(CSUB==='emp')   return h + cfgEmpresa();
+  if(CSUB==='imp')   return h + cfgImpuestos();
   if(CSUB==='marca') return h + cfgMarca();
   if(CSUB==='prod')  return h + cfgProd();
   if(CSUB==='cat')   return h + cfgCat();
   if(CSUB==='dev')    return h + cfgDevol();
-  if(CSUB==='contab') return h + cfgContab();
+  if(CSUB==='contab'){ TAB='conta'; KSUB='ctas'; return vistaCont(); }
 
   if(CSUB==='vend'){
     h+='<div class="card"><h2>Agregar vendedor</h2>'
@@ -1836,7 +2210,11 @@ function barra(){
     der='<button class="b oro" id="b_cobro"'+(VTA.lineas.length?'':' disabled')+'>Ir al cobro →</button>';
   }else if(VTA.paso==='cobro'){
     izq='<button class="b gh" data-paso="arts">← Atrás</button>';
-    inf=falta>0.005?'Falta cobrar USD '+fN(falta):(vue>0?'Hay que devolver USD '+fN(vue):'Listo para registrar.');
+    inf=falta>0.005
+      ? 'Falta cobrar USD '+fN(falta)
+        + (esDivisa(VTA.met) && igtfSiPaga(VTA.met)>0.005
+           ? ' · por esta vía son USD '+fN(exactoPara(VTA.met))+' con el IGTF' : '')
+      : (vue>0?'Hay que devolver USD '+fN(vue):'Listo para registrar.');
     der=vue>0?'<button class="b oro" id="c_ir2">Continuar al vuelto →</button>'
              :'<button class="b" id="c_reg2"'+(falta>0.005?' disabled':'')+'>Registrar y enviar el recibo</button>';
   }else{
@@ -1863,7 +2241,7 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b)return;
   if(b.dataset.tab){TAB=b.dataset.tab;PSEL=null;pinta();return;}
   if(b.dataset.sub){SUB=b.dataset.sub;PREV=null;pinta();return;}
-  if(b.dataset.csub){CSUB=b.dataset.csub;pinta();return;}
+  if(b.dataset.csub){pbufOlvida();CSUB=b.dataset.csub;pinta();return;}
 
   /* tasas */
   if(b.id==='t_g'){const f=$('#t_f').value,bv=num($('#t_b').value),pa=num($('#t_p').value);
@@ -1963,7 +2341,8 @@ document.addEventListener('click',e=>{
     const disp=p.tallas?(p.tallas.find(x=>x.t===ta)||{e:0}).e:p.exi;
     const k=p.id+'|'+ta,ya=VTA.lineas.find(l=>l.k===k);
     if(ya){if(ya.cant<disp)ya.cant++;else aviso('No hay más existencia.',true);}
-    else VTA.lineas.push({k,id:p.id,sku:p.sku,nom:p.nom,talla:ta,precio:p.precio,cant:1,disp});
+    else VTA.lineas.push({k,id:p.id,sku:p.sku,nom:p.nom,talla:ta,precio:p.precio,cant:1,disp,
+                          exento:p.exento===true});
     pinta();return;}
   if(b.dataset.qp){const l=VTA.lineas.find(x=>x.k===b.dataset.qp);if(l.cant<l.disp)l.cant++;else aviso('No hay más existencia.',true);pinta();return;}
   if(b.dataset.qm){const l=VTA.lineas.find(x=>x.k===b.dataset.qm);l.cant--;if(l.cant<=0)VTA.lineas=VTA.lineas.filter(x=>x.k!==l.k);pinta();return;}
@@ -1973,7 +2352,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.met){VTA.met=b.dataset.met;VTA.ref='';VTA.banco='';VTA.print=null;precarga('cobro');pinta();return;}
   if(b.dataset.fu){VTA.fuente=b.dataset.fu;pinta();return;}
   if(b.dataset.climpia){VTA.buf='';pinta();return;}
-  if(b.dataset.exacto){VTA.buf=Math.max(0,faltaUSD()).toFixed(2).replace('.',',');pinta();return;}
+  if(b.dataset.exacto){VTA.buf=Math.max(0,exactoPara(VTA.met)).toFixed(2).replace('.',',');pinta();return;}
   if(b.id==='c_add'){const m=METODOS.find(x=>x.k===VTA.met),t=tasaVigente();
     const usd=pila($('#c_monto')?$('#c_monto').value:VTA.buf);
     if(usd<=0)return aviso('Escriba el monto en dólares.',true);
@@ -2263,6 +2642,13 @@ function normaliza(b){
   }
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
   if(!b.cuentas || !b.cuentas.length) b.cuentas = CUENTAS_BASE();
+  /* las cuentas que el catálogo de fábrica trae y la base guardada todavía no:
+     se agregan sin tocar las que el usuario haya cambiado o creado */
+  CUENTAS_BASE().forEach(c=>{ if(!b.cuentas.some(x=>x.c===c.c)) b.cuentas.push(c); });
+  b.cuentas.sort((x,y)=>x.c.localeCompare(y.c));
+  if(!b.modelos || !b.modelos.length) b.modelos = MODELOS_BASE();
+  /* un modelo nuevo de fábrica se agrega; los que el usuario tocó no se pisan */
+  MODELOS_BASE().forEach(m=>{ if(!b.modelos.some(x=>x.c===m.c)) b.modelos.push(m); });
   if(!b.mapaCtas) b.mapaCtas = MAPA_BASE();
   unificaMotivos(b);
   if(!(+b.cfg.diasDev > 0)) b.cfg.diasDev = 15;
@@ -2542,7 +2928,18 @@ function listoParaVender(){ return pasos().every(p=>p.ok); }
    SICOM v2 · pantallas nuevas
    Empresa · Logo y colores · Artículos · Categorías · Gerencial
    ========================================================================== */
-let GSUB = 'estado', CLIED = null, PRED = null;
+let GSUB = 'estado', CLIED = null, PRED = null, PEXE = 'si', PBUF = null;
+/* Un interruptor del formulario del artículo obliga a repintar. Antes de
+   hacerlo se guarda lo que la persona llevaba escrito, y al pintar de nuevo
+   se le devuelve: nada de volver a teclear el nombre por tocar una talla. */
+function pbufLee(){
+  if(!$('#np_nom')) { PBUF = null; return; }
+  PBUF = {sku:$('#np_sku').value, nom:$('#np_nom').value, cat:$('#np_cat').value,
+          ico:$('#np_ico').value, costo:$('#np_costo').value, precio:$('#np_precio').value,
+          exi: ($('#np_exi')||{}).value};
+}
+function pbufVal(k, def){ return (PBUF && PBUF[k] !== undefined && PBUF[k] !== null) ? PBUF[k] : def; }
+function pbufOlvida(){ PBUF = null; }
 
 /* ------------------------------------------------------------- EMPRESA -- */
 function cfgEmpresa(){
@@ -2589,6 +2986,68 @@ function cfgEmpresa(){
     + '<div class="nota">Así queda la identidad en el pie del recibo:<br><b>'+esc(e.nom)+'</b> · RIF '+esc(e.rif)
     + ' · '+esc(condIVA())+'<br>'+esc(dirFiscal())+' · '+esc(telEmpresa())+'</div>'
     + '<div class="nota">Cambiarlos no altera los recibos ya emitidos: cada venta guarda el texto con el que salió.</div></div>';
+  return h;
+}
+
+/* ---------------------------------------------------------- IMPUESTOS -- */
+function cfgImpuestos(){
+  const f = fisc(), a = alicIVA(), ej = 110.20;
+  const bEj = a ? r2(ej/(1+a)) : ej, iEj = r2(ej - bEj);
+  let h = '<div class="card"><h2>IVA</h2>'
+    + '<p class="cap">Los precios del catálogo <b>ya incluyen el IVA</b>. El sistema lo desglosa hacia atrás: '
+    + 'la clienta paga lo mismo y el libro de ventas sale con la base y el débito separados.</p>'
+    + '<div class="fila">'
+    + '<div style="flex:1 1 100%"><label class="f">¿El sistema factura con IVA?</label><div class="segm">'
+    + [['si','Sí, desglosa el IVA'],['no','No, sin IVA']].map(o=>{
+        const on = (ivaActivo()?'si':'no') === o[0];
+        return '<button class="sg'+(on?' on':'')+'" data-ivaon="'+o[0]+'">'
+          + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div><div class="ayuda">La empresa está inscrita como '+esc(condIVA())+'.</div></div>'
+    + '</div><div class="fila" style="margin-top:14px">'
+    + '<div><label class="f">Alícuota general</label><div class="pct">'
+    + '<input id="iv_a" inputmode="decimal" value="'+esc(String(f.alic===undefined?16:f.alic).replace('.',','))+'" maxlength="6">'
+    + '<span class="sufijo">%</span></div>'
+    + '<div class="ayuda">Hoy la alícuota general en Venezuela es 16 %.</div></div>'
+    + '<div style="flex:2 1 300px"><label class="f">¿El delivery lleva IVA?</label><div class="segm">'
+    + [['si','Sí, es un servicio gravado'],['no','No lo grava']].map(o=>{
+        const on = (f.delivGravado===false?'no':'si') === o[0];
+        return '<button class="sg'+(on?' on':'')+'" data-delgrav="'+o[0]+'">'
+          + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div></div></div>';
+  if(a) h += '<div class="nota">Con esta alícuota, un artículo de <b>USD '+fN(ej)+'</b> se desglosa en '
+    + '<b>USD '+fN(bEj)+'</b> de base imponible y <b>USD '+fN(iEj)+'</b> de débito fiscal.</div>';
+  h += '<div class="acc"><button class="b oro" id="iv_g">Guardar el IVA</button></div></div>';
+
+  h += '<div class="card"><h2>IGTF</h2>'
+    + '<p class="cap">El impuesto a las grandes transacciones financieras se causa sobre la porción de la factura '
+    + 'que la clienta salda <b>en divisas</b> — no sobre el efectivo que pone en el mostrador. '
+    + 'Por eso el total a cobrar cambia según la vía de pago, y la caja se lo muestra a la cajera antes de recibir el dinero.</p>'
+    + '<div class="fila">'
+    + '<div style="flex:1 1 100%"><label class="f">¿Se le cobra el IGTF a la clienta?</label><div class="segm">'
+    + [['si','Sí, se agrega al total'],['no','No, lo absorbe la tienda']].map(o=>{
+        const on = (igtfActivo()?'si':'no') === o[0];
+        return '<button class="sg'+(on?' on':'')+'" data-igtfon="'+o[0]+'">'
+          + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div></div></div>'
+    + '<div class="fila" style="margin-top:14px">'
+    + '<div><label class="f">Porcentaje</label><div class="pct">'
+    + '<input id="ig_p" inputmode="decimal" value="'+esc(String(f.igtfPct===undefined?3:f.igtfPct).replace('.',','))+'" maxlength="6">'
+    + '<span class="sufijo">%</span></div><div class="ayuda">Hoy la tarifa vigente es 3 %.</div></div>'
+    + '</div>'
+    + '<div style="margin-top:16px"><label class="f">¿Cuáles vías causan IGTF?</label>'
+    + '<div class="mets mets-cfg">'+METODOS.map(m=>'<button class="met'+(esDivisa(m.k)?' on':'')+'" data-igtfmet="'+m.k+'">'
+        +'<span class="ic">'+m.ic+'</span><b>'+m.n+'</b><span>'+(esDivisa(m.k)?'causa IGTF':'no causa')+'</span></button>').join('')
+    + '</div><div class="ayuda">Bolívares, pago móvil y punto de venta no causan IGTF. '
+    + 'El efectivo en dólares, el Zelle y la cripto sí.</div></div>'
+    + '<div class="nota">Sobre una factura de <b>USD '+fN(ej)+'</b> saldada completa en efectivo USD, '
+    + 'la clienta entrega <b>USD '+fN(r2(ej*(1+pctIGTF())))+'</b>: '+fN(ej)+' de la cuenta más '
+    + fN(r2(ej*pctIGTF()))+' de impuesto.</div>'
+    + '<div class="acc"><button class="b oro" id="ig_g">Guardar el IGTF</button></div></div>';
+
+  if(hayDerivadas()) h += '<div class="card"><h2>Las ventas anteriores</h2>'
+    + '<p class="cap">Hay ventas registradas antes de que el sistema manejara IVA. No guardaron desglose, '
+    + 'así que los reportes lo derivan con la alícuota de hoy y lo marcan como <b>derivado</b>. '
+    + 'No se reescriben: lo que se asentó, asentado quedó.</p></div>';
   return h;
 }
 
@@ -2683,17 +3142,25 @@ function cfgProd(){
   let h = '<div class="card'+(ed?' editando':'')+'"><h2>'+(ed?'Modificar «'+esc(ed.nom)+'»':'Agregar artículo')+'</h2>'
     + '<p class="cap">El costo no sale en ningún recibo: sirve para el margen y para calcular la comisión del vendedor.</p>'
     + '<div class="fila">'
-    + '<div><label class="f">Código</label><input id="np_sku" value="'+esc(ed?ed.sku:'')+'" placeholder="Escriba el código" maxlength="16"></div>'
+    + '<div><label class="f">Código</label><input id="np_sku" value="'+esc(pbufVal('sku', ed?ed.sku:''))+'" placeholder="Escriba el código" maxlength="16"></div>'
     + '<div style="flex:2 1 280px"><label class="f">Nombre del artículo</label>'
-    + '<input id="np_nom" value="'+esc(ed?ed.nom:'')+'" placeholder="Escriba el nombre" maxlength="70"></div>'
-    + '<div><label class="f">Categoría</label>'+selCat('np_cat', ed?ed.cat:'')+'</div>'
+    + '<input id="np_nom" value="'+esc(pbufVal('nom', ed?ed.nom:''))+'" placeholder="Escriba el nombre" maxlength="70"></div>'
+    + '<div><label class="f">Categoría</label>'+selCat('np_cat', pbufVal('cat', ed?ed.cat:''))+'</div>'
     + '<div style="flex:0 0 110px"><label class="f">Ícono</label>'
-    + '<input id="np_ico" value="'+esc(ed?ed.ico:'')+'" placeholder="👜" maxlength="4" style="text-align:center;font-size:19px"></div>'
+    + '<input id="np_ico" value="'+esc(pbufVal('ico', ed?ed.ico:''))+'" placeholder="👜" maxlength="4" style="text-align:center;font-size:19px"></div>'
     + '</div><div class="fila" style="margin-top:14px">'
     + '<div><label class="f">Costo en dólares</label><input id="np_costo" inputmode="decimal" '
-    + 'value="'+(ed&&ed.costo?fN(ed.costo):'')+'" placeholder="Escriba el costo" maxlength="10"></div>'
+    + 'value="'+esc(pbufVal('costo', ed&&ed.costo?fN(ed.costo):''))+'" placeholder="Escriba el costo" maxlength="10"></div>'
     + '<div><label class="f">Precio de venta en dólares</label><input id="np_precio" inputmode="decimal" '
-    + 'value="'+(ed?fN(ed.precio):'')+'" placeholder="Escriba el precio" maxlength="10"></div>'
+    + 'value="'+esc(pbufVal('precio', ed?fN(ed.precio):''))+'" placeholder="Escriba el precio" maxlength="10"></div>'
+    + '</div><div class="fila" style="margin-top:14px">'
+    + '<div style="flex:1 1 100%"><label class="f">¿Lleva IVA?</label><div class="segm">'
+    + [['si','Gravado · '+fN(fisc().alic,0)+' %'],['no','No gravado o exento']].map(o=>{
+        const on = (ed ? (ed.exento?'no':'si') : PEXE) === o[0];
+        return '<button class="sg'+(on?' on':'')+'" data-pexe="'+o[0]+'">'
+          + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div><div class="ayuda">Casi todo lo que vende la tienda es gravado. Márquelo no gravado solo si la ley lo exime: '
+    + 'aparece aparte en el libro de ventas.</div></div>'
     + '</div><div class="fila" style="margin-top:14px">'
     + '<div style="flex:1 1 100%"><label class="f">¿Se maneja por tallas?</label><div class="segm">'
     + [['no','Una sola existencia'],['si','Existencia por talla']].map(o=>{
@@ -2713,7 +3180,7 @@ function cfgProd(){
        + '</div><div class="ayuda">Deje una talla en cero si no la tiene: aparece agotada, no desaparece.</div></div></div>';
   }else{
     h += '<div class="fila" style="margin-top:14px"><div><label class="f">Existencia</label>'
-       + '<input id="np_exi" inputmode="numeric" value="'+(ed?exi(ed):'')+'" placeholder="Escriba las unidades" maxlength="5"></div></div>';
+       + '<input id="np_exi" inputmode="numeric" value="'+esc(pbufVal('exi', ed?exi(ed):''))+'" placeholder="Escriba las unidades" maxlength="5"></div></div>';
   }
 
   h += '<div class="acc">'
@@ -2971,6 +3438,36 @@ document.addEventListener('click', e=>{
     aviso('Datos de la empresa guardados.'); pinta(); return;
   }
 
+  /* ---------------- impuestos ---------------- */
+  if(b.dataset.ivaon){ DB.fisc.ivaActivo = b.dataset.ivaon === 'si'; guardar(); pinta(); return; }
+  if(b.dataset.delgrav){ DB.fisc.delivGravado = b.dataset.delgrav === 'si'; guardar(); pinta(); return; }
+  if(b.dataset.igtfon){ DB.fisc.igtfActivo = b.dataset.igtfon === 'si'; guardar(); pinta(); return; }
+  if(b.dataset.igtfmet){
+    const k = b.dataset.igtfmet, l = DB.fisc.igtfMet || (DB.fisc.igtfMet = []);
+    const i = l.indexOf(k); if(i >= 0) l.splice(i, 1); else l.push(k);
+    guardar(); pinta(); return;
+  }
+  if(b.id === 'iv_g'){
+    const a = pila($('#iv_a').value);
+    if(!(a >= 0 && a <= 50)) return aviso('La alícuota tiene que estar entre 0 y 50 %.', true);
+    const ant = DB.fisc.alic;
+    DB.fisc.alic = a;
+    bitacora('fisc','Alícuota del IVA', fN(ant,2)+' % → '+fN(a,2)+' %'
+      + (ivaActivo() ? '' : ' · el IVA está apagado'));
+    aviso('IVA guardado.'); pinta(); return;
+  }
+  if(b.id === 'ig_g'){
+    const p = pila($('#ig_p').value);
+    if(!(p >= 0 && p <= 25)) return aviso('El porcentaje del IGTF tiene que estar entre 0 y 25 %.', true);
+    if(igtfActivo() && !(DB.fisc.igtfMet||[]).length)
+      return aviso('Si el IGTF está activo, marque al menos una vía que lo cause.', true);
+    const ant = DB.fisc.igtfPct;
+    DB.fisc.igtfPct = p;
+    bitacora('fisc','Porcentaje del IGTF', fN(ant,2)+' % → '+fN(p,2)+' %'
+      + ' · vías: ' + (DB.fisc.igtfMet||[]).join(', '));
+    aviso('IGTF guardado.'); pinta(); return;
+  }
+
   /* ---------------- logo y colores ---------------- */
   if(b.id === 'mk_quitar'){
     DB.empresa.logo = ''; DB.paleta = [];
@@ -3013,16 +3510,18 @@ document.addEventListener('click', e=>{
   }
 
   /* ---------------- artículos ---------------- */
-  if(b.dataset.ptal){ PTAL = b.dataset.ptal;
+  if(b.dataset.pexe){ pbufLee(); PEXE = b.dataset.pexe; pinta(); return; }
+  if(b.dataset.ptal){ pbufLee(); PTAL = b.dataset.ptal;
     if(PRED){ const p = DB.productos.find(x=>x.id===PRED);
       if(p){ if(PTAL==='si' && !p.tallas){ p.tallas = TALLAS_NUEVAS.map(x=>({t:x.t, e:0})); p.exi = 0; }
              else if(PTAL==='no' && p.tallas){ p.exi = exi(p); p.tallas = null; } } }
     pinta(); return; }
-  if(b.dataset.pedit){ PRED = b.dataset.pedit;
+  if(b.dataset.pedit){ pbufOlvida(); PRED = b.dataset.pedit;
     const p = DB.productos.find(x=>x.id===PRED);
     PTAL = (p && p.tallas) ? 'si' : 'no';
+    PEXE = (p && p.exento) ? 'no' : 'si';
     aviso('Modificando «'+(p?p.nom:'')+'».'); pinta(); window.scrollTo(0,0); return; }
-  if(b.id === 'np_cancel'){ PRED = null; PTAL = 'no'; pinta(); return; }
+  if(b.id === 'np_cancel'){ pbufOlvida(); PRED = null; PTAL = 'no'; PEXE = 'si'; pinta(); return; }
   if(b.dataset.ptog){
     const p = DB.productos.find(x=>x.id===b.dataset.ptog); if(!p) return;
     p.activo = p.activo === false;
@@ -3063,17 +3562,20 @@ document.addEventListener('click', e=>{
       if(p.cat !== cat) cam.push('categoría '+p.cat+' → '+cat);
       if(exi(p) !== (conTallas ? tallas.reduce((a,x)=>a+x.e,0) : uni))
         cam.push('existencia '+exi(p)+' → '+(conTallas ? tallas.reduce((a,x)=>a+x.e,0) : uni));
+      if(!!p.exento !== (PEXE === 'no')) cam.push(PEXE === 'no' ? 'pasa a no gravado' : 'pasa a gravado');
       p.sku = sku; p.nom = nom; p.cat = cat; p.ico = ico; p.costo = costo; p.precio = precio;
+      p.exento = (PEXE === 'no');
       if(conTallas){ p.tallas = tallas; p.exi = undefined; } else { p.tallas = null; p.exi = uni; }
       bitacora('prod','Artículo modificado', sku+' · '+nom + (cam.length ? ' · '+cam.join(' · ') : ''));
-      PRED = null; PTAL = 'no';
+      pbufOlvida(); PRED = null; PTAL = 'no'; PEXE = 'si';
       aviso('Artículo «'+nom+'» actualizado.'); pinta(); return;
     }
-    const np = {id:nid('p'), sku, nom, cat, ico, costo, precio, activo:true};
+    const np = {id:nid('p'), sku, nom, cat, ico, costo, precio, activo:true, exento:(PEXE === 'no')};
     if(conTallas){ np.tallas = tallas; } else { np.tallas = null; np.exi = uni; }
     DB.productos.push(np);
-    bitacora('prod','Artículo agregado', sku+' · '+nom+' · USD '+fN(precio)+' · '+(conTallas?tallas.reduce((a,x)=>a+x.e,0):uni)+' unidades');
-    PTAL = 'no';
+    bitacora('prod','Artículo agregado', sku+' · '+nom+' · USD '+fN(precio)
+      +(np.exento?' · no gravado':'')+' · '+(conTallas?tallas.reduce((a,x)=>a+x.e,0):uni)+' unidades');
+    pbufOlvida(); PTAL = 'no'; PEXE = 'si';
     aviso('Artículo «'+nom+'» agregado al catálogo.'); pinta(); return;
   }
 
@@ -3173,17 +3675,25 @@ function CUENTAS_BASE(){ return [
   {c:'1.1.04', n:'Cuentas en dólares y USDT',         t:'Activo'},
   {c:'1.1.05', n:'Fondo de caja para vueltos',        t:'Activo'},
   {c:'1.1.06', n:'Inventario de mercancía',           t:'Activo'},
+  {c:'1.1.07', n:'Anticipos a vendedoras y repartidores', t:'Activo'},
   {c:'2.1.01', n:'Vueltos por entregar a clientes',   t:'Pasivo'},
   {c:'2.1.02', n:'Devoluciones por pagar a clientes', t:'Pasivo'},
   {c:'2.1.03', n:'Cuentas por pagar al accionista',   t:'Pasivo'},
-  {c:'2.1.04', n:'Comisiones por pagar',              t:'Pasivo'},
+  {c:'2.1.04', n:'Comisiones por pagar a vendedoras', t:'Pasivo'},
+  {c:'2.1.05', n:'IVA débito fiscal por enterar',     t:'Pasivo'},
+  {c:'2.1.06', n:'IGTF percibido por enterar',        t:'Pasivo'},
+  {c:'2.1.07', n:'Cuentas por pagar a repartidores',  t:'Pasivo'},
+  {c:'2.1.08', n:'Cuentas por pagar · gastos varios', t:'Pasivo'},
   {c:'4.1.01', n:'Ingresos por ventas',               t:'Ingreso'},
   {c:'4.1.02', n:'Ingresos por delivery',             t:'Ingreso'},
-  {c:'4.1.03', n:'Devoluciones y anulaciones',        t:'Ingreso'},
+  {c:'4.1.03', n:'Devoluciones de ventas',            t:'Ingreso'},
+  {c:'4.1.04', n:'Ventas no gravadas',                t:'Ingreso'},
+  {c:'4.1.05', n:'Anulaciones de ventas',             t:'Ingreso'},
   {c:'5.1.01', n:'Costo de la mercancía vendida',     t:'Costo'},
   {c:'6.1.01', n:'Comisiones de vendedores',          t:'Gasto'},
   {c:'6.1.02', n:'Pagos de delivery',                 t:'Gasto'},
-  {c:'6.1.03', n:'Faltantes y sobrantes de caja',     t:'Gasto'}
+  {c:'6.1.03', n:'Faltantes y sobrantes de caja',     t:'Gasto'},
+  {c:'6.1.04', n:'Ajustes de inventario',             t:'Gasto'}
 ]; }
 function MAPA_BASE(){ return {
   vta:'4.1.01', deliv:'4.1.02', dev:'4.1.03', anul:'4.1.03', costo:'5.1.01',
@@ -3195,6 +3705,386 @@ function MAPA_BASE(){ return {
 }; }
 function ctaDe(op){ return (DB.mapaCtas || {})[op] || ''; }
 function ctaNom(cod){ const c = (DB.cuentas||[]).find(x=>x.c===cod); return c ? c.n : ''; }
+
+/* ==========================================================================
+   SICOM · MODELOS DE ASIENTO CONTABLE
+   La columna vertebral de la contabilidad automática.
+
+   Cada transacción del sistema tiene un modelo: una lista de líneas, cada
+   una con su cuenta, su naturaleza (debe o haber) y —lo que hace que esto
+   funcione sin programar— el ORIGEN del monto: de dónde saca el sistema la
+   cifra. Los orígenes son una lista cerrada. No hay fórmulas libres, porque
+   una fórmula libre es una puerta abierta a asientos que no cuadran.
+   ========================================================================== */
+
+/* --------------------------------------------------- LAS SIETE FAMILIAS -- */
+const FAMILIAS = [
+  {k:'venta',  n:'Venta por artículo', ic:'🧾',
+   d:'Lo que ocurre cuando se registra una venta en la caja: el ingreso, los impuestos, el dinero que entra y lo que queda debiéndosele a la clienta.'},
+  {k:'inv',    n:'Inventarios', ic:'📦',
+   d:'El movimiento de la mercancía: lo que sale al venderse, lo que entra al comprarse y lo que se corrige al contar.'},
+  {k:'deliv',  n:'Pago de delivery', ic:'🛵',
+   d:'El porcentaje que le toca al repartidor sobre lo cobrado a la clienta: primero se causa, después se paga.'},
+  {k:'vend',   n:'Pago de vendedora', ic:'💼',
+   d:'La comisión de la vendedora sobre la venta: nace con la venta y se descarga el día de pago.'},
+  {k:'egr',    n:'Egresos por concepto de pagos', ic:'💸',
+   d:'Todo lo que sale por conceptos configurables — sueldos, almuerzo, taxi, caja chica, comisiones bancarias — más los anticipos y los reintegros al accionista.'},
+  {k:'trib',   n:'Tributos', ic:'🏛️',
+   d:'El IVA y el IGTF que la tienda cobra por cuenta del fisco y después entera al SENIAT. Nunca son ingreso: entran y salen como pasivo.'},
+  {k:'devanu', n:'Devoluciones y anulaciones', ic:'↩️',
+   d:'Cuando la venta se deshace. La devolución reversa la parte que regresó; la anulación reversa la cadena completa.'}
+];
+function familiaDe(k){ return FAMILIAS.find(f=>f.k===k) || {n:k, ic:'•', d:''}; }
+
+/* ------------------------------------------------ LOS ÁTOMOS DEL MONTO -- */
+/* Un átomo es una cifra que el sistema sabe calcular por sí solo. Los montos
+   compuestos se declaran en función de átomos, y de ahí sale la prueba de
+   cuadre: un modelo cuadra si debe y haber se cancelan átomo por átomo, para
+   cualquier valor. No para el ejemplo — para cualquiera. */
+const ATOMOS = {
+  base_art:   {n:'Base imponible de los artículos',      g:'Venta'},
+  iva_art:    {n:'IVA de los artículos',                 g:'Venta'},
+  base_deliv: {n:'Base imponible del delivery cobrado',  g:'Venta'},
+  iva_deliv:  {n:'IVA del delivery cobrado',             g:'Venta'},
+  exento:     {n:'Ventas no gravadas',                   g:'Venta'},
+  igtf:       {n:'IGTF percibido a la clienta',          g:'Venta'},
+  vuelto_pend:{n:'Vuelto que quedó pendiente',           g:'Venta'},
+  vuelto_vivo:{n:'Saldo vivo del vuelto pendiente',      g:'Vuelto'},
+  costo:      {n:'Costo de la mercancía que salió',      g:'Inventario'},
+  compra:     {n:'Costo de la mercancía que entró',      g:'Inventario'},
+  ajuste_inv: {n:'Diferencia del conteo de inventario',  g:'Inventario'},
+  comision:   {n:'Comisión causada a la vendedora',      g:'Personal'},
+  pago_rep:   {n:'Porcentaje causado al repartidor',     g:'Personal'},
+  orden_pago: {n:'Monto de la orden de pago',            g:'Tesorería'},
+  anticipo:   {n:'Anticipo entregado',                   g:'Tesorería'},
+  gasto:      {n:'Monto del gasto por concepto',         g:'Tesorería'},
+  reintegro:  {n:'Reintegro al accionista',              g:'Tesorería'},
+  dif_caja:   {n:'Diferencia del cierre de caja',        g:'Tesorería'},
+  iva_enterar:{n:'IVA a enterar al SENIAT',              g:'Tributos'},
+  igtf_enterar:{n:'IGTF a enterar al SENIAT',            g:'Tributos'},
+  dev_base:   {n:'Base de lo devuelto',                  g:'Devoluciones'},
+  dev_iva:    {n:'IVA de lo devuelto',                   g:'Devoluciones'},
+  dev_igtf:   {n:'IGTF de lo devuelto',                  g:'Devoluciones'},
+  dev_costo:  {n:'Costo que regresa al inventario',      g:'Devoluciones'},
+  manual:     {n:'Monto que escribe el usuario',         g:'Manual'}
+};
+
+/* Los compuestos: un nombre corto para una suma de átomos. Existen porque
+   «total cobrado» se entiende y «base + IVA + exento + IGTF» se lee mal. */
+const COMPUESTOS = {
+  base:        {base_art:1, base_deliv:1},
+  iva:         {iva_art:1, iva_deliv:1},
+  total_fact:  {base_art:1, iva_art:1, base_deliv:1, iva_deliv:1, exento:1},
+  total_cobr:  {base_art:1, iva_art:1, base_deliv:1, iva_deliv:1, exento:1, igtf:1},
+  recibido:    {base_art:1, iva_art:1, base_deliv:1, iva_deliv:1, exento:1, igtf:1, vuelto_pend:1},
+  dev_total:   {dev_base:1, dev_iva:1, dev_igtf:1},
+  neto_pagar:  {orden_pago:1, anticipo:-1}
+};
+const NOMBRE_COMP = {
+  base:'Base imponible total', iva:'Débito fiscal total',
+  total_fact:'Total de la factura', total_cobr:'Total cobrado a la clienta',
+  recibido:'Dinero recibido en caja', dev_total:'Total devuelto a la clienta',
+  neto_pagar:'Neto a pagar (orden menos anticipo)'
+};
+
+/* la lista cerrada que el usuario ve al mirar una línea */
+function orgNom(k){
+  if(NOMBRE_COMP[k]) return NOMBRE_COMP[k];
+  return (ATOMOS[k] || {}).n || k;
+}
+function orgGrupo(k){
+  if(COMPUESTOS[k]) return 'Compuesto';
+  return (ATOMOS[k] || {}).g || '—';
+}
+function expande(k){
+  const c = COMPUESTOS[k];
+  if(c) return c;
+  const o = {}; o[k] = 1; return o;
+}
+
+/* --------------------------------------------------- CUENTAS DINÁMICAS -- */
+/* Algunas cuentas no se pueden fijar en el modelo porque dependen de la
+   operación: el efectivo entra a una cuenta si pagaron en dólares y a otra
+   si pagaron por punto de venta. Esas líneas apuntan a un mapa, no a un
+   código, y el mapa se administra en Contabilidad · Cuentas por operación. */
+const CTAS_DIN = {
+  '#metodo':   'Según la vía de cobro',
+  '#vuelto':   'Según la vía del vuelto',
+  '#fuente':   'Según de quién sea la cuenta (empresa o accionista)',
+  '#concepto': 'Según el concepto de pago configurado',
+  '#pago':     'Según la vía con que se pagó'
+};
+function esCtaDin(c){ return !!CTAS_DIN[c]; }
+function ctaTexto(c){
+  if(esCtaDin(c)) return CTAS_DIN[c];
+  const n = ctaNom(c);
+  return n ? c + ' · ' + n : c;
+}
+
+/* ======================================================================== */
+/*                          LOS MODELOS DE FÁBRICA                          */
+/* ======================================================================== */
+function MODELOS_BASE(){ return [
+
+/* ---------------------------------------------------- VENTA POR ARTÍCULO */
+{c:'VT-01', fam:'venta', n:'Venta cobrada completa', ver:1, activo:true,
+ disp:'Al registrar una venta cuyo cobro quedó saldado',
+ d:'El asiento madre. De él cuelgan el costo, la comisión y el pago al repartidor.',
+ lineas:[
+   {cta:'#metodo', nat:'D', org:'total_cobr', d:'El dinero entra por donde pagó la clienta'},
+   {cta:'4.1.01',  nat:'H', org:'base_art',   d:'El ingreso real: sin IVA, sin IGTF'},
+   {cta:'4.1.02',  nat:'H', org:'base_deliv', d:'El delivery cobrado es ingreso aparte'},
+   {cta:'4.1.04',  nat:'H', org:'exento',     d:'Lo que la ley exime'},
+   {cta:'2.1.05',  nat:'H', org:'iva',        d:'El IVA no es suyo: es del fisco'},
+   {cta:'2.1.06',  nat:'H', org:'igtf',       d:'El IGTF tampoco'}]},
+
+{c:'VT-02', fam:'venta', n:'Venta con vuelto pendiente', ver:1, activo:true,
+ disp:'Al registrar una venta donde no hubo sencillo para devolver',
+ d:'La clienta entregó de más y quedó a favor. Ese saldo es un pasivo, no un ingreso.',
+ lineas:[
+   {cta:'#metodo', nat:'D', org:'recibido',    d:'Entró todo lo que la clienta puso en el mostrador'},
+   {cta:'4.1.01',  nat:'H', org:'base_art',    d:''},
+   {cta:'4.1.02',  nat:'H', org:'base_deliv',  d:''},
+   {cta:'4.1.04',  nat:'H', org:'exento',      d:''},
+   {cta:'2.1.05',  nat:'H', org:'iva',         d:''},
+   {cta:'2.1.06',  nat:'H', org:'igtf',        d:''},
+   {cta:'2.1.01',  nat:'H', org:'vuelto_pend', d:'Lo que se le queda debiendo a la clienta'}]},
+
+{c:'VT-03', fam:'venta', n:'Entrega del vuelto pendiente', ver:1, activo:true,
+ disp:'Al pagarle a la clienta un vuelto que había quedado pendiente',
+ d:'Descarga el pasivo de VT-02. Usa el SALDO VIVO, no el monto original: si ya se le abonó una parte, solo sale lo que falta.',
+ lineas:[
+   {cta:'2.1.01', nat:'D', org:'vuelto_vivo', d:'Se cancela lo que quedaba debiéndose'},
+   {cta:'#vuelto', nat:'H', org:'vuelto_vivo', d:'Sale por donde se le pagó'}]},
+
+{c:'VT-04', fam:'venta', n:'Cobro recibido en la cuenta del accionista', ver:1, activo:true,
+ disp:'Cuando el cobro entró a la cuenta personal del accionista, no a la de la empresa',
+ d:'La empresa no tiene ese dinero: lo tiene el accionista. Nace una deuda entre las partes.',
+ lineas:[
+   {cta:'2.1.03', nat:'D', org:'total_cobr', d:'El accionista le debe eso a la empresa'},
+   {cta:'4.1.01', nat:'H', org:'base_art',   d:''},
+   {cta:'4.1.02', nat:'H', org:'base_deliv', d:''},
+   {cta:'4.1.04', nat:'H', org:'exento',     d:''},
+   {cta:'2.1.05', nat:'H', org:'iva',        d:''},
+   {cta:'2.1.06', nat:'H', org:'igtf',       d:''}]},
+
+/* --------------------------------------------------------- INVENTARIOS */
+{c:'IN-01', fam:'inv', n:'Costo de la mercancía vendida', ver:1, activo:true,
+ disp:'Junto con cada venta, por el costo de las piezas que salieron',
+ d:'Sin este asiento el estado de resultados muestra ingresos sin costo, y el margen es una ficción.',
+ lineas:[
+   {cta:'5.1.01', nat:'D', org:'costo', d:'El costo se reconoce cuando se vende, no cuando se compra'},
+   {cta:'1.1.06', nat:'H', org:'costo', d:'El inventario baja por lo que salió'}]},
+
+{c:'IN-02', fam:'inv', n:'Entrada de mercancía por compra', ver:1, activo:true,
+ disp:'Al cargar una compra de mercancía',
+ d:'La compra no es gasto: es un activo que se convierte en costo el día que se vende.',
+ lineas:[
+   {cta:'1.1.06', nat:'D', org:'compra', d:'Entra al inventario a su costo'},
+   {cta:'#pago',  nat:'H', org:'compra', d:'Sale por donde se pagó'}]},
+
+{c:'IN-03', fam:'inv', n:'Ajuste por conteo de inventario', ver:1, activo:true,
+ disp:'Al cerrar una auditoría de inventario con diferencia',
+ d:'Lo que el conteo dice que hay contra lo que el sistema creía. La diferencia se reconoce y queda con su acta.',
+ lineas:[
+   {cta:'1.1.06', nat:'D', org:'ajuste_inv', d:'Positivo si sobró, negativo si faltó'},
+   {cta:'6.1.04', nat:'H', org:'ajuste_inv', d:'La diferencia va a resultados'}]},
+
+/* ---------------------------------------------------- PAGO DE DELIVERY */
+{c:'DL-01', fam:'deliv', n:'Porcentaje del repartidor causado', ver:1, activo:true,
+ disp:'Junto con cada venta con entrega a domicilio',
+ d:'El repartidor cobra un porcentaje sobre lo cobrado a la clienta. Se causa el día de la venta aunque se pague el viernes.',
+ lineas:[
+   {cta:'6.1.02', nat:'D', org:'pago_rep', d:'El gasto pertenece al día de la venta'},
+   {cta:'2.1.07', nat:'H', org:'pago_rep', d:'Queda como deuda con el repartidor'}]},
+
+{c:'DL-02', fam:'deliv', n:'Pago al repartidor', ver:1, activo:true,
+ disp:'El día de pago configurado, por todo lo acumulado hasta la víspera',
+ d:'Descarga el pasivo de DL-01. Si tenía anticipo, el anticipo se descuenta aquí.',
+ lineas:[
+   {cta:'2.1.07', nat:'D', org:'orden_pago', d:'Se cancela lo que se le debía'},
+   {cta:'1.1.07', nat:'H', org:'anticipo',   d:'Se descuenta el anticipo que ya se le había dado'},
+   {cta:'#pago',  nat:'H', org:'neto_pagar', d:'Sale de caja solo el neto'}]},
+
+/* --------------------------------------------------- PAGO DE VENDEDORA */
+{c:'VD-01', fam:'vend', n:'Comisión de la vendedora causada', ver:1, activo:true,
+ disp:'Junto con cada venta, sobre el margen o el monto según su configuración',
+ d:'La comisión se gana con la venta. Que se pague después no la mueve de fecha.',
+ lineas:[
+   {cta:'6.1.01', nat:'D', org:'comision', d:'El gasto pertenece al día de la venta'},
+   {cta:'2.1.04', nat:'H', org:'comision', d:'Queda como deuda con la vendedora'}]},
+
+{c:'VD-02', fam:'vend', n:'Pago de la comisión', ver:1, activo:true,
+ disp:'El día de pago configurado, por todo lo acumulado hasta la víspera',
+ d:'Descarga el pasivo de VD-01, neto del anticipo si lo hubo.',
+ lineas:[
+   {cta:'2.1.04', nat:'D', org:'orden_pago', d:'Se cancela lo que se le debía'},
+   {cta:'1.1.07', nat:'H', org:'anticipo',   d:'Se descuenta el anticipo'},
+   {cta:'#pago',  nat:'H', org:'neto_pagar', d:'Sale de caja solo el neto'}]},
+
+/* -------------------------------------- EGRESOS POR CONCEPTO DE PAGOS -- */
+{c:'EG-01', fam:'egr', n:'Gasto causado por concepto', ver:1, activo:true,
+ disp:'Al registrar un pago por un concepto configurado (sueldos, almuerzo, taxi, caja chica…)',
+ d:'La cuenta de gasto no está fija en el modelo: sale del concepto. Por eso los conceptos se configuran amarrados a su cuenta contable.',
+ lineas:[
+   {cta:'#concepto', nat:'D', org:'gasto', d:'La cuenta la pone el concepto de pago'},
+   {cta:'2.1.08',    nat:'H', org:'gasto', d:'Queda por pagar hasta que se pague'}]},
+
+{c:'EG-02', fam:'egr', n:'Pago del gasto', ver:1, activo:true,
+ disp:'Al aprobar y ejecutar la orden de pago',
+ d:'Descarga el pasivo de EG-01.',
+ lineas:[
+   {cta:'2.1.08', nat:'D', org:'orden_pago', d:''},
+   {cta:'#pago',  nat:'H', org:'orden_pago', d:''}]},
+
+{c:'EG-03', fam:'egr', n:'Anticipo a personal', ver:1, activo:true,
+ disp:'Cuando una vendedora o un repartidor pide adelanto antes del día de pago',
+ d:'Un anticipo no es gasto: es un derecho de cobro contra el pago futuro.',
+ lineas:[
+   {cta:'1.1.07', nat:'D', org:'anticipo', d:'La empresa tiene un derecho por cobrar'},
+   {cta:'#pago',  nat:'H', org:'anticipo', d:'Sale el dinero'}]},
+
+{c:'EG-04', fam:'egr', n:'Reintegro al accionista', ver:1, activo:true,
+ disp:'Al devolverle al accionista lo que puso de su bolsillo',
+ d:'Cancela la deuda que nació en VT-04 y en los vueltos que pagó él.',
+ lineas:[
+   {cta:'2.1.03', nat:'D', org:'reintegro', d:'Se cancela la deuda con el accionista'},
+   {cta:'#pago',  nat:'H', org:'reintegro', d:'Sale por donde se le pagó'}]},
+
+{c:'EG-05', fam:'egr', n:'Diferencia en el cierre de caja', ver:1, activo:true,
+ disp:'Al firmar un cierre de caja que no cuadró',
+ d:'La diferencia se reconoce, con su autorización y su motivo. No se esconde ajustando el efectivo.',
+ lineas:[
+   {cta:'6.1.03', nat:'D', org:'dif_caja', d:'Positivo si faltó, negativo si sobró'},
+   {cta:'1.1.01', nat:'H', org:'dif_caja', d:'El efectivo queda en lo que de verdad hay'}]},
+
+/* ------------------------------------------------------------ TRIBUTOS */
+{c:'TR-01', fam:'trib', n:'Enteramiento del IVA', ver:1, activo:true,
+ disp:'Al declarar y pagar el IVA del período',
+ d:'El débito fiscal acumulado en VT-01 y VT-02 sale de la empresa hacia el SENIAT. Nunca pasó por resultados.',
+ lineas:[
+   {cta:'2.1.05', nat:'D', org:'iva_enterar', d:'Se cancela el pasivo con el fisco'},
+   {cta:'#pago',  nat:'H', org:'iva_enterar', d:'Sale por donde se pagó'}]},
+
+{c:'TR-02', fam:'trib', n:'Enteramiento del IGTF', ver:1, activo:true,
+ disp:'Al enterar el IGTF percibido en el período',
+ d:'La tienda actúa como agente de percepción: cobra, retiene y entera. Entra y sale como pasivo.',
+ lineas:[
+   {cta:'2.1.06', nat:'D', org:'igtf_enterar', d:'Se cancela el pasivo con el fisco'},
+   {cta:'#pago',  nat:'H', org:'igtf_enterar', d:'Sale por donde se pagó'}]},
+
+/* -------------------------------------------- DEVOLUCIONES Y ANULACIONES */
+{c:'DV-01', fam:'devanu', n:'Devolución de mercancía', ver:1, activo:true,
+ disp:'Al registrar una devolución parcial o total',
+ d:'La venta sigue siendo válida; lo que regresó se reversa. Por eso va contra una cuenta de contra-ingreso y no debitando ventas.',
+ lineas:[
+   {cta:'4.1.03', nat:'D', org:'dev_base', d:'Contra-ingreso: se ve aparte del ingreso bruto'},
+   {cta:'2.1.05', nat:'D', org:'dev_iva',  d:'El débito fiscal de esa parte se reversa'},
+   {cta:'2.1.06', nat:'D', org:'dev_igtf', d:'El IGTF de esa parte se reversa'},
+   {cta:'2.1.02', nat:'H', org:'dev_total', d:'Se le queda debiendo a la clienta hasta pagarle'}]},
+
+{c:'DV-02', fam:'devanu', n:'Pago de la devolución a la clienta', ver:1, activo:true,
+ disp:'Al entregarle a la clienta el dinero de su devolución',
+ d:'Descarga el pasivo de DV-01.',
+ lineas:[
+   {cta:'2.1.02', nat:'D', org:'dev_total', d:''},
+   {cta:'#vuelto', nat:'H', org:'dev_total', d:'Sale por donde se le pagó'}]},
+
+{c:'DV-03', fam:'devanu', n:'Reverso del costo al inventario', ver:1, activo:true,
+ disp:'Junto con cada devolución, por las piezas que volvieron a la tienda',
+ d:'La mercancía regresó: el inventario tiene que volver a tenerla y el costo tiene que salir de resultados.',
+ lineas:[
+   {cta:'1.1.06', nat:'D', org:'dev_costo', d:'Vuelve al inventario a su costo original'},
+   {cta:'5.1.01', nat:'H', org:'dev_costo', d:'El costo se reversa'}]},
+
+{c:'AN-01', fam:'devanu', n:'Anulación con el vuelto todavía pendiente', ver:1, activo:true,
+ disp:'Al anular una venta cuyo vuelto no se le había entregado a la clienta',
+ d:'Se reversa la cadena completa. Como el vuelto no se pagó, ese pasivo también se cancela y a la clienta se le devuelve solo lo que de verdad entregó.',
+ lineas:[
+   {cta:'4.1.05', nat:'D', org:'base_art',   d:'Contra-ingreso propio de anulaciones'},
+   {cta:'4.1.05', nat:'D', org:'base_deliv', d:''},
+   {cta:'4.1.05', nat:'D', org:'exento',     d:''},
+   {cta:'2.1.05', nat:'D', org:'iva',        d:'Se reversa el débito fiscal'},
+   {cta:'2.1.06', nat:'D', org:'igtf',       d:'Se reversa el IGTF'},
+   {cta:'2.1.01', nat:'D', org:'vuelto_pend', d:'El vuelto que se le debía deja de deberse'},
+   {cta:'#metodo', nat:'H', org:'recibido',  d:'Se le devuelve todo lo que puso'}]},
+
+{c:'AN-02', fam:'devanu', n:'Anulación con el vuelto ya entregado', ver:1, activo:true,
+ disp:'Al anular una venta cuyo vuelto ya se le había pagado a la clienta',
+ d:'Aquí no hay pasivo que cancelar: la clienta ya tiene su vuelto en la mano. Se le devuelve solo el total cobrado. Confundir este caso con AN-01 produce un descuadre de caja silencioso.',
+ lineas:[
+   {cta:'4.1.05', nat:'D', org:'base_art',   d:''},
+   {cta:'4.1.05', nat:'D', org:'base_deliv', d:''},
+   {cta:'4.1.05', nat:'D', org:'exento',     d:''},
+   {cta:'2.1.05', nat:'D', org:'iva',        d:''},
+   {cta:'2.1.06', nat:'D', org:'igtf',       d:''},
+   {cta:'#metodo', nat:'H', org:'total_cobr', d:'Solo el total cobrado: el vuelto ya salió'}]},
+
+{c:'AN-03', fam:'devanu', n:'Reverso del costo por anulación', ver:1, activo:true,
+ disp:'Junto con cada anulación, por todas las piezas de la venta',
+ d:'La venta entera se deshace: toda la mercancía vuelve al inventario.',
+ lineas:[
+   {cta:'1.1.06', nat:'D', org:'costo', d:'Vuelve todo al inventario'},
+   {cta:'5.1.01', nat:'H', org:'costo', d:'Se reversa todo el costo'}]}
+]; }
+
+/* ======================================================================== */
+/*                     CUADRE · SIMULACIÓN · UTILIDADES                     */
+/* ======================================================================== */
+
+/* Un modelo cuadra si, expandido a átomos, el debe menos el haber da cero en
+   cada átomo. Eso prueba que cuadra para CUALQUIER monto, no solo para el
+   ejemplo. Es la diferencia entre una prueba y una coincidencia. */
+function cuadraModelo(m){
+  const v = {};
+  (m.lineas||[]).forEach(l=>{
+    const e = expande(l.org), s = (l.nat === 'D') ? 1 : -1;
+    Object.keys(e).forEach(a => { v[a] = (v[a] || 0) + s * e[a]; });
+  });
+  const desc = Object.keys(v).filter(a => Math.abs(v[a]) > 1e-9)
+    .map(a => ({atomo:a, n:(ATOMOS[a]||{}).n || a, neto:v[a]}));
+  return {ok: desc.length === 0, desc};
+}
+
+/* El ejemplo con el que se simula: los mismos números de la matriz que revisa
+   el contador, para que lo que ve en pantalla y lo que ve en el documento
+   sean la misma cosa. */
+function EJEMPLO(){ return {
+  base_art:95.00, iva_art:15.20, base_deliv:0, iva_deliv:0, exento:0,
+  igtf:3.31, vuelto_pend:6.49, vuelto_vivo:6.49,
+  costo:42.00, compra:42.00, ajuste_inv:3.00,
+  comision:1.44, pago_rep:3.50,
+  orden_pago:18.60, anticipo:5.00, gasto:12.00, reintegro:25.80, dif_caja:1.50,
+  iva_enterar:15.20, igtf_enterar:3.31,
+  dev_base:29.31, dev_iva:4.69, dev_igtf:1.02, dev_costo:15.00,
+  manual:0
+}; }
+function montoOrg(k, ej){
+  const e = expande(k);
+  return r2(Object.keys(e).reduce((a,x)=> a + e[x] * (ej[x] || 0), 0));
+}
+/* el asiento como quedaría, con las líneas en cero fuera */
+function simulaModelo(m, ej){
+  ej = ej || EJEMPLO();
+  const ls = (m.lineas||[]).map(l=>({...l, monto:montoOrg(l.org, ej)}));
+  const vivas = ls.filter(l=>Math.abs(l.monto) > 0.005);
+  const debe  = r2(vivas.filter(l=>l.nat==='D').reduce((a,l)=>a+l.monto, 0));
+  const haber = r2(vivas.filter(l=>l.nat==='H').reduce((a,l)=>a+l.monto, 0));
+  return {lineas:ls, vivas, debe, haber, cuadra:Math.abs(debe-haber) < 0.005,
+          mudas: ls.length - vivas.length};
+}
+
+function modelos(){ return DB.modelos || (DB.modelos = MODELOS_BASE()); }
+function modeloDe(c){ return modelos().find(m=>m.c===c); }
+function modelosDe(fam){ return modelos().filter(m=>m.fam===fam); }
+function modelosRotos(){ return modelos().filter(m=>m.activo!==false && !cuadraModelo(m).ok); }
+function modelosApagados(){ return modelos().filter(m=>m.activo===false); }
+/* cuentas del modelo que no existen en el catálogo: eso rompe el asiento */
+function ctasHuerfanas(m){
+  return (m.lineas||[]).filter(l=>!esCtaDin(l.cta) && !ctaNom(l.cta))
+    .map(l=>l.cta).filter((c,i,a)=>a.indexOf(c)===i);
+}
+function modelosHuerfanos(){ return modelos().filter(m=>ctasHuerfanas(m).length); }
 
 /* ==========================================================================
    Ventas válidas, anuladas y devueltas
@@ -4834,6 +5724,76 @@ nuevaVenta();
 nuevaRV();
 aplicaTema();
 pinta();
+/* ==========================================================================
+   SICOM · CONTABILIDAD · eventos de los modelos de asiento
+   ========================================================================== */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+
+  if(b.dataset.ksub){ KSUB = b.dataset.ksub; KMOD = null; pinta(); return; }
+  if(b.dataset.kfam){ KFAM = b.dataset.kfam; KMOD = null; pinta(); window.scrollTo(0,0); return; }
+  if(b.dataset.kmod){ KMOD = (KMOD === b.dataset.kmod) ? null : b.dataset.kmod; pinta(); return; }
+
+  /* guardar las cuentas de un modelo */
+  if(b.dataset.kgua){
+    const m = modeloDe(b.dataset.kgua); if(!m) return;
+    const nuevas = m.lineas.map((l,i)=>{ const s = $('#mo_c_'+m.c+'_'+i); return s ? s.value : l.cta; });
+    /* el cuadre no depende de las cuentas, pero una cuenta vacía sí rompe */
+    const vacia = nuevas.findIndex(c=>!c);
+    if(vacia >= 0) return aviso('La línea '+(vacia+1)+' se quedó sin cuenta.', true);
+    const cam = [];
+    nuevas.forEach((c,i)=>{ if(c !== m.lineas[i].cta)
+      cam.push('línea '+(i+1)+': '+m.lineas[i].cta+' → '+c); });
+    if(!cam.length) return aviso('No cambió ninguna cuenta.');
+    /* una cuenta que no existe se avisa, pero no se bloquea: puede que la vaya
+       a crear enseguida. Lo que no se hace es dejarlo pasar en silencio. */
+    const inex = nuevas.filter(c=>!esCtaDin(c) && !ctaNom(c));
+    nuevas.forEach((c,i)=>{ m.lineas[i].cta = c; });
+    m.ver = (m.ver || 1) + 1;
+    bitacora('conta','Modelo de asiento modificado',
+      m.c + ' · ' + m.n + ' · v' + (m.ver-1) + ' → v' + m.ver + ' · ' + cam.join(' · '));
+    aviso(inex.length
+      ? 'Guardado como v'+m.ver+', pero '+inex.join(', ')+' no está en el catálogo.'
+      : 'Modelo '+m.c+' guardado como v'+m.ver+'.', inex.length ? true : false);
+    pinta(); return;
+  }
+
+  /* activar o desactivar */
+  if(b.dataset.kmtog){
+    const m = modeloDe(b.dataset.kmtog); if(!m) return;
+    m.activo = (m.activo === false);
+    m.ver = (m.ver || 1) + 1;
+    bitacora('conta', m.activo ? 'Modelo de asiento activado' : 'Modelo de asiento desactivado',
+      m.c + ' · ' + m.n + ' · v' + m.ver);
+    aviso(m.activo ? 'Modelo '+m.c+' activado.'
+      : 'Modelo '+m.c+' desactivado: las operaciones de ese tipo dejan de generar asiento.', !m.activo);
+    pinta(); return;
+  }
+
+  /* volver al de fábrica */
+  if(b.dataset.krest){
+    const m = modeloDe(b.dataset.krest); if(!m) return;
+    const f = MODELOS_BASE().find(x=>x.c === m.c);
+    if(!f) return aviso('Este modelo no tiene versión de fábrica.', true);
+    const igual = JSON.stringify(f.lineas) === JSON.stringify(m.lineas) && m.activo !== false;
+    if(igual) return aviso('Ya está igual al de fábrica.');
+    if(!confirm('¿Devolver el modelo ' + m.c + ' a como venía de fábrica?\n\n'
+      + 'Las cuentas que usted cambió se pierden. Los comprobantes ya generados no se tocan.')) return;
+    m.lineas = JSON.parse(JSON.stringify(f.lineas));
+    m.activo = true;
+    m.ver = (m.ver || 1) + 1;
+    bitacora('conta','Modelo de asiento restaurado', m.c + ' · ' + m.n + ' · v' + m.ver + ' · vuelto al de fábrica');
+    aviso('Modelo '+m.c+' devuelto al de fábrica, como v'+m.ver+'.');
+    pinta(); return;
+  }
+});
+
+/* el selector de cuenta no debe repintar: si repinta, se pierden los demás
+   cambios que la persona llevaba hechos en el mismo modelo */
+document.addEventListener('change', e=>{
+  if(e.target && e.target.dataset && e.target.dataset.ctasel) e.stopPropagation();
+}, true);
+
 </script>
 </body>
 </html>
