@@ -404,11 +404,80 @@ input[type=password]::placeholder{letter-spacing:normal;
 table.dat.plan{table-layout:fixed}
 table.dat.plan td:nth-child(1){width:130px}
 /* la sangría es la jerarquía: se ve el árbol sin tener que leer el código */
-table.arbol tr.n2>td:first-child{padding-left:16px}
-table.arbol tr.n3>td:first-child{padding-left:38px}
+table.arbol tr.n2>td:first-child{padding-left:14px}
+table.arbol tr.n3>td:first-child{padding-left:34px}
+table.arbol tr.n4>td:first-child{padding-left:56px}
 table.arbol tr.n2 .cnom{font-weight:600;color:var(--ink)}
-table.arbol tr.n3 .cnom{color:var(--ink2)}
+table.arbol tr.n3 .cnom{color:var(--ink)}
+table.arbol tr.n4 .cnom{color:var(--ink2)}
 table.arbol tr.n2>td{border-top:1px solid var(--linea)}
+
+/* ---------- asistente para abrir una cuenta ---------- */
+.wiz{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.wpaso{display:grid;grid-template-columns:30px 1fr;gap:14px;padding:14px 0;
+  border-top:1px solid var(--hair);align-items:start}
+.wpaso:first-child{border-top:0;padding-top:4px}
+.wnum{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  font-size:12.5px;font-weight:700;background:var(--sup);border:1px solid var(--linea);
+  color:var(--muted)}
+.wpaso.ya .wnum{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.wbody{min-width:0}
+.wpaso.ya .wbody{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wtit{font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;
+  color:var(--muted);margin-bottom:10px}
+.wpaso.ya .wtit{margin-bottom:0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wval{font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:600}
+.wcap{font-size:13px;color:var(--muted);margin:-4px 0 12px}
+
+.wtipos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.wtipo{text-align:left;display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;
+  padding:13px 14px;border:1px solid var(--linea);border-radius:var(--r2);
+  background:var(--sup);cursor:pointer;transition:.14s}
+.wtipo:hover{border-color:var(--oro);background:var(--crema)}
+.wtipo .wk{grid-row:span 2;width:26px;height:26px;border-radius:8px;display:grid;
+  place-items:center;background:var(--oro);color:var(--oro-tx);font-weight:700;font-size:13px}
+.wtipo b{color:var(--ink);font-size:14.5px}
+.wtipo span:last-child{grid-column:2;color:var(--muted);font-size:12.5px;line-height:1.45}
+
+.wops{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px}
+/* rejilla, no flex: la etiqueta «sugerida» tiene que poder bajar a su
+   renglón sin aplastar el nombre */
+.wop{text-align:left;display:grid;grid-template-columns:auto minmax(0,1fr);
+  gap:3px 10px;align-items:start;padding:10px 12px;
+  border:1px solid var(--linea);border-radius:var(--r1);background:var(--sup);
+  cursor:pointer;transition:.14s}
+.wop:hover{border-color:var(--oro);background:var(--crema)}
+.wop.sug{border-style:dashed}
+.wop.otro{border-style:dashed;background:transparent}
+.wop .wcod{grid-column:1;grid-row:1 / span 2;align-self:start;margin-top:1px;
+  font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;
+  color:var(--ink2);background:var(--sup2);padding:2px 7px;border-radius:5px;
+  font-variant-numeric:tabular-nums}
+.wop .wcod.nv{color:var(--muted);background:transparent;border:1px dashed var(--linea)}
+/* el nombre completo vale más que la altura pareja: envuelve, no se corta */
+.wop .wnom{grid-column:2;color:var(--ink);font-size:14px;line-height:1.35;
+  overflow-wrap:break-word}
+.wop .wsug{grid-column:2;font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);font-weight:700}
+
+/* el resumen: el árbol tal como va a quedar, antes de tocar nada */
+.wres{margin-top:18px;padding-top:16px;border-top:1px solid var(--linea)}
+.wrt{font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;
+  color:var(--muted);margin-bottom:10px}
+.wrbol{display:flex;flex-direction:column;gap:4px}
+.wrl{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:8px 12px;
+  border-radius:var(--r1);background:var(--sup)}
+.wrl.n2{margin-left:16px}
+.wrl.n3{margin-left:32px}
+.wrl.n4{margin-left:48px}
+.wrl.nv{background:var(--avi-bg)}
+.wrl b.codn{flex:0 0 auto;min-width:86px}
+.wrl>span:nth-of-type(1){color:var(--ink);font-weight:600;font-size:14.5px}
+.wrl em{font-style:normal;color:var(--muted);font-size:12px;margin-left:auto}
+@media (max-width:640px){
+  .wrl.n2,.wrl.n3,.wrl.n4{margin-left:0}
+  .wrl em{margin-left:0;flex-basis:100%}
+}
 h3.grp .gt{
   margin-left:8px;color:var(--oro-os);letter-spacing:.04em;font-weight:600
 }
@@ -539,6 +608,132 @@ table.libro tr.nc td.n{color:var(--mal)}
   display:flex;align-items:center;min-height:40px;padding:0 13px;
   border:1px solid var(--linea);border-radius:var(--r1);background:var(--sup);
   color:var(--ink2);font-variant-numeric:tabular-nums;font-size:14px
+}
+
+/* ---------- pantalla de inicio ---------- */
+/* en el inicio no hay barras: la pantalla es toda de la empresa */
+body.enhome header.top{display:none}
+body.enhome .wrap{max-width:none;padding:0;margin:0}
+body.enhome .barra{display:none !important}
+
+.home{
+  min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;
+  padding:26px 24px;position:relative;overflow:hidden;
+  background:
+    radial-gradient(120% 82% at 50% -12%, var(--crema) 0%, var(--page) 58%, var(--page) 100%);
+}
+/* una franja de la marca arriba, para que la pantalla tenga peso */
+.home::before{
+  content:"";position:absolute;inset:0 0 auto 0;height:5px;
+  background:linear-gradient(90deg,var(--marron-os),var(--oro),var(--oro-cl),var(--oro),var(--marron-os))
+}
+/* el halo dorado detrás del logo, ahora más ancho y un punto más presente */
+.home::after{
+  content:"";position:absolute;top:-215px;left:50%;transform:translateX(-50%);
+  width:min(760px,110vw);height:500px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,var(--oro),transparent 74%);opacity:.17
+}
+.homein{position:relative;z-index:1;width:100%;max-width:1180px;text-align:center}
+
+.hmarca{margin-bottom:24px}
+.hlogo{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:8px 18px;border-radius:24px;margin-bottom:14px;
+  background:var(--logo-bg,transparent)
+}
+/* el logo manda en esta pantalla: crece con el alto de la ventana y se
+   despega del fondo con su propia sombra, sin caja que lo encierre */
+.hlogo img{
+  height:clamp(104px,17.5vh,172px);max-width:min(420px,80vw);
+  object-fit:contain;display:block;
+  filter:drop-shadow(0 14px 26px rgba(34,24,15,.16))
+}
+.hmono{
+  width:clamp(104px,15vh,144px);height:clamp(104px,15vh,144px);margin:0 auto 14px;
+  border-radius:32px;display:grid;place-items:center;
+  font-family:Georgia,'Times New Roman',serif;font-size:clamp(46px,7vh,62px);font-weight:700;
+  background:linear-gradient(140deg,var(--oro-cl),var(--oro-os));color:var(--oro-tx);
+  box-shadow:0 16px 36px -16px var(--oro-os)
+}
+/* un filete corto: separa la marca del título sin poner una línea entera */
+.hfil{
+  display:block;width:52px;height:2px;margin:0 auto 18px;border-radius:2px;
+  background:linear-gradient(90deg,transparent,var(--oro),transparent)
+}
+
+.home h1{
+  font-size:clamp(25px,3.9vw,36px);font-weight:400;letter-spacing:-.02em;
+  color:var(--ink);margin:0 0 9px;line-height:1.15;text-wrap:balance
+}
+.home h1 b{font-weight:700;color:var(--oro-os)}
+.hsub{margin:0 0 6px;font-size:15px;color:var(--ink2);font-weight:600}
+.hfec{margin:0;font-size:13.5px;color:var(--muted)}
+.hfec b{color:var(--ink2)}
+.hviej{color:var(--avi);font-weight:600}
+
+/* cuatro columnas: los siete módulos entran en dos filas y la pantalla se
+   ve completa sin desplazar */
+.hmods{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));
+  gap:12px;text-align:left;margin-bottom:20px
+}
+/* un módulo se ve pulsable antes de tocarlo: relieve, cursor y una flecha
+   que se asoma al pasar por encima */
+.hmod{
+  display:grid;grid-template-columns:42px 1fr auto;gap:6px 14px;align-items:center;
+  padding:16px 17px;border-radius:var(--r2);cursor:pointer;text-align:left;
+  background:var(--panel,#fff);border:1px solid var(--linea);
+  box-shadow:0 1px 2px rgba(0,0,0,.04), 0 10px 24px -18px rgba(0,0,0,.5);
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease
+}
+.hmod:hover{
+  transform:translateY(-3px);border-color:var(--oro);
+  box-shadow:0 2px 4px rgba(0,0,0,.05), 0 18px 34px -20px var(--oro-os)
+}
+.hmod:active{transform:translateY(-1px)}
+.hmod:focus-visible{outline:none;border-color:var(--oro);box-shadow:var(--ring)}
+.hic{
+  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+  background:var(--crema);color:var(--oro-os);transition:.16s;align-self:start
+}
+.hic svg{width:23px;height:23px}
+.hmod:hover .hic{background:var(--oro);color:var(--oro-tx)}
+.htx{min-width:0;display:block}
+.htx b{display:block;font-size:15.5px;color:var(--ink);margin-bottom:2px}
+.htx>span{display:block;font-size:12.5px;color:var(--muted);line-height:1.4}
+/* el aviso al pie de cada tarjeta, todas a la misma altura */
+.hav{
+  grid-column:2;grid-row:2;font-size:11px;font-weight:700;letter-spacing:.02em;
+  color:var(--ink2);background:var(--sup2);padding:3px 9px;border-radius:999px;
+  justify-self:start;align-self:end;white-space:nowrap
+}
+.hav.ok{background:var(--ok-bg);color:var(--ok)}
+.hav.avi{background:var(--avi-bg);color:var(--avi)}
+.hav.mal{background:var(--mal-bg);color:var(--mal)}
+.hfl{
+  grid-row:1;grid-column:3;font-size:19px;color:var(--oro);
+  opacity:0;transform:translateX(-6px);transition:.16s
+}
+.hmod:hover .hfl,.hmod:focus-visible .hfl{opacity:1;transform:translateX(0)}
+
+.hpie{margin:0;font-size:12px;color:var(--muted);line-height:1.6}
+
+/* el logo del encabezado vuelve al inicio */
+.mkbtn{
+  display:flex;align-items:center;gap:13px;background:transparent;border:0;
+  padding:4px 8px 4px 4px;margin-left:-4px;border-radius:12px;cursor:pointer;transition:.14s
+}
+.mkbtn:hover{background:rgba(255,255,255,.07)}
+.mkbtn:focus-visible{outline:none;box-shadow:var(--ring)}
+
+@media (max-width:640px){
+  .home{padding:26px 16px}
+  .hlogo img{height:clamp(92px,15vh,124px)}
+  .hfil{margin-bottom:14px}
+  .hmods{grid-template-columns:1fr;gap:10px}
+  .hmod{padding:15px 16px;gap:13px;grid-template-columns:42px 1fr auto}
+  .hic{width:42px;height:42px}
+  .hfl{display:none}
 }
 
 /* ---------- encabezado con acción a la derecha ---------- */
@@ -932,7 +1127,7 @@ function selBanco(id,val,extra,o){
 /* ==========================================================================
    Estado
    ========================================================================== */
-let TAB='vta', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
+let TAB='home', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
 let VTA=null;
 function nuevaVenta(){
   VTA={paso:'cliente',doc:'',cli:null,
@@ -1065,6 +1260,13 @@ const TABS=[['vta','Ventas'],['tes','Tesorería'],['trib','Tributos'],['conta','
 function pinta(){
   aplicaTema();
   pintaMarca();
+  /* en el inicio la pantalla es entera: ni pestañas, ni cinta, ni barra */
+  document.body.classList.toggle('enhome', TAB === 'home');
+  if(TAB === 'home'){
+    $('#app').innerHTML = vistaHome();
+    $('#barra').style.display = 'none';
+    guardar(); return;
+  }
   const np=pendAbiertos().length;
   const nr = DB.modelos ? modelosRotos().length + modelosHuerfanos().length : 0;
   $('#tabs').innerHTML=TABS.map(t=>'<button data-tab="'+t[0]+'"'+(TAB===t[0]?' class="on"':'')+'>'+t[1]
@@ -1079,16 +1281,132 @@ function pinta(){
   guardar();
 }
 /* el logo de la tienda manda en el encabezado; si no hay, va el monograma */
+/* ==========================================================================
+   SICOM · pantalla de inicio
+
+   Lo primero que se ve al abrir. Ocupa la pantalla entera, sin barras ni
+   pestañas, y se viste con el logo y los colores de la empresa: los mismos
+   que salieron del logo cuando se cargó, así que otra empresa con otro logo
+   ve su propia casa sin que nadie toque una línea.
+
+   Cada módulo es un botón grande que dice qué hay dentro y, cuando hay algo
+   que atender, lo dice ahí mismo: la tasa que falta, los vueltos por
+   entregar, las líneas de asiento sin cuenta. Entrar a buscarlo es el
+   trabajo que la pantalla de inicio ahorra.
+   ========================================================================== */
+
+const DIASEM = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function fechaLarga(iso){
+  const p = String(iso).split('-');
+  const d = new Date(+p[0], +p[1]-1, +p[2], 12);
+  return DIASEM[d.getDay()] + ' ' + (+p[2]) + ' de ' + MESNOM[(+p[1])-1] + ' de ' + p[0];
+}
+
+/* trazos simples, del mismo peso, para que los siete se lean como familia */
+const ICO = {
+  vta:'<path d="M4 12.6V5.2A1.2 1.2 0 0 1 5.2 4h7.4l7.6 7.6a1.7 1.7 0 0 1 0 2.4l-5.2 5.2a1.7 1.7 0 0 1-2.4 0Z"/><circle cx="8.3" cy="8.3" r="1.5"/>',
+  tes:'<rect x="3" y="6.5" width="18" height="11" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.4 12h.01M17.6 12h.01"/>',
+  trib:'<path d="M4 10.5 12 5l8 5.5"/><path d="M6 10.5v8M10 10.5v8M14 10.5v8M18 10.5v8"/><path d="M3.5 19h17"/>',
+  conta:'<path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17Z"/><path d="M17 7h2v12.5"/><path d="M8 8.5h6M8 11.5h6M8 14.5h4"/>',
+  bd:'<circle cx="9.5" cy="8.5" r="3"/><path d="M3.5 19.5c0-3 2.7-4.8 6-4.8s6 1.8 6 4.8"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M17.5 15.2c1.9.6 3 2 3 4.3"/>',
+  cfg:'<path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.2"/><circle cx="8" cy="16" r="2.2"/>',
+  ger:'<path d="M4 19.5V13M9.3 19.5V8M14.7 19.5v-6M20 19.5V5"/>'
+};
+
+const HOME_MOD = [
+  ['vta',  'Ventas',        'Registrar una venta, devolver, anular y ver los reportes del día.'],
+  ['tes',  'Tesorería',     'Vueltos, pagos al personal, cuenta del accionista y cierre de caja.'],
+  ['trib', 'Tributos',      'Libro de ventas del SENIAT, ingresos brutos y configuración de impuestos.'],
+  ['conta','Contabilidad',  'Plan de cuentas, modelos de asiento y los libros contables.'],
+  ['bd',   'Base de datos', 'Los clientes de la tienda y sus datos de contacto.'],
+  ['cfg',  'Configuración', 'Tasas, artículos, personal, tarifas y la identidad de la empresa.'],
+  ['ger',  'Gerencial',     'Estado del sistema, seguridad, auditoría y respaldos.']
+];
+
+/* lo que cada módulo tiene que decir hoy, sin que haya que entrar a mirarlo */
+function homeAviso(k){
+  if(k === 'vta'){
+    if(faltaTasaHoy()) return {t:'Falta la tasa de hoy', cl:'mal'};
+    const n = ventasVal(hoy).length;
+    return n ? {t:n + (n === 1 ? ' venta hoy' : ' ventas hoy'), cl:'ok'} : null;
+  }
+  if(k === 'tes'){
+    const p = pendAbiertos();
+    if(p.length) return {t:p.length + (p.length === 1 ? ' vuelto por entregar' : ' vueltos por entregar'), cl:'avi'};
+    const s = saldoAcc();
+    return s > 0.005 ? {t:'USD ' + fN(s) + ' al accionista', cl:''} : null;
+  }
+  if(k === 'trib'){
+    const n = totalesLibro(filasLibroVentas(mesDe(hoy))).n;
+    return n ? {t:n + (n === 1 ? ' documento en ' : ' documentos en ') + MESNOM[+mesDe(hoy).slice(5)-1], cl:''} : null;
+  }
+  if(k === 'conta'){
+    const r = modelosRotos().length + modelosHuerfanos().length;
+    if(r) return {t:r + (r === 1 ? ' modelo con problema' : ' modelos con problema'), cl:'mal'};
+    const l = lineasPorAsignar();
+    return l ? {t:l + (l === 1 ? ' línea por asignar' : ' líneas por asignar'), cl:'avi'} : null;
+  }
+  if(k === 'bd'){
+    const n = DB.clientes.length;
+    return n ? {t:n + (n === 1 ? ' cliente' : ' clientes'), cl:''} : null;
+  }
+  if(k === 'cfg'){
+    const f = pasos().filter(p=>!p.ok).length;
+    return f ? {t:f + (f === 1 ? ' cosa por configurar' : ' cosas por configurar'), cl:'avi'} : null;
+  }
+  if(k === 'ger'){
+    return verificaCadena().ok ? {t:'Registro íntegro', cl:'ok'} : {t:'Revisar la auditoría', cl:'mal'};
+  }
+  return null;
+}
+
+function vistaHome(){
+  const e = DB.empresa, t = tasaVigente();
+  let h = '<div class="home"><div class="homein">';
+
+  /* la marca de la empresa, con su logo y su fondo */
+  h += '<div class="hmarca">'
+    + (e.logo
+        ? '<div class="hlogo"><img src="'+e.logo+'" alt="'+esc(marcaDe())+'"></div>'
+        : '<div class="hmono">'+esc((marcaDe().trim()[0] || 'S').toUpperCase())+'</div>')
+    + '<span class="hfil" aria-hidden="true"></span>'
+    + '<h1>Bienvenido al Sistema <b>SICOM</b></h1>'
+    + '<p class="hsub">'+esc(e.nom)+' &nbsp;·&nbsp; RIF '+esc(e.rif)+'</p>'
+    + '<p class="hfec">'+esc(fechaLarga(hoy))
+    + (t ? ' &nbsp;·&nbsp; tasa BCV <b>Bs '+fN(t.bcv,2)+'</b>'
+           + (tasaDeHoyCargada() ? '' : ' <span class="hviej">del '+fFecha(t.fecha)+'</span>')
+         : ' &nbsp;·&nbsp; <span class="hviej">sin tasa cargada</span>')
+    + '</p></div>';
+
+  /* los módulos */
+  h += '<div class="hmods">';
+  HOME_MOD.forEach(m=>{
+    const a = homeAviso(m[0]);
+    h += '<button class="hmod" data-tab="'+m[0]+'">'
+      + '<span class="hic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+      + 'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+ICO[m[0]]+'</svg></span>'
+      + '<span class="htx"><b>'+esc(m[1])+'</b><span>'+esc(m[2])+'</span></span>'
+      + (a ? '<span class="hav '+a.cl+'">'+esc(a.t)+'</span>' : '')
+      + '<span class="hfl" aria-hidden="true">→</span>'
+      + '</button>';
+  });
+  h += '</div>';
+
+  h += '<p class="hpie">'+esc(condIVA())+' &nbsp;·&nbsp; '+esc(dirFiscal())+'</p>';
+  return h + '</div></div>';
+}
+
 function pintaMarca(){
   const e=DB.empresa, nom=marcaDe();
   const box=$('#marcabox'); if(!box) return;
   /* en la barra va el monograma, no el logo completo: el nombre de la marca
      ya está escrito al lado y el texto del logo no se leería sobre oscuro */
   const mk = e.mono || e.logo;
-  box.innerHTML = (mk
-    ? '<img class="mklogo'+(e.mono?' mkmono':'')+'" src="'+mk+'" alt="'+esc(nom)+'">'
-    : '<div class="mono">'+esc((nom.trim()[0]||'S').toUpperCase())+'</div>')
-    +'<div class="marca"><b>'+esc(nom)+'</b><span>SICOM</span></div>';
+  box.innerHTML = '<button class="mkbtn" data-tab="home" title="Volver al inicio">'
+    + (mk
+        ? '<img class="mklogo'+(e.mono?' mkmono':'')+'" src="'+mk+'" alt="'+esc(nom)+'">'
+        : '<div class="mono">'+esc((nom.trim()[0]||'S').toUpperCase())+'</div>')
+    + '<div class="marca"><b>'+esc(nom)+'</b><span>SICOM</span></div></button>';
 }
 /* si falta algo de la puesta en marcha, la caja lo dice antes de vender */
 function avisoSetup(){
@@ -3118,14 +3436,16 @@ function contPlan(){
   const nM = cs.filter(c=>nivelCta(c.c)===1).length;
   const nT = cs.filter(c=>nivelCta(c.c)===2).length;
   const nD = cs.filter(c=>nivelCta(c.c)===3).length;
+  const nC = cs.filter(c=>nivelCta(c.c)===4).length;
   let h = '<div class="card"><div class="lvhd">'
-    + '<div><h2>Plan de cuentas</h2><p class="cap">Tres niveles · '+cs.length+' cuentas · '
-    + 'solo las de detalle reciben movimiento</p></div>'
+    + '<div><h2>Plan de cuentas</h2><p class="cap">Tipo · rubro · sub-rubro · cuenta &nbsp;—&nbsp; '
+    + cs.length+' cuentas · recibe movimiento la que no tiene nada debajo</p></div>'
     + '<button class="b oro" id="pc_csv">Descargar completo</button></div>';
   h += '<div class="kpis kpis-mod">'
-    + kpiMod(nM, 'Cuentas madre', '')
-    + kpiMod(nT, 'Cuentas título', '')
-    + kpiMod(nD, 'Cuentas de detalle', '')
+    + kpiMod(nM, 'Tipos', '')
+    + kpiMod(nT, 'Rubros', '')
+    + kpiMod(nD, 'Sub-rubros', '')
+    + kpiMod(nC, 'Cuentas', '')
     + kpiMod(ctasMov().length, 'Reciben movimiento', '')
     + '</div>';
 
@@ -3136,7 +3456,7 @@ function contPlan(){
       const nv = nivelCta(c.c), us = usosDeCta(c.c);
       h += '<tr class="n'+nv+'"><td style="width:130px"><b class="codn">'+esc(c.c)+'</b></td>'
         + '<td><span class="cnom">'+esc(c.n)+'</span>'
-        + (nv < 3 && hijasDe(c.c).length
+        + (hijasDe(c.c).length
             ? '<span class="mini"> · '+hijasDe(c.c).length+' '
               +(hijasDe(c.c).length===1?'cuenta':'cuentas')+'</span>' : '')
         + '</td>'
@@ -3149,36 +3469,311 @@ function contPlan(){
   return h + '</div>';
 }
 
+/* ==========================================================================
+   SICOM · CONTABILIDAD · asistente para abrir una cuenta
+
+   Nadie tiene por qué saberse la codificación de memoria. Se pregunta en el
+   orden en que la persona piensa —qué tipo de cuenta, en qué rubro, dentro
+   de cuál sub-rubro, y cómo se llama— y el código sale solo. Cada respuesta
+   filtra la siguiente: por eso el camino se va estrechando en vez de abrirse.
+   ========================================================================== */
+
+function norm(s){
+  return String(s || '').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/* Lo que suele hacer falta en una boutique. Son sugerencias: aparecen en la
+   lista, pero la cuenta no nace hasta que se usa. Un plan lleno de cuentas
+   vacías es peor que un plan corto. */
+const SUGER = {
+  '1':[
+    {r:'Efectivo y equivalentes de efectivo', s:['Caja chica','Bancos · cuentas en divisas','Efectivo en tránsito']},
+    {r:'Cuentas por cobrar', s:['Clientes','Empleados','Otras cuentas por cobrar']},
+    {r:'Inventarios', s:['Mercancía en tránsito','Mercancía en consignación','Empaques y material de tienda']},
+    {r:'Propiedad, planta y equipo', s:['Mobiliario y equipo de tienda','Vehículos','Equipos de computación','Maquinaria y equipos','Mejoras al local arrendado','Depreciación acumulada']},
+    {r:'Gastos pagados por anticipado', s:['Seguros pagados por anticipado','Alquileres pagados por anticipado']},
+    {r:'Otros activos', s:['Depósitos en garantía']}
+  ],
+  '2':[
+    {r:'Cuentas por pagar comerciales', s:['Proveedores nacionales','Proveedores del exterior']},
+    {r:'Deudas con el personal', s:['Sueldos por pagar','Prestaciones sociales','Vacaciones por pagar','Utilidades por pagar']},
+    {r:'Impuestos por pagar', s:['Retenciones de IVA por enterar','Retenciones de ISLR por enterar']},
+    {r:'Obligaciones financieras', s:['Préstamos bancarios','Intereses por pagar']},
+    {r:'Otras cuentas por pagar', s:['Servicios por pagar','Anticipos recibidos de clientes']}
+  ],
+  '3':[
+    {r:'Capital', s:['Aportes pendientes de capitalizar']},
+    {r:'Resultados', s:['Reserva legal']}
+  ],
+  '4':[
+    {r:'Ingresos operacionales', s:['Ventas al mayor','Ventas por redes sociales']},
+    {r:'Contra-ingresos', s:['Descuentos concedidos']},
+    {r:'Otros ingresos', s:['Diferencia en cambio','Ingresos financieros','Venta de activos']}
+  ],
+  '5':[
+    {r:'Costo de ventas', s:['Fletes sobre compras','Costos de importación','Merma de inventario']}
+  ],
+  '6':[
+    {r:'Gastos de personal', s:['Bono de alimentación','Aportes patronales','Bonificaciones']},
+    {r:'Gastos de local', s:['Alquiler del local','Condominio','Electricidad','Agua','Internet y telefonía','Mantenimiento y limpieza','Vigilancia']},
+    {r:'Gastos operativos', s:['Publicidad y redes sociales','Empaques y bolsas','Papelería','Fletes y encomiendas','Honorarios profesionales']},
+    {r:'Gastos tributarios', s:['Tasas y timbres municipales','Impuestos varios']},
+    {r:'Depreciación y amortización', s:['Amortización de mejoras']},
+    {r:'Gastos financieros', s:['Intereses bancarios','Diferencia en cambio']}
+  ]
+};
+
+const TIPO_AYUDA = {
+  '1':'Lo que la empresa tiene: dinero, mercancía, mobiliario, lo que le deben.',
+  '2':'Lo que la empresa debe: proveedores, personal, impuestos, préstamos.',
+  '3':'Lo que es de los dueños: el capital y los resultados acumulados.',
+  '4':'Lo que la empresa gana: ventas, delivery, otros ingresos.',
+  '5':'Lo que costó la mercancía que se vendió.',
+  '6':'Lo que se gasta para operar: personal, local, publicidad, impuestos.'
+};
+
+/* rubros que ya existen bajo un tipo */
+function rubrosDe(t){ return hijasDe(t).sort((a,b)=>cmpCod(a.c,b.c)); }
+/* Una sugerencia ya está cubierta si existe una cuenta con ese mismo nombre,
+   o con un nombre que sea el comienzo del sugerido: «Depreciación» cubre a
+   «Depreciación y amortización», y ofrecer las dos invita a duplicar. Se pide
+   que el nombre existente tenga cierto cuerpo, para que «Ventas» no se trague
+   a «Ventas al mayor». */
+function cubierta(sug, nombresYa){
+  const n = norm(sug);
+  return nombresYa.some(y => y === n || (y.length >= 8 && n.indexOf(y + ' ') === 0));
+}
+/* sugerencias de rubro que todavía no existen */
+function sugRubros(t){
+  const ya = rubrosDe(t).map(x=>norm(x.n));
+  return (SUGER[t] || []).map(x=>x.r).filter(r=>!cubierta(r, ya));
+}
+/* sugerencias de sub-rubro para un rubro, se llame como se llame */
+function sugSubs(t, rubroNom, rubroCod){
+  const e = (SUGER[t] || []).find(x=>norm(x.r) === norm(rubroNom));
+  if(!e) return [];
+  const ya = (rubroCod ? hijasDe(rubroCod) : []).map(x=>norm(x.n));
+  return e.s.filter(x=>!cubierta(x, ya));
+}
+
+let CTW = null;
+function nuevoCTW(){
+  CTW = {tipo:'', rubroC:'', rubroN:'', rubroLibre:false,
+         subC:'', subN:'', subLibre:false, subNinguno:false, nom:''};
+}
+function ctwRubroNom(){
+  if(CTW.rubroC){ const r = ctaObj(CTW.rubroC); return r ? r.n : ''; }
+  return CTW.rubroN;
+}
+function ctwSubNom(){
+  if(CTW.subC){ const s = ctaObj(CTW.subC); return s ? s.n : ''; }
+  return CTW.subN;
+}
+function ctwTieneRubro(){ return !!(CTW.rubroC || CTW.rubroN.trim()); }
+function ctwTieneSub(){ return CTW.subNinguno || !!(CTW.subC || CTW.subN.trim()); }
+
+/* La cadena completa que va a quedar en el plan, con el código de cada
+   escalón ya resuelto. Lo que no existe se marca como nuevo: así el resumen
+   puede decir exactamente cuántas cuentas se van a crear. */
+function ctwPlan(){
+  const P = [];
+  if(!CTW.tipo) return P;
+  const t = ctaObj(CTW.tipo);
+  P.push({cod:CTW.tipo, nom:t ? t.n : (TIPO_GRUPO[CTW.tipo] || '').toUpperCase(), nueva:!t});
+  let padre = CTW.tipo;
+
+  if(CTW.rubroC && ctaObj(CTW.rubroC)){
+    P.push({cod:CTW.rubroC, nom:ctaObj(CTW.rubroC).n, nueva:false}); padre = CTW.rubroC;
+  } else if(CTW.rubroN.trim()){
+    const cod = proxCodigo(padre); if(!cod) return P;
+    P.push({cod:cod, nom:CTW.rubroN.trim(), nueva:true}); padre = cod;
+  } else return P;
+
+  if(CTW.subC && ctaObj(CTW.subC)){
+    P.push({cod:CTW.subC, nom:ctaObj(CTW.subC).n, nueva:false}); padre = CTW.subC;
+  } else if(CTW.subN.trim()){
+    const cod = proxCodigo(padre); if(!cod) return P;
+    P.push({cod:cod, nom:CTW.subN.trim(), nueva:true}); padre = cod;
+  }
+
+  if(CTW.nom.trim()){
+    const cod = proxCodigo(padre);
+    if(cod) P.push({cod:cod, nom:CTW.nom.trim(), nueva:true});
+  }
+  return P;
+}
+/* la cuenta que va a recibir movimiento: la última de la cadena */
+function ctwFinal(){ const P = ctwPlan(); return P.length ? P[P.length-1] : null; }
+function ctwListo(){
+  const f = ctwFinal();
+  return !!(f && f.nueva && String(f.nom).trim().length >= 3);
+}
+
+/* ------------------------------------------------------------- pantalla -- */
+function ctwPaso(n, tit, hecho, valor, cual, cuerpo){
+  let h = '<div class="wpaso'+(hecho ? ' ya' : '')+'">'
+    + '<div class="wnum">'+(hecho ? '✓' : n)+'</div>'
+    + '<div class="wbody"><div class="wtit">'+esc(tit)
+    + (hecho ? '<span class="wval">'+esc(valor)+'</span>' : '')+'</div>';
+  if(hecho) h += '<button class="b sm gh" data-ctwvol="'+cual+'">Cambiar</button>';
+  else h += cuerpo;
+  return h + '</div></div>';
+}
+function ctwOpcion(attr, val, nom, cod, nueva){
+  return '<button class="wop'+(nueva ? ' sug' : '')+'" '+attr+'="'+esc(val)+'">'
+    + (cod ? '<span class="wcod">'+esc(cod)+'</span>' : '<span class="wcod nv">nueva</span>')
+    + '<span class="wnom">'+esc(nom)+'</span>'
+    + (nueva ? '<span class="wsug">sugerida</span>' : '')+'</button>';
+}
+
+function asistenteCuenta(){
+  if(!CTW) nuevoCTW();
+  const P = ctwPlan(), fin = ctwFinal();
+
+  let h = '<div class="card"><div class="lvhd"><div>'
+    + '<h2>Crear una cuenta</h2>'
+    + '<p class="cap">Responda de arriba abajo. El código contable se arma solo.</p></div>'
+    + (CTW.tipo ? '<button class="b gh" id="ctw_limpiar">Empezar de nuevo</button>' : '')
+    + '</div><div class="wiz">';
+
+  /* 1 · tipo de cuenta ---------------------------------------------------- */
+  h += ctwPaso(1, 'Tipo de cuenta', !!CTW.tipo,
+    CTW.tipo ? CTW.tipo + ' · ' + (ctaObj(CTW.tipo) || {n:''}).n : '', 'tipo',
+    '<div class="wtipos">' + ['1','2','3','4','5','6'].map(k=>{
+        const c = ctaObj(k);
+        return '<button class="wtipo" data-ctwtipo="'+k+'">'
+          + '<span class="wk">'+k+'</span>'
+          + '<b>'+esc(c ? c.n : (TIPO_GRUPO[k] || '').toUpperCase())+'</b>'
+          + '<span>'+esc(TIPO_AYUDA[k] || '')+'</span></button>';
+      }).join('') + '</div>');
+
+  /* 2 · rubro ------------------------------------------------------------- */
+  if(CTW.tipo){
+    const ex = rubrosDe(CTW.tipo), sug = sugRubros(CTW.tipo);
+    let cuerpo = '<p class="wcap">Es la gran división dentro de '
+      + esc((ctaObj(CTW.tipo) || {n:''}).n) + '.</p><div class="wops">'
+      + ex.map(r=>ctwOpcion('data-ctwrub', r.c, r.n, r.c, false)).join('')
+      + sug.map(r=>ctwOpcion('data-ctwrubn', r, r, '', true)).join('')
+      + '<button class="wop otro" data-ctwrubo="1"><span class="wcod nv">+</span>'
+      + '<span class="wnom">Escribir otro rubro</span></button></div>';
+    if(CTW.rubroLibre)
+      cuerpo += '<div class="fila" style="margin-top:14px">'
+        + '<div style="flex:2 1 320px"><label class="f">Nombre del rubro</label>'
+        + '<input id="ctw_rn" value="'+esc(CTW.rubroN)+'" maxlength="60" '
+        + 'placeholder="Por ejemplo: Propiedad, planta y equipo"></div></div>';
+    h += ctwPaso(2, 'Rubro', ctwTieneRubro() && !CTW.rubroLibre,
+      (CTW.rubroC ? CTW.rubroC + ' · ' : '') + ctwRubroNom(), 'rubro', cuerpo);
+  }
+
+  /* 3 · sub-rubro --------------------------------------------------------- */
+  if(ctwTieneRubro() && !CTW.rubroLibre){
+    const ex = CTW.rubroC ? hijasDe(CTW.rubroC).sort((a,b)=>cmpCod(a.c,b.c)) : [];
+    const sug = sugSubs(CTW.tipo, ctwRubroNom(), CTW.rubroC);
+    let cuerpo = '<p class="wcap">La división de adentro. Si el rubro no se divide, siga sin elegir ninguno.</p>'
+      + '<div class="wops">'
+      + ex.map(s=>ctwOpcion('data-ctwsub', s.c, s.n, s.c, false)).join('')
+      + sug.map(s=>ctwOpcion('data-ctwsubn', s, s, '', true)).join('')
+      + '<button class="wop otro" data-ctwsubo="1"><span class="wcod nv">+</span>'
+      + '<span class="wnom">Escribir otro sub-rubro</span></button>'
+      + '<button class="wop otro" data-ctwsubx="1"><span class="wcod nv">—</span>'
+      + '<span class="wnom">Ninguno · la cuenta cuelga del rubro</span></button></div>';
+    if(CTW.subLibre)
+      cuerpo += '<div class="fila" style="margin-top:14px">'
+        + '<div style="flex:2 1 320px"><label class="f">Nombre del sub-rubro</label>'
+        + '<input id="ctw_sn" value="'+esc(CTW.subN)+'" maxlength="60" '
+        + 'placeholder="Por ejemplo: Vehículos"></div></div>';
+    h += ctwPaso(3, 'Sub-rubro', ctwTieneSub() && !CTW.subLibre,
+      CTW.subNinguno ? 'ninguno' : (CTW.subC ? CTW.subC + ' · ' : '') + ctwSubNom(),
+      'sub', cuerpo);
+  }
+
+  /* 4 · descripción ------------------------------------------------------- */
+  if(ctwTieneRubro() && !CTW.rubroLibre && ctwTieneSub() && !CTW.subLibre){
+    const padre = CTW.subC || (CTW.subN.trim() ? '·nuevo·' : CTW.rubroC || '·nuevo·');
+    const tope = padre !== '·nuevo·' && nivelCta(padre) >= NIVEL_MAX;
+    let cuerpo = '';
+    if(tope){
+      cuerpo = '<div class="nota rj" style="margin:0">La cuenta <b class="codn">'+esc(padre)
+        + '</b> ya está en el último escalón: no se le puede colgar nada debajo. '
+        + 'Elija otro sub-rubro, o cree la cuenta como sub-rubro del rubro.</div>';
+    } else {
+      cuerpo = '<p class="wcap">Cómo se llama la cuenta que va a recibir los movimientos.'
+        + (ctwListo() ? ' Puede dejarlo en blanco: entonces se crea solo el sub-rubro, '
+            + 'y es él quien recibe los movimientos.' : '')+'</p>'
+        + '<div class="fila"><div style="flex:2 1 340px">'
+        + '<input id="ctw_nom" value="'+esc(CTW.nom)+'" maxlength="60" '
+        + 'placeholder="Por ejemplo: Toyota Corolla"></div></div>';
+    }
+    h += ctwPaso(4, 'Descripción' + (ctwListo() ? ' · opcional' : ''), false, '', 'nom', cuerpo);
+  }
+
+  h += '</div>';
+
+  /* resumen --------------------------------------------------------------- */
+  if(P.length > 1){
+    const nuevas = P.filter(x=>x.nueva);
+    h += '<div class="wres"><div class="wrt">Así va a quedar</div><div class="wrbol">'
+      + P.map((x,i)=>'<div class="wrl n'+nivelCta(x.cod)+(x.nueva ? ' nv' : '')+'">'
+          + '<b class="codn">'+esc(x.cod)+'</b>'
+          + '<span>'+esc(x.nom)+'</span>'
+          + '<em>'+esc(NIVEL_NOM[nivelCta(x.cod)] || '')
+          + (i === P.length-1 && x.nueva ? ' · recibe movimiento' : '')+'</em>'
+          + (x.nueva ? '<span class="chip avi">nueva</span>' : '<span class="chip ok">ya existe</span>')
+          + '</div>').join('')
+      + '</div>';
+    if(nuevas.length > 1)
+      h += '<div class="nota">Se van a crear <b>'+nuevas.length+' cuentas</b>: '
+        + nuevas.map(x=>esc(x.cod)).join(' · ')
+        + '. Las de arriba hacen falta para que la última cuelgue de algún lado.</div>';
+    const et = (NIVEL_NOM[nivelCta(fin.cod)] || 'cuenta').toLowerCase();
+    h += '<div class="acc">'
+      + '<button class="b oro" id="ctw_crear"'+(ctwListo() ? '' : ' disabled')+'>'
+      + (ctwListo()
+          ? 'Crear ' + (et === 'cuenta' ? 'la cuenta ' : 'el ' + et + ' ') + esc(fin.cod)
+          : 'Escriba cómo se llama')+'</button>'
+      + '</div></div>';
+  }
+  return h + '</div>';
+}
+
 /* -------------------------------------- creación o modificación de cuentas */
 function contCuentas(){
+  let h = asistenteCuenta();
+
+  /* el camino corto, para quien ya se sabe la codificación */
   const cs = ctasOrden();
   const padres = cs.filter(c=>nivelCta(c.c) < NIVEL_MAX);
   const pSel = CTAPAD && ctaObj(CTAPAD) ? CTAPAD : '';
   const sug = proxCodigo(pSel);
-  let h = '<div class="card"><h2>Creación o modificación de cuentas</h2>'
-    + '<p class="cap">La codificación es fija: <b class="codn">1</b> madre · '
-    + '<b class="codn">1.1</b> título · <b class="codn">1.1.01</b> detalle. '
-    + 'El tipo lo hereda de la cuenta madre; no se elige.</p>'
-    + '<div class="fila">'
-    + '<div style="flex:2 1 300px"><label class="f">¿De cuál cuenta cuelga?</label>'
-    + '<select id="ct_p"><option value="">Ninguna · es una cuenta madre</option>'
-    + padres.map(c=>'<option value="'+esc(c.c)+'"'+(c.c===pSel?' selected':'')+'>'
-        +esc(c.c+' · '+c.n)+' ('+esc(nivelNom(c.c).toLowerCase())+')</option>').join('')
-    + '</select></div>'
-    + '<div style="flex:0 0 150px"><label class="f">Código</label>'
-    + '<input id="ct_c" value="'+esc(CTABUF===null?sug:CTABUF)+'" placeholder="'+esc(sug||'1')+'" maxlength="10"></div>'
-    + '<div style="flex:2 1 280px"><label class="f">Nombre de la cuenta</label>'
-    + '<input id="ct_n" placeholder="Escriba el nombre" maxlength="60"></div>'
-    + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="ct_g">Agregar</button></div></div>';
-  const cd = (CTABUF===null?sug:CTABUF).trim();
-  if(cd) h += '<div class="nota">Quedará como cuenta <b>'+esc((NIVEL_NOM[nivelCta(cd)]||'—').toLowerCase())
-    + '</b> de tipo <b>'+esc(tipoPorCodigo(cd)||'—')+'</b>'
-    + (nivelCta(cd) === NIVEL_MAX ? ' y <b>recibirá movimiento</b>.'
-        : ', y por estar por encima del detalle <b>no recibirá movimiento</b>: solo acumula lo que cuelgue de ella.')
-    + '</div>';
+  h += '<div class="card"><div class="lvhd"><div>'
+    + '<h2>Por código</h2><p class="cap">Si ya sabe el código, escríbalo aquí y listo.</p></div>'
+    + '<button class="b gh" id="ct_avz">'+(CTAVZ ? 'Ocultar' : 'Mostrar')+'</button></div>';
+  if(CTAVZ){
+    h += '<div class="fila">'
+      + '<div style="flex:2 1 300px"><label class="f">¿De cuál cuenta cuelga?</label>'
+      + '<select id="ct_p"><option value="">Ninguna · es una cuenta de tipo</option>'
+      + padres.map(c=>'<option value="'+esc(c.c)+'"'+(c.c===pSel?' selected':'')+'>'
+          +esc(c.c+' · '+c.n)+' ('+esc(nivelNom(c.c).toLowerCase())+')</option>').join('')
+      + '</select></div>'
+      + '<div style="flex:0 0 160px"><label class="f">Código</label>'
+      + '<input id="ct_c" value="'+esc(CTABUF===null?sug:CTABUF)+'" placeholder="'+esc(sug||'1')+'" maxlength="14"></div>'
+      + '<div style="flex:2 1 280px"><label class="f">Nombre de la cuenta</label>'
+      + '<input id="ct_n" placeholder="Escriba el nombre" maxlength="60"></div>'
+      + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="ct_g">Agregar</button></div></div>';
+    const cd = (CTABUF===null?sug:CTABUF).trim();
+    if(cd) h += '<div class="nota">Quedará como <b>'+esc((NIVEL_NOM[nivelCta(cd)]||'—').toLowerCase())
+      + '</b> de tipo <b>'+esc(tipoPorCodigo(cd)||'—')+'</b>'
+      + (nivelCta(cd) === NIVEL_MAX ? ' y <b>recibirá movimiento</b>.'
+          : ', y recibirá movimiento mientras no se le cuelgue nada debajo.')
+      + '</div>';
+  }
+  h += '</div>';
 
-  h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Código</th><th>Cuenta</th><th>Nivel</th>'
-    + '<th>Tipo</th><th>Se usa en</th><th></th></tr></thead><tbody>';
+  /* el plan, para renombrar y eliminar */
+  h += '<div class="card"><h2>Las cuentas del plan</h2>'
+    + '<table class="dat arbol" style="margin-top:12px"><thead><tr><th>Código</th><th>Cuenta</th>'
+    + '<th>Escalón</th><th>Tipo</th><th>Se usa en</th><th></th></tr></thead><tbody>';
   cs.forEach(c=>{
     const usos = usosDeCta(c.c), hij = hijasDe(c.c).length, ed = CTAED === c.c;
     h += '<tr class="n'+nivelCta(c.c)+'"><td><b class="codn">'+esc(c.c)+'</b></td>'
@@ -3204,20 +3799,23 @@ function contCuentas(){
 function csvPlanCuentas(){
   const q = s => '"' + String(s==null?'':s).replace(/"/g,'""') + '"';
   const L = [[q(DB.empresa.nom)].join(';'), [q('RIF ' + DB.empresa.rif)].join(';'),
-             [q('PLAN DE CUENTAS · tres niveles: madre, título y detalle')].join(';'),
+             [q('PLAN DE CUENTAS · tipo, rubro, sub-rubro y cuenta')].join(';'),
              [q('Emitido el ' + fFecha(hoy))].join(';'), '',
-             ['Código','Nivel','Clase','Cuenta','Tipo','Cuenta madre','Cuenta título',
+             ['Código','Nivel','Escalón','Cuenta','Tipo','Tipo de cuenta','Rubro','Sub-rubro',
               'Recibe movimiento','Se usa en'].map(q).join(';')];
   ctasOrden().forEach(c=>{
     const seg = String(c.c).split('.');
-    const m = ctaObj(seg[0]), t = seg.length > 1 ? ctaObj(seg[0]+'.'+seg[1]) : null;
+    const m = ctaObj(seg[0]);
+    const t = seg.length > 1 ? ctaObj(seg.slice(0,2).join('.')) : null;
+    const u = seg.length > 2 ? ctaObj(seg.slice(0,3).join('.')) : null;
     L.push([q(c.c), q(nivelCta(c.c)), q(nivelNom(c.c)), q(c.n), q(c.t),
             q(m ? m.c + ' · ' + m.n : ''), q(t ? t.c + ' · ' + t.n : ''),
+            q(u ? u.c + ' · ' + u.n : ''),
             q(esMov(c.c) ? 'Sí' : 'No'), q(usosDeCta(c.c).join(' · '))].join(';'));
   });
   L.push('');
   L.push([q('Cuentas'), q(ctasOrden().length)].join(';'));
-  L.push([q('De detalle, que reciben movimiento'), q(ctasMov().length)].join(';'));
+  L.push([q('Que reciben movimiento'), q(ctasMov().length)].join(';'));
   return '﻿' + L.join('\r\n');
 }
 
@@ -4919,15 +5517,22 @@ function opNom(k){ const o = OPS.find(x=>x.k===k); return o ? o.n : k; }
 /* plan de cuentas de arranque, editable */
 /* ==========================================================================
    SICOM · PLAN DE CUENTAS
-   Tres niveles, como los pidió la empresa:
-     cuenta madre   1        ACTIVO
-     cuenta título  1.1      Efectivo y equivalentes de efectivo
-     cuenta detalle 1.1.01   Caja en efectivo · dólares
-   Solo la cuenta de detalle recibe movimiento. Las de arriba suman lo de
-   abajo, y por eso no se les asienta nada directamente.
+   Cuatro escalones, con los nombres que usa la empresa. La cuenta que
+   recibe movimiento es la que no tiene nada colgando debajo; las de arriba
+   suman lo de abajo y por eso no se les asienta nada directamente.
    ========================================================================== */
-const NIVEL_NOM = ['', 'Madre', 'Título', 'Detalle'];
-const NIVEL_MAX = 3;
+/* Cuatro escalones, con los nombres que usa la empresa:
+     Tipo de cuenta   1           ACTIVO
+     Rubro            1.5         Propiedad, planta y equipo
+     Sub-rubro        1.5.03      Vehículos
+     Cuenta           1.5.03.01   Toyota Corolla
+   Recibe movimiento la que no tiene nada colgando debajo. Un sub-rubro sin
+   cuentas se mueve solo; el día que se le abre la primera cuenta debajo,
+   deja de moverse y pasa a acumular. Eso se mantiene solo, sin marcarlo. */
+const NIVEL_NOM = ['', 'Tipo', 'Rubro', 'Sub-rubro', 'Cuenta'];
+const NIVEL_MAX = 4;
+/* cuántos dígitos lleva cada escalón después del punto */
+const NIVEL_ANCHO = {2:1, 3:2, 4:2};
 
 function nivelCta(c){ return String(c || '').split('.').filter(Boolean).length; }
 function nivelNom(c){ return NIVEL_NOM[nivelCta(c)] || ''; }
@@ -4937,9 +5542,9 @@ function padreDe(c){
 }
 function ctaObj(c){ return (DB.cuentas || []).find(x => x.c === c) || null; }
 function hijasDe(c){ return (DB.cuentas || []).filter(x => padreDe(x.c) === c); }
-/* recibe movimiento la que está en el último nivel y no tiene hijas: si el
-   usuario abre una cuenta por debajo de otra, la de arriba deja de moverse
-   sola, sin que haya que acordarse de marcarla */
+/* recibe movimiento la que no tiene nada colgando debajo: si se abre una
+   cuenta por debajo de otra, la de arriba deja de moverse sola, sin que haya
+   que acordarse de marcarla */
 function esMov(c){ return nivelCta(c) === NIVEL_MAX || !hijasDe(c).length; }
 function ctasMov(){ return (DB.cuentas || []).filter(x => esMov(x.c)); }
 function ctasOrden(){ return (DB.cuentas || []).slice().sort((a,b)=>cmpCod(a.c, b.c)); }
@@ -4957,23 +5562,28 @@ function cmpCod(a, b){
 const TIPO_GRUPO = {'1':'Activo','2':'Pasivo','3':'Patrimonio','4':'Ingreso','5':'Costo','6':'Gasto'};
 function tipoPorCodigo(c){ return TIPO_GRUPO[String(c || '').charAt(0)] || ''; }
 
-/* La codificación es N · N.N · N.NN — cada nivel cuelga del anterior. Sin
-   esto el plan deja de ser un árbol y ningún reporte puede sumar. */
+/* La codificación es N · N.N · N.N.NN · N.N.NN.NN — cada escalón cuelga del
+   anterior. Sin esto el plan deja de ser un árbol y ningún reporte puede sumar. */
 function valCodigo(c){
   c = String(c || '').trim();
   if(!c) return {ok:false, msg:'Escriba el código de la cuenta.'};
   if(!/^\d+(\.\d+)*$/.test(c))
-    return {ok:false, msg:'El código lleva solo números y puntos: 1 · 1.1 · 1.1.01'};
+    return {ok:false, msg:'El código lleva solo números y puntos: 1 · 1.5 · 1.5.03 · 1.5.03.01'};
   const n = nivelCta(c);
   if(n > NIVEL_MAX)
-    return {ok:false, msg:'El plan tiene tres niveles: madre, título y detalle. ' + c + ' tiene ' + n + '.'};
+    return {ok:false, msg:'El plan tiene cuatro escalones: tipo, rubro, sub-rubro y cuenta. '
+      + c + ' tiene ' + n + '.'};
   if(!TIPO_GRUPO[c.charAt(0)])
     return {ok:false, msg:'El primer dígito dice de qué es la cuenta: 1 activo · 2 pasivo · 3 patrimonio · 4 ingreso · 5 costo · 6 gasto.'};
   const seg = c.split('.');
-  if(n >= 2 && seg[1].length !== 1)
-    return {ok:false, msg:'La cuenta título lleva un dígito después del punto: 1.1, no 1.' + seg[1] + '.'};
-  if(n === 3 && seg[2].length !== 2)
-    return {ok:false, msg:'La cuenta de detalle lleva dos dígitos al final: 1.1.01, no 1.1.' + seg[2] + '.'};
+  for(let i = 2; i <= n; i++){
+    const a = NIVEL_ANCHO[i];
+    if(seg[i-1].length !== a)
+      return {ok:false, msg:'El ' + NIVEL_NOM[i].toLowerCase() + ' lleva '
+        + (a === 1 ? 'un dígito' : a + ' dígitos') + ': '
+        + seg.slice(0, i-1).join('.') + '.' + (a === 1 ? '1' : '01')
+        + ', no ' + seg.slice(0, i).join('.') + '.'};
+  }
   if(n > 1){
     const p = padreDe(c);
     if(!ctaObj(p)) return {ok:false, msg:'Falta la cuenta ' + p + ', de la que esta cuelga. Créela primero.'};
@@ -4991,7 +5601,7 @@ function proxCodigo(padre){
   if(n > NIVEL_MAX) return '';
   const usados = hijasDe(padre).map(x => +String(x.c).split('.').pop());
   let i = 1; while(usados.indexOf(i) >= 0) i++;
-  return padre + '.' + String(i).padStart(n === 3 ? 2 : 1, '0');
+  return padre + '.' + String(i).padStart(NIVEL_ANCHO[n] || 2, '0');
 }
 
 function CUENTAS_BASE(){
@@ -5658,7 +6268,7 @@ function registraDevolucion(num, cod, det){
    SICOM v3 · pantallas de ventas, seguridad y contabilidad
    ========================================================================== */
 let VSEL = null, VACC = null, VMOT = '', VCLA = '', VQ = '', DEV = null, CTAED = null;
-let CTAPAD = '', CTABUF = null;
+let CTAPAD = '', CTABUF = null, CTAVZ = false;
 let VMOTC = '', VDET = '';
 
 /* ------------------------------------------------------------- VENTAS ---- */
@@ -6035,6 +6645,84 @@ document.addEventListener('click', e=>{
     bitacora('contab','Cuenta agregada', c+' · '+n+' · '+v.tipo+' · '+nivelNom(c).toLowerCase());
     aviso('Cuenta '+c+' agregada como cuenta '+nivelNom(c).toLowerCase()+'.'); pinta(); return;
   }
+  /* ---------------- asistente para abrir una cuenta ---------------- */
+  if(b.dataset.ctwtipo){
+    CTW.tipo = b.dataset.ctwtipo;
+    CTW.rubroC = ''; CTW.rubroN = ''; CTW.rubroLibre = false;
+    CTW.subC = ''; CTW.subN = ''; CTW.subLibre = false; CTW.subNinguno = false;
+    CTW.nom = ''; pinta(); return;
+  }
+  if(b.dataset.ctwrub){
+    CTW.rubroC = b.dataset.ctwrub; CTW.rubroN = ''; CTW.rubroLibre = false;
+    CTW.subC = ''; CTW.subN = ''; CTW.subLibre = false; CTW.subNinguno = false;
+    CTW.nom = ''; pinta(); return;
+  }
+  if(b.dataset.ctwrubn){
+    CTW.rubroN = b.dataset.ctwrubn; CTW.rubroC = ''; CTW.rubroLibre = false;
+    CTW.subC = ''; CTW.subN = ''; CTW.subLibre = false; CTW.subNinguno = false;
+    CTW.nom = ''; pinta(); return;
+  }
+  if(b.dataset.ctwrubo){
+    CTW.rubroLibre = true; CTW.rubroC = ''; CTW.rubroN = '';
+    CTW.subC = ''; CTW.subN = ''; CTW.subLibre = false; CTW.subNinguno = false;
+    CTW.nom = ''; pinta();
+    const n = $('#ctw_rn'); if(n) n.focus();
+    return;
+  }
+  if(b.dataset.ctwsub){
+    CTW.subC = b.dataset.ctwsub; CTW.subN = ''; CTW.subLibre = false; CTW.subNinguno = false;
+    CTW.nom = ''; pinta(); return;
+  }
+  if(b.dataset.ctwsubn){
+    CTW.subN = b.dataset.ctwsubn; CTW.subC = ''; CTW.subLibre = false; CTW.subNinguno = false;
+    CTW.nom = ''; pinta(); return;
+  }
+  if(b.dataset.ctwsubo){
+    CTW.subLibre = true; CTW.subC = ''; CTW.subN = ''; CTW.subNinguno = false;
+    CTW.nom = ''; pinta();
+    const n = $('#ctw_sn'); if(n) n.focus();
+    return;
+  }
+  if(b.dataset.ctwsubx){
+    CTW.subNinguno = true; CTW.subC = ''; CTW.subN = ''; CTW.subLibre = false;
+    CTW.nom = ''; pinta(); return;
+  }
+  if(b.dataset.ctwvol){
+    const q = b.dataset.ctwvol;
+    if(q === 'tipo'){ nuevoCTW(); }
+    if(q === 'rubro'){ CTW.rubroC = ''; CTW.rubroN = ''; CTW.rubroLibre = false;
+      CTW.subC = ''; CTW.subN = ''; CTW.subLibre = false; CTW.subNinguno = false; CTW.nom = ''; }
+    if(q === 'sub'){ CTW.subC = ''; CTW.subN = ''; CTW.subLibre = false;
+      CTW.subNinguno = false; CTW.nom = ''; }
+    pinta(); return;
+  }
+  if(b.id === 'ctw_limpiar'){ nuevoCTW(); pinta(); return; }
+  if(b.id === 'ctw_crear'){
+    const P = ctwPlan(), nuevas = P.filter(x=>x.nueva);
+    if(!ctwListo()) return aviso('Escriba cómo se llama la cuenta.', true);
+    /* se crean de arriba abajo: cada una necesita que su padre ya exista */
+    const hechas = [];
+    for(let i = 0; i < nuevas.length; i++){
+      const x = nuevas[i], v = valCodigo(x.cod);
+      if(!v.ok){
+        /* nada a medias: lo que se alcanzó a crear se deshace */
+        DB.cuentas = DB.cuentas.filter(c=>hechas.indexOf(c.c) < 0);
+        return aviso(v.msg, true);
+      }
+      DB.cuentas.push({c:x.cod, n:x.nom, t:v.tipo});
+      hechas.push(x.cod);
+    }
+    DB.cuentas.sort((x,y)=>cmpCod(x.c, y.c));
+    const fin = P[P.length-1];
+    bitacora('contab', nuevas.length > 1 ? 'Cuentas agregadas' : 'Cuenta agregada',
+      P.map(x=>x.cod + ' · ' + x.nom).join('  →  ')
+      + ' · ' + nuevas.length + (nuevas.length === 1 ? ' cuenta nueva' : ' cuentas nuevas'));
+    aviso(nuevas.length > 1
+      ? nuevas.length + ' cuentas creadas · ' + fin.cod + ' · ' + fin.nom + ' recibe movimiento.'
+      : 'Cuenta ' + fin.cod + ' · ' + fin.nom + ' creada.');
+    nuevoCTW(); pinta(); window.scrollTo(0, 0); return;
+  }
+  if(b.id === 'ct_avz'){ CTAVZ = !CTAVZ; pinta(); return; }
   if(b.dataset.ctred !== undefined){ CTAED = b.dataset.ctred || null; pinta(); return; }
   if(b.dataset.ctrg){
     const c = b.dataset.ctrg, o = ctaObj(c), n = (($('#ct_rn')||{}).value || '').trim();
@@ -6065,6 +6753,12 @@ document.addEventListener('change', e=>{
   }
 });
 document.addEventListener('input', e=>{
+  const wz = {ctw_rn:'rubroN', ctw_sn:'subN', ctw_nom:'nom'}[e.target && e.target.id];
+  if(wz){
+    CTW[wz] = e.target.value; const p = e.target.selectionStart; pinta();
+    const n = $('#' + e.target.id); if(n){ n.focus(); n.setSelectionRange(p, p); }
+    return;
+  }
   if(e.target && e.target.id === 'ct_c'){
     CTABUF = e.target.value; const p = e.target.selectionStart; pinta();
     const n = $('#ct_c'); if(n){ n.focus(); n.setSelectionRange(p, p); }
@@ -7147,6 +7841,7 @@ if(!DB.cfg.cajeras.some(k=>k.id===DB.turno)){ const a=DB.cfg.cajeras.find(k=>k.a
 nuevaVenta();
 nuevaRV();
 nuevoREI();
+nuevoCTW();
 aplicaTema();
 pinta();
 /* ==========================================================================
