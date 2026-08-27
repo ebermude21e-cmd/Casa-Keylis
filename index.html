@@ -691,7 +691,7 @@ function SEMILLA(){ return {
   fisc:{ivaActivo:true, alic:16, delivGravado:true,
         igtfActivo:true, igtfPct:3, igtfMet:['efec_usd','zelle','usdt'], desde:isoLocal()},
   tema:temaDesde('#d0ac48', null), paleta:['#d0ac48','#c29a38','#e5c964','#aa7a1d','#22180f'], bitacora:[],
-  planV:3, modelosV:2, marcaV:1,
+  planV:4, modelosV:3, marcaV:2,
   cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(), modelos:MODELOS_BASE(),
   categorias:['Ropa de Dama','Lentes de Sol','Cartera Alta Gama','Carteras Eyes Theme','Bisutería Dama'],
   corr:{venta:7, cli:3, id:100},
@@ -3817,6 +3817,9 @@ function normaliza(b){
      el propio relleno las copia de la semilla —donde ya vienen al día— y las
      migraciones se dan por hechas sin haber corrido. Es un error que en una
      base nueva no se ve, porque ahí la semilla ya trae todo migrado. */
+  /* Los números subieron de 3·2·1 a 4·3·2 a propósito. La versión anterior
+     escribió las banderas sin haber migrado, y una bandera que miente solo se
+     corrige invalidándola. */
   const eraPlan = b.planV, eraMod = b.modelosV, eraMarca = b.marcaV;
   Object.keys(v).forEach(k=>{ if(b[k]===undefined) b[k] = v[k]; });
   Object.keys(v.cfg).forEach(k=>{ if(b.cfg[k]===undefined) b.cfg[k] = v.cfg[k]; });
@@ -3833,8 +3836,8 @@ function normaliza(b){
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
   /* el logo y la paleta del diseño 1 entran una sola vez: si la empresa ya
      subió otro logo o eligió otros colores, no se le pisan */
-  if(eraMarca !== 1){
-    b.marcaV = 1;
+  if(eraMarca !== 2){
+    b.marcaV = 2;
     if(!b.empresa.logo){ b.empresa.logo = LOGO_CK; b.empresa.mono = LOGOM_CK;
       b.paleta = PALETA_CK.slice(); b._migMarca = true; }
     if(!b.tema || !b.tema.oro){ b.tema = temaPorDefecto(); b._migMarca = true; }
@@ -3842,17 +3845,17 @@ function normaliza(b){
   /* El plan pasó de una lista plana a un árbol de tres niveles, y los códigos
      cambiaron de sitio. No hay forma de convertir uno en otro sin inventar:
      se rehace de fábrica una sola vez y queda registrado en la bitácora. */
-  if(eraPlan !== 3){
+  if(eraPlan !== 4){
     b._planViejo = (b.cuentas || []).length;
-    b.cuentas = CUENTAS_BASE(); b.mapaCtas = MAPA_BASE(); b.planV = 3;
+    b.cuentas = CUENTAS_BASE(); b.mapaCtas = MAPA_BASE(); b.planV = 4;
     b._migPlan = true;
   }
   if(!b.cuentas || !b.cuentas.length) b.cuentas = CUENTAS_BASE();
   CUENTAS_BASE().forEach(c=>{ if(!b.cuentas.some(x=>x.c===c.c)) b.cuentas.push(c); });
   b.cuentas.sort((x,y)=>cmpCod(x.c, y.c));
   /* los modelos quedan sin cuentas: las asigna la empresa */
-  if(eraMod !== 2){
-    b.modelos = MODELOS_BASE(); b.modelosV = 2; b._migMod = true;
+  if(eraMod !== 3){
+    b.modelos = MODELOS_BASE(); b.modelosV = 3; b._migMod = true;
   }
   if(!b.modelos || !b.modelos.length) b.modelos = MODELOS_BASE();
   MODELOS_BASE().forEach(m=>{ if(!b.modelos.some(x=>x.c===m.c)) b.modelos.push(m); });
