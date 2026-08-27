@@ -343,6 +343,8 @@ input[type=password]::placeholder{letter-spacing:normal;
 /* logo en el encabezado */
 .mklogo{height:40px;max-width:190px;display:block;object-fit:contain;flex:0 0 auto;
   background:var(--logo-bg,transparent);border-radius:9px;padding:3px 5px}
+/* el monograma es dorado y va sobre la barra oscura: ni fondo ni relleno */
+.mklogo.mkmono{height:38px;max-width:44px;background:transparent;padding:0}
 
 /* pantalla de identidad visual */
 .logobox{display:grid;place-items:center;min-height:150px;padding:20px;border-radius:var(--r2);
@@ -400,8 +402,19 @@ input[type=password]::placeholder{letter-spacing:normal;
 }
 /* el plan son seis tablas apiladas que el ojo lee como una sola */
 table.dat.plan{table-layout:fixed}
-table.dat.plan td:nth-child(1){width:120px}
-table.dat.plan td:nth-child(3){width:34%}
+table.dat.plan td:nth-child(1){width:130px}
+/* la sangría es la jerarquía: se ve el árbol sin tener que leer el código */
+table.arbol tr.n2>td:first-child{padding-left:16px}
+table.arbol tr.n3>td:first-child{padding-left:38px}
+table.arbol tr.n2 .cnom{font-weight:600;color:var(--ink)}
+table.arbol tr.n3 .cnom{color:var(--ink2)}
+table.arbol tr.n2>td{border-top:1px solid var(--linea)}
+h3.grp .gt{
+  margin-left:8px;color:var(--oro-os);letter-spacing:.04em;font-weight:600
+}
+/* una línea de modelo sin cuenta es trabajo pendiente, no un error */
+tr.porasignar .cnt.vac{color:var(--avi);letter-spacing:.14em;font-weight:600}
+tr.porasignar{background:var(--avi-bg)}
 /* la cédula y el sufijo del porcentaje son datos atómicos */
 table.dat.reps td:nth-child(3), table.dat.reps td:nth-child(5){white-space:nowrap}
 /* un solo día en la tendencia no debe leerse como una barra de progreso */
@@ -496,6 +509,37 @@ table.libro tr.nc td.n{color:var(--mal)}
 .card.enobra h2{margin-bottom:8px}
 .card.enobra .cap{max-width:62ch;margin:0 auto 16px}
 .card.enobra .nota{text-align:left;max-width:62ch;margin:0 auto}
+
+/* ---------- la tasa que falta: no es un aviso, es una puerta cerrada ---- */
+.card.sintasa{
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  border-left:4px solid var(--avi);background:var(--avi-bg)
+}
+.card.sintasa .sti{
+  flex:0 0 auto;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;
+  background:var(--sup);color:var(--avi);font-size:24px
+}
+.card.sintasa .stx{flex:1 1 320px}
+.card.sintasa h2{margin:0 0 6px}
+.card.sintasa p{margin:0 0 6px;color:var(--ink2);font-size:13.5px;line-height:1.55}
+.card.sintasa .mini{margin:0}
+.cintain .cargatasa{margin-left:8px;padding:2px 10px;font-size:11px;vertical-align:baseline}
+
+/* ---------- el IGTF, siempre en las dos monedas ---------- */
+.igtfbs{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:10px;
+  padding-top:10px;border-top:1px dashed var(--linea)
+}
+.igtfbs b{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.igtfbs i{font-style:normal;color:var(--muted)}
+.igtfbs em{font-style:normal;color:var(--muted);font-size:11.5px;margin-left:auto}
+
+/* ---------- el equivalente en bolívares, al lado del monto ---------- */
+.eqbox{
+  display:flex;align-items:center;min-height:40px;padding:0 13px;
+  border:1px solid var(--linea);border-radius:var(--r1);background:var(--sup);
+  color:var(--ink2);font-variant-numeric:tabular-nums;font-size:14px
+}
 
 /* ---------- encabezado con acción a la derecha ---------- */
 .lvhd{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
@@ -642,10 +686,12 @@ function SEMILLA(){ return {
     tipoRif:'J', rif:'J-50863887-5',
     dir:'Av. Libertador, Edif. Torre Maracaibo, Piso 15, Of. 15-G, La Campiña',
     ciudad:'Caracas, Distrito Capital', zp:'1061', condIVA:'ordinario',
-    mail:'casakeilysboutiquefemine@gmail.com', op:'0412', tel:'9597787', logo:''},
+    mail:'casakeilysboutiquefemine@gmail.com', op:'0412', tel:'9597787',
+    logo:LOGO_CK, mono:LOGOM_CK},
   fisc:{ivaActivo:true, alic:16, delivGravado:true,
         igtfActivo:true, igtfPct:3, igtfMet:['efec_usd','zelle','usdt'], desde:isoLocal()},
-  tema:null, paleta:[], bitacora:[],
+  tema:temaDesde('#d0ac48', null), paleta:['#d0ac48','#c29a38','#e5c964','#aa7a1d','#22180f'], bitacora:[],
+  planV:3, modelosV:2, marcaV:1,
   cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(), modelos:MODELOS_BASE(),
   categorias:['Ropa de Dama','Lentes de Sol','Cartera Alta Gama','Carteras Eyes Theme','Bisutería Dama'],
   corr:{venta:7, cli:3, id:100},
@@ -1036,11 +1082,13 @@ function pinta(){
 function pintaMarca(){
   const e=DB.empresa, nom=marcaDe();
   const box=$('#marcabox'); if(!box) return;
-  box.innerHTML = e.logo
-    ? '<img class="mklogo" src="'+e.logo+'" alt="'+esc(nom)+'">'
-      +'<div class="marca"><b>'+esc(nom)+'</b><span>SICOM</span></div>'
-    : '<div class="mono">'+esc((nom.trim()[0]||'S').toUpperCase())+'</div>'
-      +'<div class="marca"><b>'+esc(nom)+'</b><span>SICOM</span></div>';
+  /* en la barra va el monograma, no el logo completo: el nombre de la marca
+     ya está escrito al lado y el texto del logo no se leería sobre oscuro */
+  const mk = e.mono || e.logo;
+  box.innerHTML = (mk
+    ? '<img class="mklogo'+(e.mono?' mkmono':'')+'" src="'+mk+'" alt="'+esc(nom)+'">'
+    : '<div class="mono">'+esc((nom.trim()[0]||'S').toUpperCase())+'</div>')
+    +'<div class="marca"><b>'+esc(nom)+'</b><span>SICOM</span></div>';
 }
 /* si falta algo de la puesta en marcha, la caja lo dice antes de vender */
 function avisoSetup(){
@@ -1053,7 +1101,7 @@ function avisoSetup(){
 function logoRecibo(){
   const e=DB.empresa;
   return e.logo
-    ? '<img class="logo logoimg" src="'+e.logo+'" alt="'+esc(e.nom)+'">'
+    ? '<img class="logo logoimg" src="'+e.logo+'" alt="'+esc(marcaDe())+'">'
     : '<div class="logo">'+esc((marcaDe().trim()[0]||'S').toUpperCase())+'</div>';
 }
 function telEmpresa(){ const e=DB.empresa; return e.op&&e.tel ? e.op+'-'+e.tel : (e.tel||'—'); }
@@ -1074,7 +1122,10 @@ function hayDerivadas(){ return DB.ventas.some(v=>!v.fis); }
 function cinta(){
   const t=tasaVigente(),s=saldoAcc(),np=pendAbiertos();
   let h='<span><span class="pt'+(tasaDeHoyCargada()?'':' avi')+'"></span>'
-    +(t?'Tasa <b>Bs '+fN(t.bcv,2)+'</b> del <b>'+fFecha(t.fecha)+'</b>':'<b>Sin tasa</b>')+'</span>';
+    +(tasaDeHoyCargada()
+      ? 'Tasa <b>Bs '+fN(t.bcv,2)+'</b> del <b>'+fFecha(t.fecha)+'</b>'
+      : '<b>Falta la tasa de hoy</b> <button class="b sm oro cargatasa" data-goto="cfg|tasas">Cargarla</button>')
+    +'</span>';
   h+='<span>Cajera en turno <select id="k_turno">'
     +DB.cfg.cajeras.filter(k=>k.activo).map(k=>'<option value="'+k.id+'"'+(DB.turno===k.id?' selected':'')+'>'+esc(k.nom)+'</option>').join('')
     +'</select></span>';
@@ -1095,6 +1146,9 @@ function pasosVta(){
 }
 function vistaCaja(){
   if(VTA.paso==='correo'&&VTA.hecha) return pasoCorreo();
+  if(faltaTasaHoy()) return '<h1>Registro de ingresos</h1>'
+    + '<p class="sub">La caja está trancada hasta que se cargue la tasa del día.</p>'
+    + avisoSinTasa('registrar una venta');
   const PS=pasosVta(),ia=PS.findIndex(p=>p[0]===VTA.paso);
   let h='<h1>Registro de ingresos</h1>'
     +'<p class="sub">Atiende <b>'+esc(cajeraNom(DB.turno))+'</b>. Un bloque por pantalla; el monto siempre se muestra en las dos monedas.</p>'
@@ -1318,8 +1372,13 @@ function pasoCobro(){
     +(esDivisa(VTA.met) && pctIGTF() && falta > 0.005
       ? '<div class="igtfavi"><b>Es un pago en divisas: se le agrega el IGTF del '+fN(fisc().igtfPct,0)+' %.</b>'
         +'<span>Para saldar lo que falta por esta vía la clienta entrega <b>USD '+fN(exactoPara(VTA.met))+'</b>'
+        +(t?' <b>· Bs '+fN(exactoPara(VTA.met)*t.bcv)+'</b>':'')
         +' — USD '+fN(r2(totalCobrar()-pagadoUSD()))+' de la cuenta más USD '+fN(igtfSiPaga(VTA.met))+' de impuesto. '
-        +'Dígaselo antes de recibir el dinero.</span></div>' : '')
+        +'Dígaselo antes de recibir el dinero.</span>'
+        +(t?'<span class="igtfbs"><b>IGTF USD '+fN(igtfSiPaga(VTA.met))+'</b>'
+            +'<i>=</i><b>Bs '+fN(igtfSiPaga(VTA.met)*t.bcv)+'</b>'
+            +'<em>a la tasa de hoy · Bs '+fN(t.bcv,2)+'</em></span>':'')
+        +'</div>' : '')
     +'<div class="visor"><span class="vk">Recibe en '+m.n.toLowerCase()+'</span>'
     +'<div class="vrow"><span class="vu">USD</span>'
     +'<input class="vin" id="c_monto" inputmode="decimal" autocomplete="off" placeholder="0,00" value="'+esc(VTA.buf)+'"></div>'
@@ -1349,7 +1408,7 @@ function pasoCobro(){
     +'<tr><td>Total de la venta</td><td class="n"><b>USD '+fN(totalVenta())+'</b>'
     +(t?'<div class="mini">Bs '+fN(totalVenta()*t.bcv)+'</div>':'')+'</td></tr>'
     +(gi>0.005?'<tr><td>IGTF '+fN(fisc().igtfPct,0)+' % <div class="mini">sobre lo saldado en divisas</div></td>'
-      +'<td class="n">USD '+fN(gi)+'</td></tr>'
+      +'<td class="n">USD '+fN(gi)+(t?'<div class="mini">Bs '+fN(gi*t.bcv)+'</div>':'')+'</td></tr>'
       +'<tr><td><b>Total a cobrar</b></td><td class="n"><b>USD '+fN(totalCobrar())+'</b>'
       +(t?'<div class="mini">Bs '+fN(totalCobrar()*t.bcv)+'</div>':'')+'</td></tr>':'')
     +'</tbody></table>';
@@ -1375,7 +1434,10 @@ function pasoCobro(){
         : (t?'<span class="sb">Bs '+fN(falta*t.bcv)+'</span>':''))+'</div>'
       +(soloIGTF ? '<div class="igtfavi"><b>La mercancía está pagada; lo que falta es el impuesto.</b>'
         +'<span>Al cobrar en divisas se causa el IGTF del '+fN(fisc().igtfPct,0)+' %, que no estaba en el total original. '
-        +'Cóbrele los USD '+fN(falta)+' o cambie la vía de pago a una que no lo cause.</span></div>' : '');
+        +'Cóbrele los USD '+fN(falta)+(t?' —Bs '+fN(falta*t.bcv)+'— ':' ')+'o cambie la vía de pago a una que no lo cause.</span>'
+        +(t?'<span class="igtfbs"><b>IGTF USD '+fN(falta)+'</b><i>=</i><b>Bs '+fN(falta*t.bcv)+'</b>'
+            +'<em>a la tasa de hoy · Bs '+fN(t.bcv,2)+'</em></span>':'')
+        +'</div>' : '');
   }
   else if(vue>0) h+='<div class="estado vuelto"><span class="et">Pagó de más · hay vuelto</span><span class="mt">USD '+fN(vue)+'</span>'
     +(t?'<span class="sb">Bs '+fN(vue*t.bcv)+'</span>':'')+'</div>'
@@ -1464,6 +1526,7 @@ function pasoVuelto(){
 
 /* registrar */
 function registrar(){
+  if(trancaTasa('registrar la venta')) return;
   const t=tasaVigente(); let c=cliActual();
   if(c&&c.nuevo){
     const nc={id:'c'+(++DB.corr.cli),doc:c.doc,nom:c.nom.trim(),ape:c.ape.trim(),gen:c.gen,op:c.op,tel:c.tel,
@@ -1543,10 +1606,11 @@ function correoHTML(){
       +'<td class="mini" style="text-align:right">USD '+fN(dgc.iva)+'</td></tr>';
   if(gic > 0.005)
     h+='<tr><td class="mini">IGTF '+fN(fisc().igtfPct,0)+' % · pago en divisas</td>'
-      +'<td class="mini" style="text-align:right">USD '+fN(gic)+'</td></tr>';
+      +'<td class="mini" style="text-align:right">USD '+fN(gic)
+      +(t?' · Bs '+fN(gic*t.bcv):'')+'</td></tr>';
   h+='</tbody></table><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:12px;border-top:1px solid var(--linea)">'
     +'<span>Total</span><span class="tt">USD '+fN(r2(totalVenta()+gic))+'</span></div>'
-    +(t?'<div class="mini" style="text-align:right">Bs '+fN(totalVenta()*t.bcv)+' · tasa BCV '+fN(t.bcv,2)+' del '+fFecha(t.fecha)+'</div>':'')+'</div>';
+    +(t?'<div class="mini" style="text-align:right">Bs '+fN(r2(totalVenta()+gic)*t.bcv)+' · tasa BCV '+fN(t.bcv,2)+' del '+fFecha(t.fecha)+'</div>':'')+'</div>';
   h+='<div class="bloque"><h4>Detalle del pago</h4><table><tbody>';
   VTA.cobros.forEach(x=>{const mm=METODOS.find(y=>y.k===x.met);
     h+='<tr><td>'+mm.n+(x.banco?' · '+esc(x.banco):'')+(x.ref?' · ref. '+esc(x.ref):'')
@@ -1625,34 +1689,131 @@ function esperadoCaja(f){
   r.efec_bs.esperado=r.efec_bs.neto;
   return r;
 }
-function tesReintegros(){
-  const s=saldoAcc(),t=tasaVigente();
-  let h='<div class="hero">'
-    +'<div class="h dest"><span class="k">'+(s>=0?'Por reintegrar al accionista':'El accionista debe a la empresa')+'</span>'
-    +'<span class="v">'+fN(Math.abs(s))+' <small>USD</small></span>'
-    +'<span class="s">'+(t?'Bs '+fN(Math.abs(s)*t.bcv):'')+'</span></div>'
-    +'<div class="h"><span class="k">Movimientos</span><span class="v">'+DB.accionista.length+'</span>'
-    +'<span class="s">ver el detalle en Tesorería · Estado de cuenta del accionista</span></div>'
-    +'<div class="h"><span class="k">Reintegros hechos</span><span class="v">'+DB.accionista.filter(m=>m.tipo==='reintegro').length+'</span>'
-    +'<span class="s">todos salen de aquí</span></div></div>';
-  h+='<div class="card" style="margin-top:18px"><h2>Reponerle el dinero al accionista</h2>'
-    +'<p class="cap">Este es el único sitio donde se registra un reintegro. El estado de cuenta solo lo refleja.</p><div class="fila">'
-    +'<div><label class="f">Monto USD</label><input id="a_m" inputmode="decimal" placeholder="'+fN(Math.max(0,s))+'"></div>'
-    +'<div><label class="f">Cómo se le devolvió</label><select id="a_met">'
-    +METODOS.map(m=>'<option value="'+m.k+'">'+m.n+'</option>').join('')+'</select></div>'
-    +'<div><label class="f">Banco o plataforma — si es electrónico</label>'+selBanco('a_banco','','',ORIGEN.ve)+'</div>'
-    +'<div><label class="f">Referencia</label><input id="a_ref" placeholder="Escriba el número del banco" maxlength="20"></div>'
-    +'</div><div class="acc"><button class="b oro" id="a_g"'+(s>0.005?'':' disabled')+'>Registrar reintegro</button>'
-    +(s>0.005?'':'<span class="mini">No hay saldo a favor del accionista.</span>')+'</div></div>';
-  h+='<div class="card"><h2>Reintegros ya hechos</h2>';
-  const rs=DB.accionista.filter(m=>m.tipo==='reintegro');
-  if(!rs.length) h+='<div class="vacio"><div class="vi">⌕</div>Todavía no se le ha repuesto nada.</div>';
-  else{h+='<table class="dat"><thead><tr><th>Fecha</th><th>Concepto</th><th>Referencia</th><th class="n">Monto USD</th></tr></thead><tbody>';
-    rs.slice().reverse().forEach(m=>{h+='<tr><td><b>'+fFecha(m.fecha)+'</b></td><td>'+esc(m.concepto)+'</td>'
-      +'<td class="mini">'+(m.ref?esc(m.ref):'—')+'</td><td class="n"><b>'+fN(Math.abs(m.usd))+'</b></td></tr>';});
-    h+='</tbody></table>';}
-  return h+'</div>';
+/* ==========================================================================
+   1 · Sin la tasa del día no se registra nada
+   Todo monto en bolívares se convierte con la tasa del día. Si no está
+   cargada, el sistema tendría que usar la de ayer sin decirlo: la venta
+   quedaría mal convertida, el cierre no cuadraría y el libro saldría con
+   una cifra que nadie puede defender. Es más barato trancar la puerta.
+   ========================================================================== */
+function faltaTasaHoy(){ return !tasaDeHoyCargada(); }
+function avisoSinTasa(que){
+  const t = tasaVigente();
+  return '<div class="card sintasa"><div class="sti">◷</div>'
+    + '<div class="stx"><h2>Falta la tasa de hoy</h2>'
+    + '<p>No se puede ' + esc(que) + ' sin la tasa del <b>' + fFecha(hoy) + '</b>. '
+    + 'Todo lo que se cobra o se paga en bolívares se convierte con ella: si el sistema usara la de otro día, '
+    + 'la cifra quedaría mal y nadie se enteraría hasta el cierre.</p>'
+    + '<p class="mini">' + (t ? 'La última cargada es la del <b>' + fFecha(t.fecha) + '</b> · Bs ' + fN(t.bcv, 2)
+                              : 'No hay ninguna tasa cargada todavía.') + '</p></div>'
+    + '<button class="b oro" data-goto="cfg|tasas">Cargar la tasa de hoy</button></div>';
 }
+/* el mismo corte, para las acciones que no pasan por una pantalla */
+function trancaTasa(que){
+  if(!faltaTasaHoy()) return false;
+  aviso('Cargue primero la tasa del ' + fFecha(hoy) + ': sin ella no se puede ' + que + '.', true);
+  return true;
+}
+
+/* ==========================================================================
+   6 · Reintegro al accionista
+   ========================================================================== */
+let REI = null;
+function nuevoREI(){ REI = {met:'efec_usd', buf:'', banco:'', ref:'', print:null}; }
+function reiMet(){ return METODOS.find(x=>x.k === (REI && REI.met)) || METODOS[0]; }
+
+function tesReintegros(){
+  if(!REI) nuevoREI();
+  const s = saldoAcc(), t = tasaVigente(), m = reiMet(), o = m.org ? ORIGEN[m.org] : null;
+  let h = '<div class="hero">'
+    + '<div class="h dest"><span class="k">'+(s>=0?'Por reintegrar al accionista':'El accionista debe a la empresa')+'</span>'
+    + '<span class="v">'+fN(Math.abs(s))+' <small>USD</small></span>'
+    + '<span class="s">'+(t?'Bs '+fN(Math.abs(s)*t.bcv):'')+'</span></div>'
+    + '<div class="h"><span class="k">Movimientos</span><span class="v">'+DB.accionista.length+'</span>'
+    + '<span class="s">ver el detalle en Tesorería · Estado de cuenta del accionista</span></div>'
+    + '<div class="h"><span class="k">Reintegros hechos</span><span class="v">'+DB.accionista.filter(x=>x.tipo==='reintegro').length+'</span>'
+    + '<span class="s">todos salen de aquí</span></div></div>';
+
+  if(faltaTasaHoy()) return h + avisoSinTasa('registrar un reintegro');
+
+  h += '<div class="card" style="margin-top:18px"><h2>Reponerle el dinero al accionista</h2>'
+    + '<p class="cap">Este es el único sitio donde se registra un reintegro. El estado de cuenta solo lo refleja.</p>'
+    + '<div class="fila">'
+    + '<div style="flex:0 1 220px"><label class="f">Monto USD</label>'
+    + '<input id="a_m" inputmode="decimal" value="'+esc(REI.buf)+'" placeholder="'+fN(Math.max(0,s))+'"></div>'
+    + '<div style="flex:0 1 220px"><label class="f">Equivale a</label>'
+    + '<div class="eqbox">'+(t ? 'Bs '+fN((pila(REI.buf)||0)*t.bcv) : 'sin tasa')+'</div></div>'
+    + '</div>'
+    + (s > 0.005 ? '<div class="rapidos" style="margin-top:12px">'
+        + '<button class="ex" data-reiex="1">Todo lo que se le debe · USD '+fN(s)+'</button>'
+        + (pila(REI.buf) ? '<button class="gh" data-reiex="0">Borrar el monto</button>' : '')
+        + '</div>' : '')
+    + '<div style="margin-top:16px"><label class="f">¿Cómo se le devolvió?</label>'
+    + '<div class="mets">'+METODOS.map(x=>'<button class="met'+(x.k===m.k?' on':'')+'" data-reimet="'+x.k+'">'
+        +'<span class="ic">'+x.ic+'</span><b>'+esc(x.n)+'</b>'
+        +'<span>'+(x.banco?'lleva referencia':'sin referencia')+'</span></button>').join('')+'</div></div>';
+
+  /* efectivo —en dólares o en bolívares— no tiene banco ni referencia que
+     anotar: pedirlos obliga a inventar un dato o a dejarlo en blanco */
+  if(m.banco){
+    h += '<div class="fila" style="margin-top:16px">'
+      + '<div><label class="f">'+esc(o.vuelto)+'</label>'+selBanco('a_banco', REI.banco, '', o)+'</div>'
+      + '<div><label class="f">'+esc(o.ref)+'</label>'
+      + '<input id="a_ref" value="'+esc(REI.ref)+'" placeholder="'+esc(o.refph)+'" maxlength="40"></div></div>'
+      + '<div style="margin-top:14px"><label class="f">Comprobante del reintegro (opcional)</label>'
+      + (REI.print
+          ? '<div class="print"><img src="'+REI.print.src+'" alt="">'
+            +'<div class="pn"><b>'+esc(REI.print.nom)+'</b>'
+            +'<div class="mininota">queda adjunto al movimiento del accionista</div></div>'
+            +'<button class="b sm gh" data-quitap="a">Quitar</button></div>'
+          : '<div class="dz dzp"><div class="di">📎</div><b>'+esc(o.adj)+'</b>'
+            +'<span>haga clic o arrastre la captura · imagen hasta 8 MB</span>'
+            +'<input type="file" id="a_print" accept="image/*" style="display:none"></div>')
+      + '</div>';
+  } else {
+    h += '<div class="nota" style="margin-top:16px">Se le entrega en efectivo, de mano a mano: '
+      + 'no hay banco ni número de referencia que anotar. Queda el registro con la fecha y el monto.</div>';
+  }
+
+  h += '<div class="acc"><button class="b oro" id="a_g"'+(s>0.005?'':' disabled')+'>Registrar reintegro</button>'
+    + (s>0.005?'':'<span class="mini">No hay saldo a favor del accionista.</span>')+'</div></div>';
+
+  h += '<div class="card"><h2>Reintegros ya hechos</h2>';
+  const rs = DB.accionista.filter(x=>x.tipo==='reintegro');
+  if(!rs.length) h += '<div class="vacio"><div class="vi">⌕</div>Todavía no se le ha repuesto nada.</div>';
+  else{
+    h += '<table class="dat"><thead><tr><th>Fecha</th><th>Concepto</th><th>Referencia</th>'
+      + '<th class="n">Monto USD</th></tr></thead><tbody>';
+    rs.slice().reverse().forEach(x=>{
+      h += '<tr><td><b>'+fFecha(x.fecha)+'</b></td><td>'+esc(x.concepto)
+        + (x.print?' <span class="chip ok">comprobante</span>':'')+'</td>'
+        + '<td class="mini">'+(x.ref?esc(x.ref):'—')+'</td>'
+        + '<td class="n"><b>'+fN(Math.abs(x.usd))+'</b></td></tr>';
+    });
+    h += '</tbody></table>';
+  }
+  return h + '</div>';
+}
+
+/* ==========================================================================
+   3 · Una venta con vuelto pendiente no se devuelve: se anula completa
+   Devolver parte de una venta cuyo vuelto todavía se le debe a la clienta
+   deja dos deudas cruzadas sobre la misma operación y ninguna cuadra con la
+   caja. O se le entrega el vuelto y entonces sí se devuelve, o se deshace
+   la venta entera.
+   ========================================================================== */
+function vueltoPendDe(v){
+  return r2(DB.vpend.filter(x=>x.venta === v.num && x.tipo !== 'devolucion'
+      && !x.anulado && x.saldo > 0.005).reduce((a,x)=>a+x.saldo, 0));
+}
+function puedeDevolver(v){
+  if(anulada(v)) return 'Esa venta está anulada.';
+  const q = vueltoPendDe(v);
+  if(q > 0.005) return 'Tiene un vuelto pendiente de USD ' + fN(q)
+    + '. Entrégueselo primero en Tesorería, o anule la venta completa.';
+  return '';
+}
+
 function tesVueltos(){
   const ab=pendAbiertos(), ce=DB.vpend.filter(v=>v.saldo<=0.005), t=tasaVigente();
   const nd=pendDev().length;
@@ -2154,6 +2315,9 @@ function vistaVentas(){
 
 /* ============================================================ TESORERÍA == */
 function vistaTes(){
+  /* la configuración de tributos se mudó a Tributos: quien tenga la pestaña
+     vieja abierta cae en vueltos, no en una pantalla en blanco */
+  if(TSUB === 'trib') TSUB = 'vueltos';
   const np = pendAbiertos();
   let h = '<h1>Tesorería</h1>'
     + '<p class="sub">El dinero que no es venta: lo que se le debe a un cliente, lo que se le paga al personal, '
@@ -2167,15 +2331,13 @@ function vistaTes(){
        ['repd','Reporte de pagos diarios'],
        ['repm','Reporte de pagos mensuales'],
        ['reint','Reintegros al accionista'],
-       ['cierre','Cierre de caja'],
-       ['trib','Configuración de tributos']]
+       ['cierre','Cierre de caja']]
       .map(x=>'<button data-tsub="'+x[0]+'" class="'+(TSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
     + '</div>';
   if(TSUB==='vueltos') return h + tesVueltos();
   if(TSUB==='acc')     return h + vistaAcc();
   if(TSUB==='reint')   return h + tesReintegros();
   if(TSUB==='cierre')  return h + tesCierre();
-  if(TSUB==='trib')    return h + tesTributos();
   if(TSUB==='opauto')  return h + porHacer('Orden de pago automática',
     'Acumula lo que se le debe a cada vendedora y a cada repartidor hasta el día anterior al día de pago, '
     + 'arma la orden y la deja lista para aprobar. Descuenta los anticipos entregados.',
@@ -2197,9 +2359,9 @@ function vistaTes(){
   return h + tesVueltos();
 }
 
-/* Tesorería · Configuración de tributos */
+/* Tributos · Configuración de tributos */
 function tesTributos(){
-  let h = subs2('trsub', [['iva','IVA'],['islr','ISLR']], TRSUB);
+  let h = subs2('trsub', [['iva','IVA · IGTF · actividades económicas'],['islr','ISLR']], TRSUB);
   if(TRSUB === 'islr') return h + porHacer('ISLR',
     'Retenciones de impuesto sobre la renta: porcentaje por tipo de proveedor, base de retención, '
     + 'comprobante de retención y acumulado por período.',
@@ -2213,9 +2375,12 @@ function vistaTrib(){
     + '<p class="sub">Los libros que exige el SENIAT, con el encabezado de '+esc(DB.empresa.nom)
     + ' · RIF '+esc(DB.empresa.rif)+' · '+esc(condIVA())+'.</p>'
     + '<div class="subtabs">'
-    + [['compras','Libro de compras'],['ventas','Libro de ventas']]
+    + [['compras','Libro de compras'],['ventas','Libro de ventas'],
+       ['ing','Ingresos brutos'],['cfg','Configuración de tributos']]
       .map(x=>'<button data-bsub="'+x[0]+'" class="'+(BSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
     + '</div>';
+  if(BSUB === 'ing') return h + tribIngresos();
+  if(BSUB === 'cfg') return h + tesTributos();
   if(BSUB === 'compras') return h + porHacer('Libro de compras',
     'Las compras del período con su crédito fiscal, en el formato del SENIAT: fecha, número de factura, '
     + 'RIF y razón social del proveedor, base imponible por alícuota, crédito fiscal e IVA retenido.',
@@ -2273,6 +2438,154 @@ function contReportes(){
   }[RCSUB];
   return subs2('rcsub', R, RCSUB)
     + porHacer(nom, que, 'el generador de comprobantes. Los reportes se arman solos una vez que existan los asientos.');
+}
+
+/* ==========================================================================
+   SICOM · TRIBUTOS · Ingresos brutos e impuesto de actividades económicas
+   El municipio no cobra sobre la utilidad: cobra sobre el ingreso bruto
+   efectivamente percibido. El IVA no es ingreso —es del fisco nacional— y
+   por eso no entra en la base. Las devoluciones y las anulaciones sí restan,
+   cada una en el mes en que ocurrieron.
+   ========================================================================== */
+function iaeActivo(){ return fisc().iaeActivo !== false; }
+function iaeAlic(){ const n = +fisc().iaeAlic; return iaeActivo() && isFinite(n) && n > 0 ? n : 0; }
+function iaeMinTrib(){ const n = +fisc().iaeMin; return isFinite(n) && n > 0 ? n : 0; }
+
+function ibMes(m){
+  const t = totalesLibro(filasLibroVentas(m));
+  const bruto = r2(t.base + t.exento);
+  const causado = r2(bruto * iaeAlic() / 100);
+  return {mes:m, n:t.n, facturado:t.total, iva:t.iva, bruto:bruto,
+          causado:causado, pagar:Math.max(causado, iaeMinTrib())};
+}
+function ibAnio(a){ return mesesConMovimiento().filter(m=>m.slice(0,4) === String(a)).sort(); }
+function aniosConMovimiento(){
+  return Array.from(new Set(mesesConMovimiento().map(m=>m.slice(0,4)))).sort().reverse();
+}
+
+let IBANIO = null;
+function ibAnioSel(){ return IBANIO || String(hoy).slice(0,4); }
+
+function tribIngresos(){
+  const a = ibAnioSel(), ms = ibAnio(a);
+  const fs = ms.map(ibMes);
+  const tot = {facturado:r2(fs.reduce((x,y)=>x+y.facturado,0)),
+               iva:r2(fs.reduce((x,y)=>x+y.iva,0)),
+               bruto:r2(fs.reduce((x,y)=>x+y.bruto,0)),
+               causado:r2(fs.reduce((x,y)=>x+y.causado,0)),
+               pagar:r2(fs.reduce((x,y)=>x+y.pagar,0))};
+  const al = iaeAlic();
+
+  let h = '<h2 class="lvt">Ingresos brutos · '+esc(a)+'</h2>'
+    + '<p class="sub">Base del impuesto municipal de actividades económicas. El ingreso bruto es lo facturado '
+    + '<b>sin el IVA</b>, neto de devoluciones y anulaciones.</p>';
+
+  h += '<div class="hero">'
+    + '<div class="h dest"><span class="k">Ingreso bruto del año</span>'
+    + '<span class="v">'+fN(tot.bruto)+' <small>USD</small></span>'
+    + '<span class="s">'+fs.length+' '+(fs.length===1?'mes':'meses')+' con movimiento</span></div>'
+    + '<div class="h"><span class="k">Facturado con IVA</span><span class="v">'+fN(tot.facturado)+'</span>'
+    + '<span class="s">incluye USD '+fN(tot.iva)+' de débito fiscal</span></div>'
+    + '<div class="h"><span class="k">Alícuota</span><span class="v">'+(al?fN(al,2):'—')+' <small>%</small></span>'
+    + '<span class="s">'+(al?'la que fijó la ordenanza municipal':'sin definir · configúrela en Tributos')+'</span></div>'
+    + '<div class="h'+(al?' dest':'')+'"><span class="k">Impuesto del año</span>'
+    + '<span class="v">'+(al?fN(tot.pagar):'—')+'</span>'
+    + '<span class="s">'+(al?'estimado sobre el ingreso bruto':'no se puede calcular sin alícuota')+'</span></div></div>';
+
+  if(!al) h += '<div class="nota avi" style="margin-top:16px"><b>Falta la alícuota.</b> '
+    + 'Cárguela en <b>Tributos · Configuración de tributos</b> con el porcentaje que le corresponde al ramo '
+    + 'en la ordenanza de su municipio. Mientras tanto la base sí se calcula.</div>';
+
+  h += '<div class="card" style="margin-top:18px"><div class="lvhd">'
+    + '<div><h2>Mes a mes</h2><p class="cap">Cada mes se cierra con lo que ocurrió en él: '
+    + 'una devolución de agosto sobre una venta de julio resta en agosto.</p></div>'
+    + '<div class="lvsel">'
+    + (aniosConMovimiento().length > 1
+        ? '<select id="ib_anio">'+aniosConMovimiento().map(x=>'<option value="'+x+'"'
+            +(x===a?' selected':'')+'>'+x+'</option>').join('')+'</select>' : '')
+    + '<button class="b oro" id="ib_csv">Descargar</button></div></div>';
+
+  if(!fs.length){
+    h += '<div class="vacio"><div class="vi">⌕</div>No hay movimiento en '+esc(a)+'.</div></div>';
+    return h;
+  }
+  h += '<table class="dat reps"><thead><tr><th>Mes</th><th class="n">Documentos</th>'
+    + '<th class="n">Facturado</th><th class="n">IVA</th><th class="n">Ingreso bruto</th>'
+    + '<th class="n">Impuesto '+(al?fN(al,2)+' %':'—')+'</th></tr></thead><tbody>';
+  fs.forEach(f=>{
+    h += '<tr><td><b>'+esc(mesTexto(f.mes))+'</b></td>'
+      + '<td class="n">'+f.n+'</td>'
+      + '<td class="n">'+fN(f.facturado)+'</td>'
+      + '<td class="n">'+fN(f.iva)+'</td>'
+      + '<td class="n"><b>'+fN(f.bruto)+'</b></td>'
+      + '<td class="n">'+(al?fN(f.pagar):'—')+'</td></tr>';
+  });
+  h += '<tr class="tot"><td><b>Total '+esc(a)+'</b></td><td class="n"><b>'+fs.reduce((x,y)=>x+y.n,0)+'</b></td>'
+    + '<td class="n"><b>'+fN(tot.facturado)+'</b></td><td class="n"><b>'+fN(tot.iva)+'</b></td>'
+    + '<td class="n"><b>'+fN(tot.bruto)+'</b></td>'
+    + '<td class="n"><b>'+(al?fN(tot.pagar):'—')+'</b></td></tr>';
+  h += '</tbody></table></div>';
+
+  h += '<div class="card"><h2>Cómo se arma la base</h2><table class="dat"><tbody>'
+    + '<tr><td>Ventas facturadas del año, con IVA incluido</td><td class="n">USD '+fN(tot.facturado)+'</td></tr>'
+    + '<tr><td>Menos el IVA · débito fiscal, que es del fisco nacional</td><td class="n">− USD '+fN(tot.iva)+'</td></tr>'
+    + '<tr class="tot"><td><b>Ingreso bruto · base del impuesto municipal</b></td>'
+    + '<td class="n"><b>USD '+fN(tot.bruto)+'</b></td></tr>'
+    + '</tbody></table>'
+    + '<p class="cap" style="margin-top:12px">Las devoluciones y anulaciones ya están restadas: entran como nota '
+    + 'de crédito en el mes en que ocurrieron, igual que en el libro de ventas.</p></div>';
+  return h;
+}
+
+function csvIngresosBrutos(){
+  const q = s => '"' + String(s==null?'':s).replace(/"/g,'""') + '"';
+  const a = ibAnioSel(), al = iaeAlic();
+  const L = [[q(DB.empresa.nom)].join(';'), [q('RIF ' + DB.empresa.rif)].join(';'),
+             [q('INGRESOS BRUTOS · impuesto de actividades económicas')].join(';'),
+             [q('Ejercicio ' + a + ' · alícuota ' + (al ? fN(al,2) + ' %' : 'sin definir'))].join(';'),
+             [q('Emitido el ' + fFecha(hoy))].join(';'), '',
+             ['Mes','Documentos','Facturado con IVA','IVA','Ingreso bruto','Impuesto'].map(q).join(';')];
+  const fs = ibAnio(a).map(ibMes);
+  fs.forEach(f=>L.push([q(mesTexto(f.mes)), q(f.n), q(fN(f.facturado)), q(fN(f.iva)),
+                        q(fN(f.bruto)), q(al ? fN(f.pagar) : '')].join(';')));
+  L.push(['Total', fs.reduce((x,y)=>x+y.n,0),
+          fN(r2(fs.reduce((x,y)=>x+y.facturado,0))), fN(r2(fs.reduce((x,y)=>x+y.iva,0))),
+          fN(r2(fs.reduce((x,y)=>x+y.bruto,0))),
+          al ? fN(r2(fs.reduce((x,y)=>x+y.pagar,0))) : ''].map(q).join(';'));
+  return '﻿' + L.join('\r\n');
+}
+
+/* --------------- la alícuota, en configuración de tributos --------------- */
+function cardIAE(){
+  const f = fisc(), al = iaeAlic();
+  const ej = r2(totalesLibro(filasLibroVentas(mesDe(hoy))).base
+              + totalesLibro(filasLibroVentas(mesDe(hoy))).exento);
+  let h = '<div class="card"><h2>Impuesto de actividades económicas</h2>'
+    + '<p class="cap">Es municipal: lo cobra la alcaldía sobre el <b>ingreso bruto</b>, no sobre la ganancia. '
+    + 'La alícuota la fija la ordenanza según el ramo — para comercio de prendas de vestir suele estar entre '
+    + '0,50 % y 1,50 %. Busque la suya en la ordenanza de su municipio.</p>'
+    + '<div class="fila">'
+    + '<div style="flex:1 1 100%"><label class="f">¿El sistema calcula este impuesto?</label><div class="segm">'
+    + [['si','Sí, sobre el ingreso bruto'],['no','No lo calcula']].map(o=>{
+        const on = (iaeActivo()?'si':'no') === o[0];
+        return '<button class="sg'+(on?' on':'')+'" data-iaeon="'+o[0]+'">'
+          + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div></div></div>'
+    + '<div class="fila" style="margin-top:14px">'
+    + '<div><label class="f">Alícuota del ramo</label><div class="pct">'
+    + '<input id="iae_a" inputmode="decimal" value="'+esc(String(f.iaeAlic===undefined?'':f.iaeAlic).replace('.',','))+'" '
+    + 'placeholder="1,00" maxlength="6"><span class="sufijo">%</span></div>'
+    + '<div class="ayuda">La que diga el clasificador de actividades de su ordenanza.</div></div>'
+    + '<div><label class="f">Mínimo tributable mensual</label><div class="pct">'
+    + '<input id="iae_m" inputmode="decimal" value="'+esc(String(f.iaeMin===undefined?'':f.iaeMin).replace('.',','))+'" '
+    + 'placeholder="0,00" maxlength="10"><span class="sufijo">USD</span></div>'
+    + '<div class="ayuda">Si la ordenanza fija un mínimo, se paga ese cuando el cálculo da menos. Deje 0 si no aplica.</div></div>'
+    + '</div>';
+  if(al) h += '<div class="nota">Con el '+fN(al,2)+' %, el ingreso bruto de '+esc(mesTexto(mesDe(hoy)))
+    + ' —<b>USD '+fN(ej)+'</b>— causa <b>USD '+fN(r2(ej*al/100))+'</b> de impuesto.</div>';
+  h += '<div class="acc"><button class="b oro" id="iae_g">Guardar</button>'
+    + '<button class="b gh" data-irtrib="ing">Ver los ingresos brutos</button></div></div>';
+  return h;
 }
 
 /* ==========================================================================
@@ -2680,15 +2993,23 @@ function contModelos(editable){
   const rotos = modelosRotos(), huerf = modelosHuerfanos(), apag = modelosApagados();
   let h = '';
 
+  const sinc = modelosSinCta(), nl = lineasPorAsignar();
+
   if(rotos.length) h += '<div class="err">Sin cuadrar: '
     + rotos.map(m=>esc(m.c)).join(' · ')+'</div>';
   if(huerf.length) h += '<div class="err">Con cuenta inexistente: '
     + huerf.map(m=>esc(m.c)).join(' · ')+'</div>';
+  if(sinc.length) h += '<div class="nota avi"><b>'+sinc.length+' '
+    + (sinc.length===1?'modelo':'modelos')+' sin cuentas asignadas · '+nl+' '
+    + (nl===1?'línea':'líneas')+' por asignar.</b> La estructura del asiento ya está probada; '
+    + 'falta decir qué cuenta del plan recibe cada línea'
+    + (editable ? '.' : ', en Configuración de asiento automático.')+'</div>';
 
   h += '<div class="kpis kpis-mod">'
     + kpiMod(modelos().length, 'Modelos', '')
     + kpiMod(FAMILIAS.length, 'Familias', '')
     + kpiMod(rotos.length, 'Sin cuadrar', rotos.length?'mal':'bien')
+    + kpiMod(nl, 'Líneas por asignar', nl?'avi':'bien')
     + kpiMod(huerf.length, 'Cuenta inexistente', huerf.length?'mal':'bien')
     + kpiMod(apag.length, 'Desactivados', apag.length?'avi':'')
     + '</div>';
@@ -2712,6 +3033,7 @@ function kpiMod(n, t, cl){
 
 function tarjetaModelo(m, editable){
   const cu = cuadraModelo(m), hu = ctasHuerfanas(m), sim = simulaModelo(m);
+  const sc = lineasSinCta(m).length;
   const ab = editable && (KMOD === m.c);
   let h = '<div class="card modelo'+(m.activo===false?' apagado':'')+(cu.ok?'':' roto')+'">'
     + '<div class="modhd">'
@@ -2722,6 +3044,7 @@ function tarjetaModelo(m, editable){
     + (m.activo===false ? '<span class="chip apg">Desactivado</span>'
         : (cu.ok ? '<span class="chip ok">Cuadra</span>' : '<span class="chip mal">No cuadra</span>'))
     + (hu.length ? '<span class="chip mal">Cuenta inexistente</span>' : '')
+    + (sc ? '<span class="chip avi">'+sc+' sin cuenta</span>' : '')
     + '</div>'
     + (editable ? '<button class="b sm gh" data-kmod="'+esc(m.c)+'">'+(ab?'Cerrar':'Editar')+'</button>' : '')
     + '</div>';
@@ -2731,12 +3054,14 @@ function tarjetaModelo(m, editable){
     + '</tr></thead><tbody>';
   sim.lineas.forEach((l,i)=>{
     const mudo = Math.abs(l.monto) < 0.005;
-    const din = esCtaDin(l.cta), falta = !din && !ctaNom(l.cta);
-    h += '<tr class="'+(mudo?'muda':'')+(falta?' falta':'')+'">'
+    const din = esCtaDin(l.cta), vacia = !l.cta, falta = !vacia && !din && !ctaNom(l.cta);
+    h += '<tr class="'+(mudo?'muda':'')+(falta?' falta':'')+(vacia?' porasignar':'')+'">'
       + '<td class="cta">'
       + (ab ? selCta('mo_c_'+m.c+'_'+i, l.cta)
-            : '<span class="cnt'+(din?' din':'')+'">'+esc(l.cta)+'</span>'
-              +'<span class="ctn">'+esc(din ? CTAS_DIN[l.cta] : (ctaNom(l.cta) || '⚠ no está en el catálogo'))+'</span>')
+            : (vacia
+                ? '<span class="cnt vac">— — —</span><span class="ctn">sin cuenta asignada</span>'
+                : '<span class="cnt'+(din?' din':'')+'">'+esc(l.cta)+'</span>'
+                  +'<span class="ctn">'+esc(din ? CTAS_DIN[l.cta] : (ctaNom(l.cta) || '⚠ no está en el catálogo'))+'</span>'))
       + '</td>'
       + '<td class="org">'+esc(orgNom(l.org))+'</td>'
       + '<td class="n">'+(l.nat==='D' ? fN(l.monto) : '')+'</td>'
@@ -2752,7 +3077,7 @@ function tarjetaModelo(m, editable){
   if(ab) h += '<div class="acc">'
     + '<button class="b oro" data-kgua="'+esc(m.c)+'">Guardar</button>'
     + '<button class="b gh" data-kmtog="'+esc(m.c)+'">'+(m.activo===false?'Activar':'Desactivar')+'</button>'
-    + '<button class="b gh" data-krest="'+esc(m.c)+'">Restaurar de fábrica</button>'
+    + '<button class="b gh" data-krest="'+esc(m.c)+'">Dejarlo en blanco</button>'
     + '</div>';
   h += '</div>';
   return h;
@@ -2771,8 +3096,10 @@ function contMapaOps(){
       const cod = ctaDe(o.k);
       h += '<tr><td style="width:44%"><b>'+esc(o.n)+'</b></td>'
         + '<td><select data-opcta="'+o.k+'"><option value="">Sin asignar</option>'
-        + (DB.cuentas||[]).map(c=>'<option value="'+esc(c.c)+'"'+(c.c === cod ? ' selected' : '')+'>'
-            +esc(c.c)+' · '+esc(c.n)+'</option>').join('')+'</select></td></tr>';
+        + ctasMov().sort((a,b)=>cmpCod(a.c,b.c)).map(c=>'<option value="'+esc(c.c)+'"'
+            +(c.c === cod ? ' selected' : '')+'>'+esc(c.c)+' · '+esc(c.n)+'</option>').join('')
+        + (cod && !ctaObj(cod) ? '<option value="'+esc(cod)+'" selected>⚠ '+esc(cod)+' · ya no está</option>' : '')
+        + '</select></td></tr>';
     });
     h += '</tbody></table>';
   });
@@ -2780,53 +3107,96 @@ function contMapaOps(){
 }
 
 /* ------------------------------------------------------ plan de cuentas -- */
+/* ------------------------------------------------------ plan de cuentas -- */
+function usosDeCta(cod){
+  const ops = OPS.filter(o=>ctaDe(o.k) === cod).map(o=>o.n);
+  const mds = modelos().filter(m=>(m.lineas||[]).some(l=>l.cta === cod)).map(m=>m.c);
+  return ops.concat(mds);
+}
 function contPlan(){
-  const cs = (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c));
-  const tipos = ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'];
+  const cs = ctasOrden();
+  const nM = cs.filter(c=>nivelCta(c.c)===1).length;
+  const nT = cs.filter(c=>nivelCta(c.c)===2).length;
+  const nD = cs.filter(c=>nivelCta(c.c)===3).length;
   let h = '<div class="card"><div class="lvhd">'
-    + '<div><h2>Plan de cuentas</h2><p class="cap">NIIF para PYMES · '+cs.length+' cuentas</p></div>'
-    + '<button class="b oro" id="pc_csv">Descargar</button></div>';
+    + '<div><h2>Plan de cuentas</h2><p class="cap">Tres niveles · '+cs.length+' cuentas · '
+    + 'solo las de detalle reciben movimiento</p></div>'
+    + '<button class="b oro" id="pc_csv">Descargar completo</button></div>';
   h += '<div class="kpis kpis-mod">'
-    + tipos.map(t=>kpiMod(cs.filter(c=>c.t===t).length, t, '')).join('') + '</div>';
-  tipos.forEach(t=>{
-    const g = cs.filter(c=>c.t===t); if(!g.length) return;
-    h += '<h3 class="grp">'+esc(t)+'</h3><table class="dat plan"><tbody>'
-      + g.map(c=>{
-          const us = modelos().filter(m=>m.lineas.some(l=>l.cta===c.c)).map(m=>m.c);
-          return '<tr><td style="width:120px"><b class="codn">'+esc(c.c)+'</b></td>'
-            + '<td>'+esc(c.n)+'</td>'
-            + '<td class="mini">'+(us.length ? us.join(' · ') : '—')+'</td></tr>';
-        }).join('')
-      + '</tbody></table>';
+    + kpiMod(nM, 'Cuentas madre', '')
+    + kpiMod(nT, 'Cuentas título', '')
+    + kpiMod(nD, 'Cuentas de detalle', '')
+    + kpiMod(ctasMov().length, 'Reciben movimiento', '')
+    + '</div>';
+
+  cs.filter(c=>nivelCta(c.c)===1).forEach(g=>{
+    h += '<h3 class="grp">'+esc(g.c)+' · '+esc(g.n)+'</h3>'
+      + '<table class="dat plan arbol"><tbody>';
+    cs.filter(c=>c.c !== g.c && String(c.c).charAt(0) === String(g.c).charAt(0)).forEach(c=>{
+      const nv = nivelCta(c.c), us = usosDeCta(c.c);
+      h += '<tr class="n'+nv+'"><td style="width:130px"><b class="codn">'+esc(c.c)+'</b></td>'
+        + '<td><span class="cnom">'+esc(c.n)+'</span>'
+        + (nv < 3 && hijasDe(c.c).length
+            ? '<span class="mini"> · '+hijasDe(c.c).length+' '
+              +(hijasDe(c.c).length===1?'cuenta':'cuentas')+'</span>' : '')
+        + '</td>'
+        + '<td style="width:110px"><span class="chip'+(esMov(c.c)?' ok':'')+'">'+esc(nivelNom(c.c))+'</span></td>'
+        + '<td class="mini" style="width:200px">'+(us.length ? esc(us.join(' · ')) : '')+'</td></tr>';
+    });
+    h += '</tbody></table>';
   });
+  if(!cs.length) h += '<div class="vacio"><div class="vi">⌕</div>El plan está vacío.</div>';
   return h + '</div>';
 }
 
 /* -------------------------------------- creación o modificación de cuentas */
 function contCuentas(){
+  const cs = ctasOrden();
+  const padres = cs.filter(c=>nivelCta(c.c) < NIVEL_MAX);
+  const pSel = CTAPAD && ctaObj(CTAPAD) ? CTAPAD : '';
+  const sug = proxCodigo(pSel);
   let h = '<div class="card"><h2>Creación o modificación de cuentas</h2>'
+    + '<p class="cap">La codificación es fija: <b class="codn">1</b> madre · '
+    + '<b class="codn">1.1</b> título · <b class="codn">1.1.01</b> detalle. '
+    + 'El tipo lo hereda de la cuenta madre; no se elige.</p>'
     + '<div class="fila">'
+    + '<div style="flex:2 1 300px"><label class="f">¿De cuál cuenta cuelga?</label>'
+    + '<select id="ct_p"><option value="">Ninguna · es una cuenta madre</option>'
+    + padres.map(c=>'<option value="'+esc(c.c)+'"'+(c.c===pSel?' selected':'')+'>'
+        +esc(c.c+' · '+c.n)+' ('+esc(nivelNom(c.c).toLowerCase())+')</option>').join('')
+    + '</select></div>'
     + '<div style="flex:0 0 150px"><label class="f">Código</label>'
-    + '<input id="ct_c" placeholder="1.1.01" maxlength="14"></div>'
+    + '<input id="ct_c" value="'+esc(CTABUF===null?sug:CTABUF)+'" placeholder="'+esc(sug||'1')+'" maxlength="10"></div>'
     + '<div style="flex:2 1 280px"><label class="f">Nombre de la cuenta</label>'
     + '<input id="ct_n" placeholder="Escriba el nombre" maxlength="60"></div>'
-    + '<div><label class="f">Tipo</label><select id="ct_t">'
-    + ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'].map(x=>'<option>'+x+'</option>').join('')
-    + '</select></div>'
     + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="ct_g">Agregar</button></div></div>';
+  const cd = (CTABUF===null?sug:CTABUF).trim();
+  if(cd) h += '<div class="nota">Quedará como cuenta <b>'+esc((NIVEL_NOM[nivelCta(cd)]||'—').toLowerCase())
+    + '</b> de tipo <b>'+esc(tipoPorCodigo(cd)||'—')+'</b>'
+    + (nivelCta(cd) === NIVEL_MAX ? ' y <b>recibirá movimiento</b>.'
+        : ', y por estar por encima del detalle <b>no recibirá movimiento</b>: solo acumula lo que cuelgue de ella.')
+    + '</div>';
 
-  h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Código</th><th>Cuenta</th><th>Tipo</th>'
-    + '<th>Se usa en</th><th></th></tr></thead><tbody>';
-  (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c)).forEach(c=>{
-    const ops = OPS.filter(o=>ctaDe(o.k) === c.c).map(o=>o.n);
-    const mds = modelos().filter(m=>m.lineas.some(l=>l.cta===c.c)).map(m=>m.c);
-    const usos = ops.concat(mds);
-    h += '<tr><td><b class="codn">'+esc(c.c)+'</b></td><td>'+esc(c.n)+'</td>'
+  h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Código</th><th>Cuenta</th><th>Nivel</th>'
+    + '<th>Tipo</th><th>Se usa en</th><th></th></tr></thead><tbody>';
+  cs.forEach(c=>{
+    const usos = usosDeCta(c.c), hij = hijasDe(c.c).length, ed = CTAED === c.c;
+    h += '<tr class="n'+nivelCta(c.c)+'"><td><b class="codn">'+esc(c.c)+'</b></td>'
+      + '<td>'+(ed
+          ? '<input id="ct_rn" value="'+esc(c.n)+'" maxlength="60" style="max-width:340px">'
+          : '<span class="cnom">'+esc(c.n)+'</span>')+'</td>'
+      + '<td><span class="chip'+(esMov(c.c)?' ok':'')+'">'+esc(nivelNom(c.c))+'</span></td>'
       + '<td><span class="chip">'+esc(c.t)+'</span></td>'
-      + '<td class="mini">'+(usos.length ? usos.join(' · ') : '—')+'</td>'
-      + '<td class="n">'+(usos.length
-          ? '<span class="mini">en uso</span>'
-          : '<button class="b sm gh" data-ctdel="'+esc(c.c)+'">Eliminar</button>')+'</td></tr>';
+      + '<td class="mini">'+(usos.length ? esc(usos.join(' · '))
+          : (hij ? hij+' '+(hij===1?'cuenta':'cuentas')+' debajo' : '—'))+'</td>'
+      + '<td class="n">'
+      + (ed ? '<button class="b sm oro" data-ctrg="'+esc(c.c)+'">Guardar</button> '
+              +'<button class="b sm gh" data-ctred="">Cancelar</button>'
+            : '<button class="b sm gh" data-ctred="'+esc(c.c)+'">Renombrar</button> '
+              + (usos.length || hij
+                  ? '<span class="mini">en uso</span>'
+                  : '<button class="b sm gh" data-ctdel="'+esc(c.c)+'">Eliminar</button>'))
+      + '</td></tr>';
   });
   return h + '</tbody></table></div>';
 }
@@ -2834,24 +3204,33 @@ function contCuentas(){
 function csvPlanCuentas(){
   const q = s => '"' + String(s==null?'':s).replace(/"/g,'""') + '"';
   const L = [[q(DB.empresa.nom)].join(';'), [q('RIF ' + DB.empresa.rif)].join(';'),
-             [q('PLAN DE CUENTAS · NIIF para PYMES')].join(';'), '',
-             ['Código','Cuenta','Tipo','Usada en'].map(q).join(';')];
-  (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c)).forEach(c=>{
-    const us = modelos().filter(m=>m.lineas.some(l=>l.cta===c.c)).map(m=>m.c);
-    L.push([q(c.c), q(c.n), q(c.t), q(us.join(' '))].join(';'));
+             [q('PLAN DE CUENTAS · tres niveles: madre, título y detalle')].join(';'),
+             [q('Emitido el ' + fFecha(hoy))].join(';'), '',
+             ['Código','Nivel','Clase','Cuenta','Tipo','Cuenta madre','Cuenta título',
+              'Recibe movimiento','Se usa en'].map(q).join(';')];
+  ctasOrden().forEach(c=>{
+    const seg = String(c.c).split('.');
+    const m = ctaObj(seg[0]), t = seg.length > 1 ? ctaObj(seg[0]+'.'+seg[1]) : null;
+    L.push([q(c.c), q(nivelCta(c.c)), q(nivelNom(c.c)), q(c.n), q(c.t),
+            q(m ? m.c + ' · ' + m.n : ''), q(t ? t.c + ' · ' + t.n : ''),
+            q(esMov(c.c) ? 'Sí' : 'No'), q(usosDeCta(c.c).join(' · '))].join(';'));
   });
+  L.push('');
+  L.push([q('Cuentas'), q(ctasOrden().length)].join(';'));
+  L.push([q('De detalle, que reciben movimiento'), q(ctasMov().length)].join(';'));
   return '﻿' + L.join('\r\n');
 }
 
-/* selector de cuenta: el catálogo más las cuentas que dependen de la operación */
+/* selector de cuenta: solo las de detalle, más las que dependen de la operación */
 function selCta(id, val){
+  let o = '<option value=""'+(val ? '' : ' selected')+'>— Sin asignar —</option>';
   const ds = Object.keys(CTAS_DIN);
-  let o = '<optgroup label="Depende de la operación">'
+  o += '<optgroup label="Depende de la operación">'
     + ds.map(k=>'<option value="'+k+'"'+(val===k?' selected':'')+'>'+esc(CTAS_DIN[k])+'</option>').join('')
     + '</optgroup>';
   const tipos = ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'];
   tipos.forEach(t=>{
-    const cs = (DB.cuentas||[]).filter(c=>c.t===t);
+    const cs = ctasMov().filter(c=>c.t===t).sort((a,b)=>cmpCod(a.c,b.c));
     if(!cs.length) return;
     o += '<optgroup label="'+t+'">'
       + cs.map(c=>'<option value="'+esc(c.c)+'"'+(val===c.c?' selected':'')+'>'+esc(c.c+' · '+c.n)+'</option>').join('')
@@ -3055,7 +3434,8 @@ document.addEventListener('click',e=>{
   if(b.id==='m_can'){PREV=null;pinta();return;}
   if(b.id==='m_quita'){MFILE='';MTXT='';PREV=null;pinta();return;}
   if(b.dataset.quitap){const w=b.dataset.quitap;
-    if(w==='c')VTA.print=null; else if(w==='v')VTA.vprint=null;
+    if(w==='a')REI.print=null;
+    else if(w==='c')VTA.print=null; else if(w==='v')VTA.vprint=null;
     else {const vp=DB.vpend.find(x=>x.id===PSEL); if(vp) vp._print=null;}
     pinta();return;}
 
@@ -3066,21 +3446,34 @@ document.addEventListener('click',e=>{
     PREV=null;MTXT='';aviso(n+' tasas importadas.');pinta();return;}
 
   /* accionista */
-  if(b.id==='a_g'){const v=pila($('#a_m').value),met=$('#a_met').value,ref=$('#a_ref').value.trim(),
-        bco=$('#a_banco')?$('#a_banco').value:'',s=saldoAcc();
+  if(b.dataset.reiex!==undefined){ REI.buf=b.dataset.reiex==='1'?String(r2(saldoAcc())).replace('.',','):'';
+    pinta(); return; }
+  if(b.dataset.reimet){ REI.met=b.dataset.reimet;
+    /* la referencia y el banco pertenecen a la vía anterior: no se arrastran */
+    REI.banco=''; REI.ref=''; if(!reiMet().banco) REI.print=null;
+    pinta(); return; }
+  if(b.id==='a_g'){
+    if(trancaTasa('registrar el reintegro'))return;
+    const v=pila(REI.buf), s=saldoAcc(), mm=reiMet();
     if(v<=0)return aviso('Escriba el monto.',true);
     if(v>s+0.005)return aviso('No puede reintegrar más de lo que se le debe (USD '+fN(s)+').',true);
-    const mm=METODOS.find(x=>x.k===met);
-    if(mm.banco&&!bco)return aviso('Indique desde qué banco se le repone.',true);
-    if(mm.ref&&ref.length<3)return aviso('El reintegro por '+mm.n.toLowerCase()+' necesita referencia.',true);
-    DB.accionista.push({fecha:hoy,tipo:'reintegro',
-      concepto:'Reintegro al accionista por '+mm.n.toLowerCase()+(bco?' · '+bco:''),
-      usd:-Math.round(v*100)/100,ref:ref,venta:'',op:'acc_rei'});
-    aviso('Reintegro registrado desde tesorería.');pinta();return;}
+    if(mm.banco&&!REI.banco)return aviso('Indique desde qué '+esc(ORIGEN[mm.org].lbl.toLowerCase())+' se le repone.',true);
+    if(mm.banco&&REI.ref.trim().length<3)
+      return aviso('El reintegro por '+mm.n.toLowerCase()+' necesita referencia.',true);
+    const mov={fecha:hoy,tipo:'reintegro',
+      concepto:'Reintegro al accionista por '+mm.n.toLowerCase()+(REI.banco?' · '+REI.banco:''),
+      usd:-r2(v),ref:mm.banco?REI.ref.trim():'',venta:'',op:'acc_rei',met:mm.k};
+    if(mm.banco&&REI.print) mov.print=REI.print;
+    DB.accionista.push(mov);
+    bitacora('tes','Reintegro al accionista','USD '+fN(v)+' por '+mm.n.toLowerCase()
+      +(mov.ref?' · ref. '+mov.ref:'')+(mov.print?' · con comprobante':''));
+    nuevoREI();
+    aviso('Reintegro de USD '+fN(v)+' registrado.');pinta();return;}
   if(b.dataset.irtes){TAB='tes';TSUB=b.dataset.irtes;pinta();return;}
   if(b.dataset.tsub){TSUB=b.dataset.tsub;PSEL=null;pinta();return;}
   if(b.dataset.rsub){RSUB=b.dataset.rsub;pinta();return;}
   if(b.id==='ci_g'){
+    if(trancaTasa('cerrar la caja'))return;
     if(pendAbiertos().length)return aviso('No puede cerrar con vueltos pendientes.',true);
     const esp=esperadoCaja(hoy);
     const dU=Math.round((pila(CIERRE.usd)-esp.efec_usd.esperado)*100)/100;
@@ -3225,6 +3618,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.pex){const v=DB.vpend.find(x=>x.id===b.dataset.pex);
     v._buf=v.saldo.toFixed(2).replace('.',',');pinta();return;}
   if(b.dataset.pgo){
+    if(trancaTasa('entregar el vuelto'))return;
     const v=DB.vpend.find(x=>x.id===b.dataset.pgo),t=tasaVigente();
     const m=METODOS.find(x=>x.k===(v._met||'efec_usd'));
     const usd=Math.round(pila($('#p_monto')?$('#p_monto').value:v._buf)*100)/100;
@@ -3360,14 +3754,16 @@ document.addEventListener('change',e=>{
     r.onerror=()=>aviso('No se pudo leer el archivo.',true);
     r.readAsText(f,'UTF-8'); return;
   }
-  if(id==='c_print'||id==='v_print'||id==='p_print'){
+  if(id==='c_print'||id==='v_print'||id==='p_print'||id==='a_print'){
     const f=e.target.files&&e.target.files[0]; if(!f)return;
     leeComprobante(f, src=>{ const d={nom:f.name,src:src};
       if(id==='c_print')VTA.print=d; else if(id==='v_print')VTA.vprint=d;
+      else if(id==='a_print')REI.print=d;
       else { const vp=DB.vpend.find(x=>x.id===PSEL); if(vp) vp._print=d; }
       aviso('Comprobante adjuntado.'); pinta(); });
     e.target.value=''; return;
   }
+  if(id==='a_banco'){ REI.banco=e.target.value; return; }
   if(id==='cl_mkt'){VTA.nuevo.mkt=e.target.checked;return;}
   if(id==='cl_op'){VTA.nuevo.op=e.target.value;pinta();return;}
   if(id==='k_turno'){DB.turno=e.target.value;aviso('Turno de '+cajeraNom(DB.turno));pinta();return;}
@@ -3430,13 +3826,29 @@ function normaliza(b){
     b.empresa.zp = v.empresa.zp;   b.empresa.condIVA = v.empresa.condIVA;
   }
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
+  /* el logo y la paleta del diseño 1 entran una sola vez: si la empresa ya
+     subió otro logo o eligió otros colores, no se le pisan */
+  if(b.marcaV !== 1){
+    b.marcaV = 1;
+    if(!b.empresa.logo){ b.empresa.logo = LOGO_CK; b.empresa.mono = LOGOM_CK;
+      b.paleta = PALETA_CK.slice(); b._migMarca = true; }
+    if(!b.tema || !b.tema.oro){ b.tema = temaPorDefecto(); }
+  }
+  /* El plan pasó de una lista plana a un árbol de tres niveles, y los códigos
+     cambiaron de sitio. No hay forma de convertir uno en otro sin inventar:
+     se rehace de fábrica una sola vez y queda registrado en la bitácora. */
+  if(b.planV !== 3){
+    b.cuentas = CUENTAS_BASE(); b.mapaCtas = MAPA_BASE(); b.planV = 3;
+    b._migPlan = true;
+  }
   if(!b.cuentas || !b.cuentas.length) b.cuentas = CUENTAS_BASE();
-  /* las cuentas que el catálogo de fábrica trae y la base guardada todavía no:
-     se agregan sin tocar las que el usuario haya cambiado o creado */
   CUENTAS_BASE().forEach(c=>{ if(!b.cuentas.some(x=>x.c===c.c)) b.cuentas.push(c); });
-  b.cuentas.sort((x,y)=>x.c.localeCompare(y.c));
+  b.cuentas.sort((x,y)=>cmpCod(x.c, y.c));
+  /* los modelos quedan sin cuentas: las asigna la empresa */
+  if(b.modelosV !== 2){
+    b.modelos = MODELOS_BASE(); b.modelosV = 2; b._migMod = true;
+  }
   if(!b.modelos || !b.modelos.length) b.modelos = MODELOS_BASE();
-  /* un modelo nuevo de fábrica se agrega; los que el usuario tocó no se pisan */
   MODELOS_BASE().forEach(m=>{ if(!b.modelos.some(x=>x.c===m.c)) b.modelos.push(m); });
   if(!b.mapaCtas) b.mapaCtas = MAPA_BASE();
   unificaMotivos(b);
@@ -3600,7 +4012,18 @@ function temaDesde(base, logoBg){
   t.ring = '0 0 0 3px rgba('+rgbOro.join(',')+',.28)';
   return t;
 }
-function temaPorDefecto(){ return temaDesde('#c8a24a', null); }
+/* ==========================================================================
+   La marca, tomada del diseño 1: el monograma dorado sobre blanco.
+   El oro es la mediana ponderada del degradado del logo (#d0ac48); el
+   #22180f es el marrón casi negro de «CASA KEYLIS». De ese oro sale toda la
+   vestimenta del sistema, y el texto sobre él se elige por contraste medido,
+   nunca a ojo.
+   ========================================================================== */
+const ORO_CK = '#d0ac48';
+const PALETA_CK = ['#d0ac48','#c29a38','#e5c964','#aa7a1d','#22180f'];
+const LOGOM_CK = 'data:image/png;base64,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';
+const LOGO_CK = 'data:image/png;base64,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';
+function temaPorDefecto(){ return temaDesde(ORO_CK, null); }
 
 function aplicaTema(){
   const t = (DB.tema && DB.tema.oro) ? DB.tema : temaPorDefecto();
@@ -3849,6 +4272,8 @@ function cfgImpuestos(){
     + 'la clienta entrega <b>USD '+fN(r2(ej*(1+pctIGTF())))+'</b>: '+fN(ej)+' de la cuenta más '
     + fN(r2(ej*pctIGTF()))+' de impuesto.</div>'
     + '<div class="acc"><button class="b oro" id="ig_g">Guardar el IGTF</button></div></div>';
+
+  h += cardIAE();
 
   if(hayDerivadas()) h += '<div class="card"><h2>Las ventas anteriores</h2>'
     + '<p class="cap">Hay ventas registradas antes de que el sistema manejara IVA. No guardaron desglose, '
@@ -4284,7 +4709,7 @@ document.addEventListener('click', e=>{
 
   /* ---------------- logo y colores ---------------- */
   if(b.id === 'mk_quitar'){
-    DB.empresa.logo = ''; DB.paleta = [];
+    DB.empresa.logo = ''; DB.empresa.mono = ''; DB.paleta = [];
     bitacora('marca','Logo retirado','el sistema vuelve al monograma');
     aviso('Logo retirado.'); pinta(); return;
   }
@@ -4403,6 +4828,7 @@ document.addEventListener('change', e=>{
     const f = e.target.files && e.target.files[0]; if(!f) return;
     leeLogo(f, function(dataUrl, pal, bg){
       DB.empresa.logo = dataUrl;
+      DB.empresa.mono = '';
       DB.paleta = pal;
       DB.tema = temaDesde(mejorBase(pal), bg);
       bitacora('marca','Logo cargado', pal.length + ' colores encontrados · marca ' + DB.tema.base);
@@ -4482,46 +4908,175 @@ const OPS = [
 function opNom(k){ const o = OPS.find(x=>x.k===k); return o ? o.n : k; }
 
 /* plan de cuentas de arranque, editable */
-function CUENTAS_BASE(){ return [
-  {c:'1.1.01', n:'Caja en efectivo · dólares',        t:'Activo'},
-  {c:'1.1.02', n:'Caja en efectivo · bolívares',      t:'Activo'},
-  {c:'1.1.03', n:'Bancos · cuentas en bolívares',     t:'Activo'},
-  {c:'1.1.04', n:'Cuentas en dólares y USDT',         t:'Activo'},
-  {c:'1.1.05', n:'Fondo de caja para vueltos',        t:'Activo'},
-  {c:'1.1.06', n:'Inventario de mercancía',           t:'Activo'},
-  {c:'1.1.07', n:'Anticipos a vendedoras y repartidores', t:'Activo'},
-  {c:'2.1.01', n:'Vueltos por entregar a clientes',   t:'Pasivo'},
-  {c:'2.1.02', n:'Devoluciones por pagar a clientes', t:'Pasivo'},
-  {c:'2.1.03', n:'Cuentas por pagar al accionista',   t:'Pasivo'},
-  {c:'2.1.04', n:'Comisiones por pagar a vendedoras', t:'Pasivo'},
-  {c:'2.1.05', n:'IVA débito fiscal por enterar',     t:'Pasivo'},
-  {c:'2.1.06', n:'IGTF percibido por enterar',        t:'Pasivo'},
-  {c:'2.1.07', n:'Cuentas por pagar a repartidores',  t:'Pasivo'},
-  {c:'2.1.08', n:'Cuentas por pagar · gastos varios', t:'Pasivo'},
-  {c:'4.1.01', n:'Ingresos por ventas',               t:'Ingreso'},
-  {c:'4.1.02', n:'Ingresos por delivery',             t:'Ingreso'},
-  {c:'4.1.03', n:'Devoluciones de ventas',            t:'Ingreso'},
-  {c:'4.1.04', n:'Ventas no gravadas',                t:'Ingreso'},
-  {c:'4.1.05', n:'Anulaciones de ventas',             t:'Ingreso'},
-  {c:'5.1.01', n:'Costo de la mercancía vendida',     t:'Costo'},
-  {c:'6.1.01', n:'Comisiones de vendedores',          t:'Gasto'},
-  {c:'6.1.02', n:'Pagos de delivery',                 t:'Gasto'},
-  {c:'6.1.03', n:'Faltantes y sobrantes de caja',     t:'Gasto'},
-  {c:'6.1.04', n:'Ajustes de inventario',             t:'Gasto'}
-]; }
+/* ==========================================================================
+   SICOM · PLAN DE CUENTAS
+   Tres niveles, como los pidió la empresa:
+     cuenta madre   1        ACTIVO
+     cuenta título  1.1      Efectivo y equivalentes de efectivo
+     cuenta detalle 1.1.01   Caja en efectivo · dólares
+   Solo la cuenta de detalle recibe movimiento. Las de arriba suman lo de
+   abajo, y por eso no se les asienta nada directamente.
+   ========================================================================== */
+const NIVEL_NOM = ['', 'Madre', 'Título', 'Detalle'];
+const NIVEL_MAX = 3;
+
+function nivelCta(c){ return String(c || '').split('.').filter(Boolean).length; }
+function nivelNom(c){ return NIVEL_NOM[nivelCta(c)] || ''; }
+function padreDe(c){
+  const p = String(c || '').split('.').filter(Boolean);
+  return p.length <= 1 ? '' : p.slice(0, -1).join('.');
+}
+function ctaObj(c){ return (DB.cuentas || []).find(x => x.c === c) || null; }
+function hijasDe(c){ return (DB.cuentas || []).filter(x => padreDe(x.c) === c); }
+/* recibe movimiento la que está en el último nivel y no tiene hijas: si el
+   usuario abre una cuenta por debajo de otra, la de arriba deja de moverse
+   sola, sin que haya que acordarse de marcarla */
+function esMov(c){ return nivelCta(c) === NIVEL_MAX || !hijasDe(c).length; }
+function ctasMov(){ return (DB.cuentas || []).filter(x => esMov(x.c)); }
+function ctasOrden(){ return (DB.cuentas || []).slice().sort((a,b)=>cmpCod(a.c, b.c)); }
+/* ordena por segmento numérico: 1.10 va después de 1.9, no antes */
+function cmpCod(a, b){
+  const x = String(a||'').split('.'), y = String(b||'').split('.');
+  for(let i = 0; i < Math.max(x.length, y.length); i++){
+    const p = +x[i], q = +y[i];
+    if(isNaN(p)) return -1; if(isNaN(q)) return 1;
+    if(p !== q) return p - q;
+  }
+  return 0;
+}
+/* el tipo lo manda la cuenta madre: no se elige, se hereda */
+const TIPO_GRUPO = {'1':'Activo','2':'Pasivo','3':'Patrimonio','4':'Ingreso','5':'Costo','6':'Gasto'};
+function tipoPorCodigo(c){ return TIPO_GRUPO[String(c || '').charAt(0)] || ''; }
+
+/* La codificación es N · N.N · N.NN — cada nivel cuelga del anterior. Sin
+   esto el plan deja de ser un árbol y ningún reporte puede sumar. */
+function valCodigo(c){
+  c = String(c || '').trim();
+  if(!c) return {ok:false, msg:'Escriba el código de la cuenta.'};
+  if(!/^\d+(\.\d+)*$/.test(c))
+    return {ok:false, msg:'El código lleva solo números y puntos: 1 · 1.1 · 1.1.01'};
+  const n = nivelCta(c);
+  if(n > NIVEL_MAX)
+    return {ok:false, msg:'El plan tiene tres niveles: madre, título y detalle. ' + c + ' tiene ' + n + '.'};
+  if(!TIPO_GRUPO[c.charAt(0)])
+    return {ok:false, msg:'El primer dígito dice de qué es la cuenta: 1 activo · 2 pasivo · 3 patrimonio · 4 ingreso · 5 costo · 6 gasto.'};
+  const seg = c.split('.');
+  if(n >= 2 && seg[1].length !== 1)
+    return {ok:false, msg:'La cuenta título lleva un dígito después del punto: 1.1, no 1.' + seg[1] + '.'};
+  if(n === 3 && seg[2].length !== 2)
+    return {ok:false, msg:'La cuenta de detalle lleva dos dígitos al final: 1.1.01, no 1.1.' + seg[2] + '.'};
+  if(n > 1){
+    const p = padreDe(c);
+    if(!ctaObj(p)) return {ok:false, msg:'Falta la cuenta ' + p + ', de la que esta cuelga. Créela primero.'};
+  }
+  if(ctaObj(c)) return {ok:false, msg:'Ya existe una cuenta con el código ' + c + '.'};
+  return {ok:true, nivel:n, tipo:tipoPorCodigo(c), padre:padreDe(c)};
+}
+/* el siguiente código libre bajo una cuenta, para no tener que adivinarlo */
+function proxCodigo(padre){
+  if(!padre){
+    for(const g of ['1','2','3','4','5','6']) if(!ctaObj(g)) return g;
+    return '';
+  }
+  const n = nivelCta(padre) + 1;
+  if(n > NIVEL_MAX) return '';
+  const usados = hijasDe(padre).map(x => +String(x.c).split('.').pop());
+  let i = 1; while(usados.indexOf(i) >= 0) i++;
+  return padre + '.' + String(i).padStart(n === 3 ? 2 : 1, '0');
+}
+
+function CUENTAS_BASE(){
+  const L = [
+    ['1','ACTIVO'],
+      ['1.1','Efectivo y equivalentes de efectivo'],
+        ['1.1.01','Caja en efectivo · dólares'],
+        ['1.1.02','Caja en efectivo · bolívares'],
+        ['1.1.03','Fondo de caja para vueltos'],
+        ['1.1.04','Bancos · cuentas en bolívares'],
+        ['1.1.05','Cuentas en dólares y USDT'],
+      ['1.2','Cuentas por cobrar'],
+        ['1.2.01','Anticipos a vendedoras y repartidores'],
+        ['1.2.02','Cuentas por cobrar al accionista'],
+      ['1.3','Inventarios'],
+        ['1.3.01','Inventario de mercancía'],
+      ['1.4','Impuestos pagados por anticipado'],
+        ['1.4.01','IVA crédito fiscal'],
+        ['1.4.02','ISLR retenido por clientes'],
+      ['1.5','Propiedad, planta y equipo'],
+        ['1.5.01','Mobiliario y equipo de tienda'],
+        ['1.5.02','Depreciación acumulada'],
+    ['2','PASIVO'],
+      ['2.1','Cuentas por pagar comerciales'],
+        ['2.1.01','Cuentas por pagar a proveedores'],
+        ['2.1.02','Cuentas por pagar · gastos varios'],
+      ['2.2','Deudas con clientes'],
+        ['2.2.01','Vueltos por entregar a clientes'],
+        ['2.2.02','Devoluciones por pagar a clientes'],
+      ['2.3','Deudas con el personal'],
+        ['2.3.01','Comisiones por pagar a vendedoras'],
+        ['2.3.02','Cuentas por pagar a repartidores'],
+      ['2.4','Impuestos por pagar'],
+        ['2.4.01','IVA débito fiscal por enterar'],
+        ['2.4.02','IGTF percibido por enterar'],
+        ['2.4.03','ISLR retenido por enterar'],
+        ['2.4.04','Impuesto de actividades económicas por pagar'],
+      ['2.5','Cuentas por pagar al accionista'],
+        ['2.5.01','Cuentas por pagar al accionista'],
+    ['3','PATRIMONIO'],
+      ['3.1','Capital'],
+        ['3.1.01','Capital social suscrito y pagado'],
+      ['3.2','Resultados'],
+        ['3.2.01','Resultados acumulados'],
+        ['3.2.02','Resultado del ejercicio'],
+    ['4','INGRESOS'],
+      ['4.1','Ingresos operacionales'],
+        ['4.1.01','Ingresos por ventas'],
+        ['4.1.02','Ingresos por delivery'],
+        ['4.1.03','Ventas no gravadas'],
+      ['4.2','Contra-ingresos'],
+        ['4.2.01','Devoluciones de ventas'],
+        ['4.2.02','Anulaciones de ventas'],
+    ['5','COSTOS'],
+      ['5.1','Costo de ventas'],
+        ['5.1.01','Costo de la mercancía vendida'],
+    ['6','GASTOS'],
+      ['6.1','Gastos de personal'],
+        ['6.1.01','Comisiones de vendedoras'],
+        ['6.1.02','Pagos de delivery'],
+        ['6.1.03','Sueldos y salarios'],
+      ['6.2','Gastos operativos'],
+        ['6.2.01','Faltantes y sobrantes de caja'],
+        ['6.2.02','Ajustes de inventario'],
+        ['6.2.03','Comisiones bancarias'],
+        ['6.2.04','Gastos varios'],
+      ['6.3','Gastos tributarios'],
+        ['6.3.01','Impuesto de actividades económicas'],
+      ['6.4','Depreciación'],
+        ['6.4.01','Depreciación del ejercicio']
+  ];
+  return L.map(x => ({c:x[0], n:x[1], t:tipoPorCodigo(x[0])}));
+}
+
 function MAPA_BASE(){ return {
-  vta:'4.1.01', deliv:'4.1.02', dev:'4.1.03', anul:'4.1.03', costo:'5.1.01',
-  cob_efec_usd:'1.1.01', cob_efec_bs:'1.1.02', cob_pm:'1.1.03', cob_pdv:'1.1.03',
-  cob_usdt:'1.1.04', cob_zelle:'1.1.04',
-  vue:'1.1.01', vue_pend:'2.1.01', dev_pag:'2.1.02',
-  acc_cob:'2.1.03', acc_vue:'2.1.03', acc_rei:'2.1.03',
-  dif_caja:'6.1.03', com_vend:'6.1.01', pago_rep:'6.1.02'
+  vta:'4.1.01', deliv:'4.1.02', dev:'4.2.01', anul:'4.2.02', costo:'5.1.01',
+  cob_efec_usd:'1.1.01', cob_efec_bs:'1.1.02', cob_pm:'1.1.04', cob_pdv:'1.1.04',
+  cob_usdt:'1.1.05', cob_zelle:'1.1.05',
+  vue:'1.1.01', vue_pend:'2.2.01', dev_pag:'2.2.02',
+  acc_cob:'2.5.01', acc_vue:'2.5.01', acc_rei:'2.5.01',
+  dif_caja:'6.2.01', com_vend:'6.1.01', pago_rep:'6.1.02'
 }; }
+
 function ctaDe(op){ return (DB.mapaCtas || {})[op] || ''; }
 function ctaNom(cod){ const c = (DB.cuentas||[]).find(x=>x.c===cod); return c ? c.n : ''; }
 
 /* ==========================================================================
    SICOM · MODELOS DE ASIENTO CONTABLE
+
+   Las cuentas vienen EN BLANCO a propósito: la estructura del asiento —qué
+   línea va al debe, cuál al haber y de dónde sale cada monto— es la que
+   prueba que cuadra para cualquier importe, y esa queda fija. Cuál cuenta
+   del plan recibe cada línea lo decide la empresa, en la pantalla de
+   configuración. Un modelo sin cuentas no está roto: está sin configurar.
    La columna vertebral de la contabilidad automática.
 
    Cada transacción del sistema tiene un modelo: una lista de líneas, cada
@@ -4646,78 +5201,78 @@ function MODELOS_BASE(){ return [
  d:'El asiento madre. De él cuelgan el costo, la comisión y el pago al repartidor.',
  lineas:[
    {cta:'#metodo', nat:'D', org:'total_cobr', d:'El dinero entra por donde pagó la clienta'},
-   {cta:'4.1.01',  nat:'H', org:'base_art',   d:'El ingreso real: sin IVA, sin IGTF'},
-   {cta:'4.1.02',  nat:'H', org:'base_deliv', d:'El delivery cobrado es ingreso aparte'},
-   {cta:'4.1.04',  nat:'H', org:'exento',     d:'Lo que la ley exime'},
-   {cta:'2.1.05',  nat:'H', org:'iva',        d:'El IVA no es suyo: es del fisco'},
-   {cta:'2.1.06',  nat:'H', org:'igtf',       d:'El IGTF tampoco'}]},
+   {cta:'',  nat:'H', org:'base_art',   d:'El ingreso real: sin IVA, sin IGTF'},
+   {cta:'',  nat:'H', org:'base_deliv', d:'El delivery cobrado es ingreso aparte'},
+   {cta:'',  nat:'H', org:'exento',     d:'Lo que la ley exime'},
+   {cta:'',  nat:'H', org:'iva',        d:'El IVA no es suyo: es del fisco'},
+   {cta:'',  nat:'H', org:'igtf',       d:'El IGTF tampoco'}]},
 
 {c:'VT-02', fam:'venta', n:'Venta con vuelto pendiente', ver:1, activo:true,
  disp:'Al registrar una venta donde no hubo sencillo para devolver',
  d:'La clienta entregó de más y quedó a favor. Ese saldo es un pasivo, no un ingreso.',
  lineas:[
    {cta:'#metodo', nat:'D', org:'recibido',    d:'Entró todo lo que la clienta puso en el mostrador'},
-   {cta:'4.1.01',  nat:'H', org:'base_art',    d:''},
-   {cta:'4.1.02',  nat:'H', org:'base_deliv',  d:''},
-   {cta:'4.1.04',  nat:'H', org:'exento',      d:''},
-   {cta:'2.1.05',  nat:'H', org:'iva',         d:''},
-   {cta:'2.1.06',  nat:'H', org:'igtf',        d:''},
-   {cta:'2.1.01',  nat:'H', org:'vuelto_pend', d:'Lo que se le queda debiendo a la clienta'}]},
+   {cta:'',  nat:'H', org:'base_art',    d:''},
+   {cta:'',  nat:'H', org:'base_deliv',  d:''},
+   {cta:'',  nat:'H', org:'exento',      d:''},
+   {cta:'',  nat:'H', org:'iva',         d:''},
+   {cta:'',  nat:'H', org:'igtf',        d:''},
+   {cta:'',  nat:'H', org:'vuelto_pend', d:'Lo que se le queda debiendo a la clienta'}]},
 
 {c:'VT-03', fam:'venta', n:'Entrega del vuelto pendiente', ver:1, activo:true,
  disp:'Al pagarle a la clienta un vuelto que había quedado pendiente',
  d:'Descarga el pasivo de VT-02. Usa el SALDO VIVO, no el monto original: si ya se le abonó una parte, solo sale lo que falta.',
  lineas:[
-   {cta:'2.1.01', nat:'D', org:'vuelto_vivo', d:'Se cancela lo que quedaba debiéndose'},
+   {cta:'', nat:'D', org:'vuelto_vivo', d:'Se cancela lo que quedaba debiéndose'},
    {cta:'#vuelto', nat:'H', org:'vuelto_vivo', d:'Sale por donde se le pagó'}]},
 
 {c:'VT-04', fam:'venta', n:'Cobro recibido en la cuenta del accionista', ver:1, activo:true,
  disp:'Cuando el cobro entró a la cuenta personal del accionista, no a la de la empresa',
  d:'La empresa no tiene ese dinero: lo tiene el accionista. Nace una deuda entre las partes.',
  lineas:[
-   {cta:'2.1.03', nat:'D', org:'total_cobr', d:'El accionista le debe eso a la empresa'},
-   {cta:'4.1.01', nat:'H', org:'base_art',   d:''},
-   {cta:'4.1.02', nat:'H', org:'base_deliv', d:''},
-   {cta:'4.1.04', nat:'H', org:'exento',     d:''},
-   {cta:'2.1.05', nat:'H', org:'iva',        d:''},
-   {cta:'2.1.06', nat:'H', org:'igtf',       d:''}]},
+   {cta:'', nat:'D', org:'total_cobr', d:'El accionista le debe eso a la empresa'},
+   {cta:'', nat:'H', org:'base_art',   d:''},
+   {cta:'', nat:'H', org:'base_deliv', d:''},
+   {cta:'', nat:'H', org:'exento',     d:''},
+   {cta:'', nat:'H', org:'iva',        d:''},
+   {cta:'', nat:'H', org:'igtf',       d:''}]},
 
 /* --------------------------------------------------------- INVENTARIOS */
 {c:'IN-01', fam:'inv', n:'Costo de la mercancía vendida', ver:1, activo:true,
  disp:'Junto con cada venta, por el costo de las piezas que salieron',
  d:'Sin este asiento el estado de resultados muestra ingresos sin costo, y el margen es una ficción.',
  lineas:[
-   {cta:'5.1.01', nat:'D', org:'costo', d:'El costo se reconoce cuando se vende, no cuando se compra'},
-   {cta:'1.1.06', nat:'H', org:'costo', d:'El inventario baja por lo que salió'}]},
+   {cta:'', nat:'D', org:'costo', d:'El costo se reconoce cuando se vende, no cuando se compra'},
+   {cta:'', nat:'H', org:'costo', d:'El inventario baja por lo que salió'}]},
 
 {c:'IN-02', fam:'inv', n:'Entrada de mercancía por compra', ver:1, activo:true,
  disp:'Al cargar una compra de mercancía',
  d:'La compra no es gasto: es un activo que se convierte en costo el día que se vende.',
  lineas:[
-   {cta:'1.1.06', nat:'D', org:'compra', d:'Entra al inventario a su costo'},
+   {cta:'', nat:'D', org:'compra', d:'Entra al inventario a su costo'},
    {cta:'#pago',  nat:'H', org:'compra', d:'Sale por donde se pagó'}]},
 
 {c:'IN-03', fam:'inv', n:'Ajuste por conteo de inventario', ver:1, activo:true,
  disp:'Al cerrar una auditoría de inventario con diferencia',
  d:'Lo que el conteo dice que hay contra lo que el sistema creía. La diferencia se reconoce y queda con su acta.',
  lineas:[
-   {cta:'1.1.06', nat:'D', org:'ajuste_inv', d:'Positivo si sobró, negativo si faltó'},
-   {cta:'6.1.04', nat:'H', org:'ajuste_inv', d:'La diferencia va a resultados'}]},
+   {cta:'', nat:'D', org:'ajuste_inv', d:'Positivo si sobró, negativo si faltó'},
+   {cta:'', nat:'H', org:'ajuste_inv', d:'La diferencia va a resultados'}]},
 
 /* ---------------------------------------------------- PAGO DE DELIVERY */
 {c:'DL-01', fam:'deliv', n:'Porcentaje del repartidor causado', ver:1, activo:true,
  disp:'Junto con cada venta con entrega a domicilio',
  d:'El repartidor cobra un porcentaje sobre lo cobrado a la clienta. Se causa el día de la venta aunque se pague el viernes.',
  lineas:[
-   {cta:'6.1.02', nat:'D', org:'pago_rep', d:'El gasto pertenece al día de la venta'},
-   {cta:'2.1.07', nat:'H', org:'pago_rep', d:'Queda como deuda con el repartidor'}]},
+   {cta:'', nat:'D', org:'pago_rep', d:'El gasto pertenece al día de la venta'},
+   {cta:'', nat:'H', org:'pago_rep', d:'Queda como deuda con el repartidor'}]},
 
 {c:'DL-02', fam:'deliv', n:'Pago al repartidor', ver:1, activo:true,
  disp:'El día de pago configurado, por todo lo acumulado hasta la víspera',
  d:'Descarga el pasivo de DL-01. Si tenía anticipo, el anticipo se descuenta aquí.',
  lineas:[
-   {cta:'2.1.07', nat:'D', org:'orden_pago', d:'Se cancela lo que se le debía'},
-   {cta:'1.1.07', nat:'H', org:'anticipo',   d:'Se descuenta el anticipo que ya se le había dado'},
+   {cta:'', nat:'D', org:'orden_pago', d:'Se cancela lo que se le debía'},
+   {cta:'', nat:'H', org:'anticipo',   d:'Se descuenta el anticipo que ya se le había dado'},
    {cta:'#pago',  nat:'H', org:'neto_pagar', d:'Sale de caja solo el neto'}]},
 
 /* --------------------------------------------------- PAGO DE VENDEDORA */
@@ -4725,15 +5280,15 @@ function MODELOS_BASE(){ return [
  disp:'Junto con cada venta, sobre el margen o el monto según su configuración',
  d:'La comisión se gana con la venta. Que se pague después no la mueve de fecha.',
  lineas:[
-   {cta:'6.1.01', nat:'D', org:'comision', d:'El gasto pertenece al día de la venta'},
-   {cta:'2.1.04', nat:'H', org:'comision', d:'Queda como deuda con la vendedora'}]},
+   {cta:'', nat:'D', org:'comision', d:'El gasto pertenece al día de la venta'},
+   {cta:'', nat:'H', org:'comision', d:'Queda como deuda con la vendedora'}]},
 
 {c:'VD-02', fam:'vend', n:'Pago de la comisión', ver:1, activo:true,
  disp:'El día de pago configurado, por todo lo acumulado hasta la víspera',
  d:'Descarga el pasivo de VD-01, neto del anticipo si lo hubo.',
  lineas:[
-   {cta:'2.1.04', nat:'D', org:'orden_pago', d:'Se cancela lo que se le debía'},
-   {cta:'1.1.07', nat:'H', org:'anticipo',   d:'Se descuenta el anticipo'},
+   {cta:'', nat:'D', org:'orden_pago', d:'Se cancela lo que se le debía'},
+   {cta:'', nat:'H', org:'anticipo',   d:'Se descuenta el anticipo'},
    {cta:'#pago',  nat:'H', org:'neto_pagar', d:'Sale de caja solo el neto'}]},
 
 /* -------------------------------------- EGRESOS POR CONCEPTO DE PAGOS -- */
@@ -4742,49 +5297,49 @@ function MODELOS_BASE(){ return [
  d:'La cuenta de gasto no está fija en el modelo: sale del concepto. Por eso los conceptos se configuran amarrados a su cuenta contable.',
  lineas:[
    {cta:'#concepto', nat:'D', org:'gasto', d:'La cuenta la pone el concepto de pago'},
-   {cta:'2.1.08',    nat:'H', org:'gasto', d:'Queda por pagar hasta que se pague'}]},
+   {cta:'',    nat:'H', org:'gasto', d:'Queda por pagar hasta que se pague'}]},
 
 {c:'EG-02', fam:'egr', n:'Pago del gasto', ver:1, activo:true,
  disp:'Al aprobar y ejecutar la orden de pago',
  d:'Descarga el pasivo de EG-01.',
  lineas:[
-   {cta:'2.1.08', nat:'D', org:'orden_pago', d:''},
+   {cta:'', nat:'D', org:'orden_pago', d:''},
    {cta:'#pago',  nat:'H', org:'orden_pago', d:''}]},
 
 {c:'EG-03', fam:'egr', n:'Anticipo a personal', ver:1, activo:true,
  disp:'Cuando una vendedora o un repartidor pide adelanto antes del día de pago',
  d:'Un anticipo no es gasto: es un derecho de cobro contra el pago futuro.',
  lineas:[
-   {cta:'1.1.07', nat:'D', org:'anticipo', d:'La empresa tiene un derecho por cobrar'},
+   {cta:'', nat:'D', org:'anticipo', d:'La empresa tiene un derecho por cobrar'},
    {cta:'#pago',  nat:'H', org:'anticipo', d:'Sale el dinero'}]},
 
 {c:'EG-04', fam:'egr', n:'Reintegro al accionista', ver:1, activo:true,
  disp:'Al devolverle al accionista lo que puso de su bolsillo',
  d:'Cancela la deuda que nació en VT-04 y en los vueltos que pagó él.',
  lineas:[
-   {cta:'2.1.03', nat:'D', org:'reintegro', d:'Se cancela la deuda con el accionista'},
+   {cta:'', nat:'D', org:'reintegro', d:'Se cancela la deuda con el accionista'},
    {cta:'#pago',  nat:'H', org:'reintegro', d:'Sale por donde se le pagó'}]},
 
 {c:'EG-05', fam:'egr', n:'Diferencia en el cierre de caja', ver:1, activo:true,
  disp:'Al firmar un cierre de caja que no cuadró',
  d:'La diferencia se reconoce, con su autorización y su motivo. No se esconde ajustando el efectivo.',
  lineas:[
-   {cta:'6.1.03', nat:'D', org:'dif_caja', d:'Positivo si faltó, negativo si sobró'},
-   {cta:'1.1.01', nat:'H', org:'dif_caja', d:'El efectivo queda en lo que de verdad hay'}]},
+   {cta:'', nat:'D', org:'dif_caja', d:'Positivo si faltó, negativo si sobró'},
+   {cta:'', nat:'H', org:'dif_caja', d:'El efectivo queda en lo que de verdad hay'}]},
 
 /* ------------------------------------------------------------ TRIBUTOS */
 {c:'TR-01', fam:'trib', n:'Enteramiento del IVA', ver:1, activo:true,
  disp:'Al declarar y pagar el IVA del período',
  d:'El débito fiscal acumulado en VT-01 y VT-02 sale de la empresa hacia el SENIAT. Nunca pasó por resultados.',
  lineas:[
-   {cta:'2.1.05', nat:'D', org:'iva_enterar', d:'Se cancela el pasivo con el fisco'},
+   {cta:'', nat:'D', org:'iva_enterar', d:'Se cancela el pasivo con el fisco'},
    {cta:'#pago',  nat:'H', org:'iva_enterar', d:'Sale por donde se pagó'}]},
 
 {c:'TR-02', fam:'trib', n:'Enteramiento del IGTF', ver:1, activo:true,
  disp:'Al enterar el IGTF percibido en el período',
  d:'La tienda actúa como agente de percepción: cobra, retiene y entera. Entra y sale como pasivo.',
  lineas:[
-   {cta:'2.1.06', nat:'D', org:'igtf_enterar', d:'Se cancela el pasivo con el fisco'},
+   {cta:'', nat:'D', org:'igtf_enterar', d:'Se cancela el pasivo con el fisco'},
    {cta:'#pago',  nat:'H', org:'igtf_enterar', d:'Sale por donde se pagó'}]},
 
 /* -------------------------------------------- DEVOLUCIONES Y ANULACIONES */
@@ -4792,54 +5347,54 @@ function MODELOS_BASE(){ return [
  disp:'Al registrar una devolución parcial o total',
  d:'La venta sigue siendo válida; lo que regresó se reversa. Por eso va contra una cuenta de contra-ingreso y no debitando ventas.',
  lineas:[
-   {cta:'4.1.03', nat:'D', org:'dev_base', d:'Contra-ingreso: se ve aparte del ingreso bruto'},
-   {cta:'2.1.05', nat:'D', org:'dev_iva',  d:'El débito fiscal de esa parte se reversa'},
-   {cta:'2.1.06', nat:'D', org:'dev_igtf', d:'El IGTF de esa parte se reversa'},
-   {cta:'2.1.02', nat:'H', org:'dev_total', d:'Se le queda debiendo a la clienta hasta pagarle'}]},
+   {cta:'', nat:'D', org:'dev_base', d:'Contra-ingreso: se ve aparte del ingreso bruto'},
+   {cta:'', nat:'D', org:'dev_iva',  d:'El débito fiscal de esa parte se reversa'},
+   {cta:'', nat:'D', org:'dev_igtf', d:'El IGTF de esa parte se reversa'},
+   {cta:'', nat:'H', org:'dev_total', d:'Se le queda debiendo a la clienta hasta pagarle'}]},
 
 {c:'DV-02', fam:'devanu', n:'Pago de la devolución a la clienta', ver:1, activo:true,
  disp:'Al entregarle a la clienta el dinero de su devolución',
  d:'Descarga el pasivo de DV-01.',
  lineas:[
-   {cta:'2.1.02', nat:'D', org:'dev_total', d:''},
+   {cta:'', nat:'D', org:'dev_total', d:''},
    {cta:'#vuelto', nat:'H', org:'dev_total', d:'Sale por donde se le pagó'}]},
 
 {c:'DV-03', fam:'devanu', n:'Reverso del costo al inventario', ver:1, activo:true,
  disp:'Junto con cada devolución, por las piezas que volvieron a la tienda',
  d:'La mercancía regresó: el inventario tiene que volver a tenerla y el costo tiene que salir de resultados.',
  lineas:[
-   {cta:'1.1.06', nat:'D', org:'dev_costo', d:'Vuelve al inventario a su costo original'},
-   {cta:'5.1.01', nat:'H', org:'dev_costo', d:'El costo se reversa'}]},
+   {cta:'', nat:'D', org:'dev_costo', d:'Vuelve al inventario a su costo original'},
+   {cta:'', nat:'H', org:'dev_costo', d:'El costo se reversa'}]},
 
 {c:'AN-01', fam:'devanu', n:'Anulación con el vuelto todavía pendiente', ver:1, activo:true,
  disp:'Al anular una venta cuyo vuelto no se le había entregado a la clienta',
  d:'Se reversa la cadena completa. Como el vuelto no se pagó, ese pasivo también se cancela y a la clienta se le devuelve solo lo que de verdad entregó.',
  lineas:[
-   {cta:'4.1.05', nat:'D', org:'base_art',   d:'Contra-ingreso propio de anulaciones'},
-   {cta:'4.1.05', nat:'D', org:'base_deliv', d:''},
-   {cta:'4.1.05', nat:'D', org:'exento',     d:''},
-   {cta:'2.1.05', nat:'D', org:'iva',        d:'Se reversa el débito fiscal'},
-   {cta:'2.1.06', nat:'D', org:'igtf',       d:'Se reversa el IGTF'},
-   {cta:'2.1.01', nat:'D', org:'vuelto_pend', d:'El vuelto que se le debía deja de deberse'},
+   {cta:'', nat:'D', org:'base_art',   d:'Contra-ingreso propio de anulaciones'},
+   {cta:'', nat:'D', org:'base_deliv', d:''},
+   {cta:'', nat:'D', org:'exento',     d:''},
+   {cta:'', nat:'D', org:'iva',        d:'Se reversa el débito fiscal'},
+   {cta:'', nat:'D', org:'igtf',       d:'Se reversa el IGTF'},
+   {cta:'', nat:'D', org:'vuelto_pend', d:'El vuelto que se le debía deja de deberse'},
    {cta:'#metodo', nat:'H', org:'recibido',  d:'Se le devuelve todo lo que puso'}]},
 
 {c:'AN-02', fam:'devanu', n:'Anulación con el vuelto ya entregado', ver:1, activo:true,
  disp:'Al anular una venta cuyo vuelto ya se le había pagado a la clienta',
  d:'Aquí no hay pasivo que cancelar: la clienta ya tiene su vuelto en la mano. Se le devuelve solo el total cobrado. Confundir este caso con AN-01 produce un descuadre de caja silencioso.',
  lineas:[
-   {cta:'4.1.05', nat:'D', org:'base_art',   d:''},
-   {cta:'4.1.05', nat:'D', org:'base_deliv', d:''},
-   {cta:'4.1.05', nat:'D', org:'exento',     d:''},
-   {cta:'2.1.05', nat:'D', org:'iva',        d:''},
-   {cta:'2.1.06', nat:'D', org:'igtf',       d:''},
+   {cta:'', nat:'D', org:'base_art',   d:''},
+   {cta:'', nat:'D', org:'base_deliv', d:''},
+   {cta:'', nat:'D', org:'exento',     d:''},
+   {cta:'', nat:'D', org:'iva',        d:''},
+   {cta:'', nat:'D', org:'igtf',       d:''},
    {cta:'#metodo', nat:'H', org:'total_cobr', d:'Solo el total cobrado: el vuelto ya salió'}]},
 
 {c:'AN-03', fam:'devanu', n:'Reverso del costo por anulación', ver:1, activo:true,
  disp:'Junto con cada anulación, por todas las piezas de la venta',
  d:'La venta entera se deshace: toda la mercancía vuelve al inventario.',
  lineas:[
-   {cta:'1.1.06', nat:'D', org:'costo', d:'Vuelve todo al inventario'},
-   {cta:'5.1.01', nat:'H', org:'costo', d:'Se reversa todo el costo'}]}
+   {cta:'', nat:'D', org:'costo', d:'Vuelve todo al inventario'},
+   {cta:'', nat:'H', org:'costo', d:'Se reversa todo el costo'}]}
 ]; }
 
 /* ======================================================================== */
@@ -4894,11 +5449,19 @@ function modelosDe(fam){ return modelos().filter(m=>m.fam===fam); }
 function modelosRotos(){ return modelos().filter(m=>m.activo!==false && !cuadraModelo(m).ok); }
 function modelosApagados(){ return modelos().filter(m=>m.activo===false); }
 /* cuentas del modelo que no existen en el catálogo: eso rompe el asiento */
+/* Sin cuenta y con cuenta que ya no existe son dos cosas distintas: la
+   primera es trabajo por hacer, la segunda es un error que rompe el asiento.
+   Mezclarlas escondería el error dentro del montón. */
+function lineasSinCta(m){ return (m.lineas||[]).filter(l=>!l.cta); }
 function ctasHuerfanas(m){
-  return (m.lineas||[]).filter(l=>!esCtaDin(l.cta) && !ctaNom(l.cta))
+  return (m.lineas||[]).filter(l=>l.cta && !esCtaDin(l.cta) && !ctaNom(l.cta))
     .map(l=>l.cta).filter((c,i,a)=>a.indexOf(c)===i);
 }
 function modelosHuerfanos(){ return modelos().filter(m=>ctasHuerfanas(m).length); }
+function modelosSinCta(){ return modelos().filter(m=>lineasSinCta(m).length); }
+function lineasPorAsignar(){
+  return modelos().reduce((a,m)=>a+lineasSinCta(m).length, 0);
+}
 
 /* ==========================================================================
    Ventas válidas, anuladas y devueltas
@@ -5086,6 +5649,7 @@ function registraDevolucion(num, cod, det){
    SICOM v3 · pantallas de ventas, seguridad y contabilidad
    ========================================================================== */
 let VSEL = null, VACC = null, VMOT = '', VCLA = '', VQ = '', DEV = null, CTAED = null;
+let CTAPAD = '', CTABUF = null;
 let VMOTC = '', VDET = '';
 
 /* ------------------------------------------------------------- VENTAS ---- */
@@ -5453,25 +6017,57 @@ document.addEventListener('click', e=>{
 
   /* ---------------- plan de cuentas ---------------- */
   if(b.id === 'ct_g'){
-    const c = ($('#ct_c').value || '').trim(), n = ($('#ct_n').value || '').trim(), t = $('#ct_t').value;
-    if(!/^[\d.]{3,14}$/.test(c)) return aviso('El código de la cuenta lleva números y puntos, como 1.1.01.', true);
+    const c = ($('#ct_c').value || '').trim(), n = ($('#ct_n').value || '').trim();
+    const v = valCodigo(c);
+    if(!v.ok) return aviso(v.msg, true);
     if(n.length < 3) return aviso('Escriba el nombre de la cuenta.', true);
-    if((DB.cuentas||[]).some(x=>x.c === c)) return aviso('Ya existe una cuenta con el código '+c+'.', true);
-    DB.cuentas.push({c:c, n:n, t:t});
-    bitacora('contab','Cuenta agregada', c+' · '+n+' · '+t);
-    aviso('Cuenta '+c+' agregada.'); pinta(); return;
+    DB.cuentas.push({c:c, n:n, t:v.tipo});
+    CTABUF = null;
+    bitacora('contab','Cuenta agregada', c+' · '+n+' · '+v.tipo+' · '+nivelNom(c).toLowerCase());
+    aviso('Cuenta '+c+' agregada como cuenta '+nivelNom(c).toLowerCase()+'.'); pinta(); return;
+  }
+  if(b.dataset.ctred !== undefined){ CTAED = b.dataset.ctred || null; pinta(); return; }
+  if(b.dataset.ctrg){
+    const c = b.dataset.ctrg, o = ctaObj(c), n = (($('#ct_rn')||{}).value || '').trim();
+    if(!o) return aviso('Esa cuenta ya no está.', true);
+    if(n.length < 3) return aviso('Escriba el nombre de la cuenta.', true);
+    if(n === o.n){ CTAED = null; pinta(); return; }
+    bitacora('contab','Cuenta renombrada', c+' · «'+o.n+'» → «'+n+'»');
+    o.n = n; CTAED = null;
+    aviso('Cuenta '+c+' renombrada.'); pinta(); return;
   }
   if(b.dataset.ctdel){
     const c = b.dataset.ctdel;
+    if(hijasDe(c).length)
+      return aviso('De '+c+' cuelgan '+hijasDe(c).length+' cuentas. Elimine primero las de abajo.', true);
     if(OPS.some(o=>ctaDe(o.k) === c)) return aviso('Esa cuenta está asignada a una operación: desasígnela primero.', true);
+    if(modelos().some(m=>(m.lineas||[]).some(l=>l.cta === c)))
+      return aviso('Esa cuenta está usada en un modelo de asiento: quítela de ahí primero.', true);
     DB.cuentas = DB.cuentas.filter(x=>x.c !== c);
     bitacora('contab','Cuenta eliminada', c);
     aviso('Cuenta eliminada.'); pinta(); return;
   }
 });
 
+/* la cuenta madre elegida propone el código siguiente que está libre */
+document.addEventListener('change', e=>{
+  if(e.target && e.target.id === 'ct_p'){
+    CTAPAD = e.target.value; CTABUF = null; pinta(); return;
+  }
+});
+document.addEventListener('input', e=>{
+  if(e.target && e.target.id === 'ct_c'){
+    CTABUF = e.target.value; const p = e.target.selectionStart; pinta();
+    const n = $('#ct_c'); if(n){ n.focus(); n.setSelectionRange(p, p); }
+    return;
+  }
+});
+
 document.addEventListener('input', e=>{
   const id = e.target.id, v = e.target.value;
+  if(id === 'a_ref'){ REI.ref = v; return; }
+  if(id === 'a_m'){ REI.buf = v; const s = e.target.selectionStart; pinta();
+    const n = $('#a_m'); if(n){ n.focus(); n.setSelectionRange(s, s); } return; }
   if(id === 'vq'){ VQ = v; const s = e.target.selectionStart; pinta();
     const n = $('#vq'); if(n){ n.focus(); n.setSelectionRange(s, s); } return; }
   if(id === 'dv_mot' || id === 'an_mot'){ VMOT = v; return; }
@@ -6234,8 +6830,11 @@ function rvPasoCedula(){
     h += '<div class="hallado" style="margin-top:14px"><span class="av">'+esc(ini(c))+'</span>'
       + '<div style="flex:1"><b>'+esc(nomComp(c))+'</b>'
       + '<div class="mini" style="margin-top:4px">V-'+esc(c.doc)+' · '+esc(telComp(c))+' · '+esc(c.mail||'sin correo')+'</div>'
-      + '<div class="mini">'+cs.length+' '+(cs.length === 1 ? 'orden' : 'órdenes')+' '
-      + (esAnular() ? 'que se pueden anular' : 'con artículos por devolver')+'</div></div>'
+      + '<div class="mini">'+(esAnular()
+          ? cs.filter(v=>!puedeAnular(v)).length + ' ' + (cs.filter(v=>!puedeAnular(v)).length === 1
+              ? 'orden que se puede anular' : 'órdenes que se pueden anular')
+          : cs.filter(v=>!puedeDevolver(v)).length + ' ' + (cs.filter(v=>!puedeDevolver(v)).length === 1
+              ? 'orden con artículos por devolver' : 'órdenes con artículos por devolver'))+'</div></div>'
       + '<button class="b sm gh" id="rv_otro">Otra cédula</button></div>';
   }
   h += '</div>';
@@ -6265,7 +6864,8 @@ function rvPasoOrdenes(){
   h += '<div class="ordenes">';
   cs.forEach(v=>{
     const d = diasDesde(v), sel = RV.num === v.num;
-    const bloq = esAnular() ? puedeAnular(v) : '';
+    const bloq = esAnular() ? puedeAnular(v) : puedeDevolver(v);
+    const porVue = !esAnular() && vueltoPendDe(v) > 0.005;
     const fuera = !esAnular() && !dentroPlazo(v);
     h += '<button class="orden'+(sel ? ' on' : '')+(bloq ? ' no' : '')+'" data-rvsel="'+esc(v.num)+'"'
       + (bloq ? ' disabled' : '')+'>'
@@ -6279,7 +6879,8 @@ function rvPasoOrdenes(){
             +v.lineas.filter((l,i)=>l.cant - devueltasDe(v,i) > 0).map(l=>esc(l.nom)).slice(0,3).join(' · '))
       + '</span></span>'
       + '<span class="omonto">USD '+fN(v.total)+'</span>'
-      + '<span class="oest">'+(bloq ? '<span class="chip mal">tiene devoluciones</span>'
+      + '<span class="oest">'+(porVue ? '<span class="chip mal">vuelto pendiente</span>'
+          : bloq ? '<span class="chip mal">tiene devoluciones</span>'
           : fuera ? '<span class="chip avi">fuera de plazo</span>'
           : sel ? '<span class="chip ok">elegida</span>' : '<span class="chip">elegir</span>')+'</span>'
       + '</button>';
@@ -6288,6 +6889,15 @@ function rvPasoOrdenes(){
   if(cs.some(v=>esAnular() && puedeAnular(v)))
     h += '<div class="nota">Una orden con devoluciones ya registradas no se puede anular: el inventario quedaría descuadrado. '
        + 'Registre el resto como devolución.</div>';
+  const cv = cs.filter(v=>!esAnular() && vueltoPendDe(v) > 0.005);
+  if(cv.length)
+    h += '<div class="nota rj"><b>'+cv.length+' '+(cv.length===1?'orden tiene':'órdenes tienen')
+       + ' un vuelto pendiente y no admite'+(cv.length===1?'':'n')+' devolución.</b> '
+       + 'Mientras se le deba dinero de esa misma venta, devolver parte de la mercancía deja dos deudas cruzadas '
+       + 'sobre una sola operación. Entréguele el vuelto en <b>Tesorería · Vueltos y devoluciones</b> y la orden '
+       + 'se libera, o anule la venta completa.'
+       + '<div style="margin-top:10px"><button class="b sm gh" data-irtes="vueltos">Ir a entregar el vuelto</button> '
+       + '<button class="b sm gh" data-cruza="anl">Pasar a anulación</button></div></div>';
   h += '</div>';
   return h;
 }
@@ -6453,6 +7063,7 @@ function flujoAnular(){
 
 /* ejecuta según el camino, no según el motivo */
 function rvEjecuta(){
+  if(trancaTasa(esAnular() ? 'anular la venta' : 'registrar la devolución')) return;
   const v = rvVenta(); if(!v) return aviso('Elija primero la orden.', true);
   const tipo = esAnular() ? 'anul' : 'dev';
   const vm = valMotivo(tipo, RV.cod, RV.det); if(!vm.ok) return aviso(vm.msg, true);
@@ -6475,6 +7086,7 @@ function rvEjecuta(){
   }
 
   /* devolver */
+  const nod = puedeDevolver(v); if(nod) return aviso(nod, true);
   if(!RV.items || rvTotal() < 0.005) return aviso('Marque qué artículos regresan.', true);
   if(!dentroPlazo(v)){
     if(!hayClave()) return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true);
@@ -6498,7 +7110,8 @@ document.addEventListener('click', e=>{
     RV.cod = ''; RV.det = ''; RV.clave = ''; RV.items = null;
     const v = rvVenta();
     if(v && DSUB === 'anl' && puedeAnular(v)){ RV.num = null; }
-    if(v && DSUB === 'dvr' && !comprasPara(RV.cliId, 'devolver').some(x=>x.num === v.num)){ RV.num = null; }
+    if(v && DSUB === 'dvr' && (puedeDevolver(v)
+        || !comprasPara(RV.cliId, 'devolver').some(x=>x.num === v.num))){ RV.num = null; }
     pinta(); window.scrollTo(0, 0);
     aviso(DSUB === 'anl' ? 'Pasó al camino de anulación.' : 'Pasó al camino de devolución.');
     return;
@@ -6510,9 +7123,19 @@ document.addEventListener('click', e=>{
    ========================================================================== */
 DB = cargar();
 if(!DB.bitacora.length) bitacora('datos','Sistema iniciado','base de calidad con datos de prueba');
+if(DB._migPlan){ delete DB._migPlan;
+  bitacora('contab','Plan de cuentas reestructurado',
+    'tres niveles: cuenta madre, cuenta título y cuenta detalle · '+DB.cuentas.length+' cuentas'); }
+if(DB._migMarca){ delete DB._migMarca;
+  bitacora('marca','Logo y paleta del diseño 1',
+    'monograma dorado sobre blanco · oro '+ORO_CK+' · tinta #22180f'); }
+if(DB._migMod){ delete DB._migMod;
+  bitacora('contab','Modelos de asiento sin cuentas',
+    'la estructura queda; las cuentas las asigna la empresa · '+lineasPorAsignar()+' líneas por asignar'); }
 if(!DB.cfg.cajeras.some(k=>k.id===DB.turno)){ const a=DB.cfg.cajeras.find(k=>k.activo); if(a) DB.turno=a.id; }
 nuevaVenta();
 nuevaRV();
+nuevoREI();
 aplicaTema();
 pinta();
 /* ==========================================================================
@@ -6529,30 +7152,35 @@ document.addEventListener('click', e=>{
   if(b.dataset.kgua){
     const m = modeloDe(b.dataset.kgua); if(!m) return;
     const nuevas = m.lineas.map((l,i)=>{ const s = $('#mo_c_'+m.c+'_'+i); return s ? s.value : l.cta; });
-    /* el cuadre no depende de las cuentas, pero una cuenta vacía sí rompe */
-    const vacia = nuevas.findIndex(c=>!c);
-    if(vacia >= 0) return aviso('La línea '+(vacia+1)+' se quedó sin cuenta.', true);
+    /* los modelos nacen en blanco: obligar a llenar las seis líneas de una
+       vez impediría guardar el avance. Se permite ir de a poco y la pantalla
+       lleva la cuenta de lo que falta. */
+    const faltan = nuevas.filter(c=>!c).length;
     /* una cuenta que aparece en el debe y en el haber del mismo asiento se
-       cancela sola: el asiento cuadra pero no mueve nada */
+       cancela sola: el asiento cuadra pero no mueve nada. Las líneas todavía
+       sin asignar no cuentan: dos vacías no son «la misma cuenta». */
     const dd = {}, hh = {};
-    m.lineas.forEach((l,i)=>{ (l.nat === 'D' ? dd : hh)[nuevas[i]] = true; });
+    m.lineas.forEach((l,i)=>{ if(nuevas[i]) (l.nat === 'D' ? dd : hh)[nuevas[i]] = true; });
     const ambas = Object.keys(dd).filter(c=>hh[c]);
     if(ambas.length) return aviso('La cuenta ' + ambas[0]
       + ' quedaría en el debe y en el haber del mismo asiento: se cancelaría sola.', true);
     const cam = [];
     nuevas.forEach((c,i)=>{ if(c !== m.lineas[i].cta)
-      cam.push('línea '+(i+1)+': '+m.lineas[i].cta+' → '+c); });
+      cam.push('línea '+(i+1)+': '+(m.lineas[i].cta || 'sin cuenta')+' → '+(c || 'sin cuenta')); });
     if(!cam.length) return aviso('No cambió ninguna cuenta.');
     /* una cuenta que no existe se avisa, pero no se bloquea: puede que la vaya
        a crear enseguida. Lo que no se hace es dejarlo pasar en silencio. */
-    const inex = nuevas.filter(c=>!esCtaDin(c) && !ctaNom(c));
+    const inex = nuevas.filter(c=>c && !esCtaDin(c) && !ctaNom(c));
     nuevas.forEach((c,i)=>{ m.lineas[i].cta = c; });
     m.ver = (m.ver || 1) + 1;
     bitacora('conta','Modelo de asiento modificado',
       m.c + ' · ' + m.n + ' · v' + (m.ver-1) + ' → v' + m.ver + ' · ' + cam.join(' · '));
     aviso(inex.length
       ? 'Guardado como v'+m.ver+', pero '+inex.join(', ')+' no está en el catálogo.'
-      : 'Modelo '+m.c+' guardado como v'+m.ver+'.', inex.length ? true : false);
+      : faltan
+        ? 'Modelo '+m.c+' guardado como v'+m.ver+' · quedan '+faltan+' '
+          +(faltan===1?'línea':'líneas')+' por asignar.'
+        : 'Modelo '+m.c+' guardado como v'+m.ver+' · completo.', inex.length ? true : false);
     pinta(); return;
   }
 
@@ -6574,14 +7202,15 @@ document.addEventListener('click', e=>{
     const f = MODELOS_BASE().find(x=>x.c === m.c);
     if(!f) return aviso('Este modelo no tiene versión de fábrica.', true);
     const igual = JSON.stringify(f.lineas) === JSON.stringify(m.lineas) && m.activo !== false;
-    if(igual) return aviso('Ya está igual al de fábrica.');
-    if(!confirm('¿Devolver el modelo ' + m.c + ' a como venía de fábrica?\n\n'
-      + 'Las cuentas que usted cambió se pierden. Los comprobantes ya generados no se tocan.')) return;
+    if(igual) return aviso('Ya está en blanco.');
+    if(!confirm('¿Dejar el modelo ' + m.c + ' sin cuentas asignadas?\n\n'
+      + 'La estructura del asiento se conserva; las cuentas que usted asignó se pierden. '
+      + 'Los comprobantes ya generados no se tocan.')) return;
     m.lineas = JSON.parse(JSON.stringify(f.lineas));
     m.activo = true;
     m.ver = (m.ver || 1) + 1;
-    bitacora('conta','Modelo de asiento restaurado', m.c + ' · ' + m.n + ' · v' + m.ver + ' · vuelto al de fábrica');
-    aviso('Modelo '+m.c+' devuelto al de fábrica, como v'+m.ver+'.');
+    bitacora('conta','Modelo de asiento restaurado', m.c + ' · ' + m.n + ' · v' + m.ver + ' · sin cuentas asignadas');
+    aviso('Modelo '+m.c+' quedó sin cuentas, como v'+m.ver+'.');
     pinta(); return;
   }
 });
@@ -6619,9 +7248,38 @@ document.addEventListener('click', e=>{
   }
   if(b.id === 'pc_csv'){
     bajaArchivo('plan-de-cuentas.csv', csvPlanCuentas());
+    bitacora('contab','Plan de cuentas descargado', (DB.cuentas||[]).length+' cuentas en tres niveles');
     aviso('Plan de cuentas descargado.');
     return;
   }
+  if(b.id === 'ib_csv'){
+    bajaArchivo('ingresos-brutos-' + ibAnioSel() + '.csv', csvIngresosBrutos());
+    bitacora('trib','Ingresos brutos descargados', 'ejercicio ' + ibAnioSel());
+    aviso('Ingresos brutos de ' + ibAnioSel() + ' descargados.');
+    return;
+  }
+  if(b.dataset.iaeon){
+    DB.fisc.iaeActivo = b.dataset.iaeon === 'si';
+    aviso(DB.fisc.iaeActivo ? 'El impuesto de actividades económicas se calcula.'
+                            : 'El impuesto de actividades económicas queda sin calcular.');
+    guardar(); pinta(); return;
+  }
+  if(b.id === 'iae_g'){
+    const a = pila(($('#iae_a')||{}).value), m = pila(($('#iae_m')||{}).value);
+    if(!isFinite(a) || a < 0 || a > 20)
+      return aviso('La alícuota va entre 0 y 20 %. Búsquela en la ordenanza de su municipio.', true);
+    if(!isFinite(m) || m < 0) return aviso('El mínimo tributable no puede ser negativo.', true);
+    DB.fisc.iaeAlic = r2(a); DB.fisc.iaeMin = r2(m);
+    bitacora('trib','Alícuota de actividades económicas',
+      fN(r2(a),2) + ' %' + (m > 0 ? ' · mínimo USD ' + fN(r2(m)) : ''));
+    aviso('Alícuota guardada: ' + fN(r2(a),2) + ' %.');
+    pinta(); return;
+  }
+  if(b.dataset.irtrib){ TAB='trib'; BSUB=b.dataset.irtrib; pinta(); window.scrollTo(0,0); return; }
+});
+
+document.addEventListener('change', e=>{
+  if(e.target && e.target.id === 'ib_anio'){ IBANIO = e.target.value; pinta(); window.scrollTo(0,0); }
 });
 
 document.addEventListener('change', e=>{
