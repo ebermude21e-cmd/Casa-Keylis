@@ -10,11 +10,11 @@
   --oro:#c8a24a; --oro-cl:#e0c37e; --oro-os:#9c7c2e;
   --crema:#f7f2e7; --crema-2:#efe6d3; --marron:#4a3826; --marron-2:#6b533a;
   --page:#faf7f0; --panel:#ffffff; --sup:#f5f0e4; --sup2:#ebe3d2;
-  --ink:#2c2118; --ink2:#6b5c4c; --muted:#9a8b79;
+  --ink:#2c2118; --ink2:#6b5c4c; --muted:#776e5a;
   --linea:#e2d8c4; --hair:#efe8db;
   --ok:#2f8f5b; --ok-bg:#e6f4ec; --ok-ink:#1f6b42;
   --mal:#c1442f; --mal-bg:#fbeae6; --mal-ink:#9e3524;
-  --avi:#b7791f; --avi-bg:#fdf3e0;
+  --avi:#b7791f; --avi-bg:#fdf3e0; --avi-ink:#96610f;
   --acc:#5b6ea8; --acc-bg:#eef1f9; --acc-ink:#3d4d80;
   --r1:9px; --r2:14px; --r3:20px;
   --sh1:0 1px 2px rgba(74,56,38,.06);
@@ -321,7 +321,7 @@ table.dat .n{text-align:right;font-variant-numeric:tabular-nums}
 }
 
 /* ===================== SICOM v3 · ventas, anulación y devolución ========== */
-.card.editando{border-color:var(--oro);box-shadow:var(--ring)}
+.card.editando{border-color:var(--oro);box-shadow:var(--ring),var(--sh2)}
 table.dat td .chip{white-space:nowrap}
 .dat tr td[colspan] .card{margin:0}
 /* la ficha de una venta abierta dentro de la tabla */
@@ -329,7 +329,8 @@ table.dat td .chip{white-space:nowrap}
 .dat .card h2{font-size:15px}
 /* clave: nunca se ve lo que se escribe */
 input[type=password]{letter-spacing:.18em;font-family:ui-monospace,monospace}
-input[type=password]::placeholder{letter-spacing:normal;font-family:inherit}
+input[type=password]::placeholder{letter-spacing:normal;
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 
 /* ===================== SICOM v2 · identidad configurable ================== */
 /* estas reglas van después de las originales: mismo peso, ganan por posición */
@@ -352,7 +353,7 @@ input[type=password]::placeholder{letter-spacing:normal;font-family:inherit}
   box-shadow:var(--sh1);transition:.14s;padding:0}
 .paleta .sw:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
 .paleta .sw.on{border-color:var(--ink);box-shadow:var(--ring)}
-.prev{display:flex;gap:0;align-items:stretch;border:1px solid var(--linea);border-radius:var(--r1);
+.prevcol{display:flex;gap:0;align-items:stretch;border:1px solid var(--linea);border-radius:var(--r1);
   overflow:hidden;height:46px}
 .prev span{flex:1}
 .prev .tx{flex:0 0 auto;display:grid;place-items:center;padding:0 16px;font-size:13px;font-weight:700}
@@ -376,10 +377,157 @@ input[type=password]::placeholder{letter-spacing:normal;font-family:inherit}
 .mailbd .logo.logoimg{width:auto;max-width:180px;height:56px;object-fit:contain;
   background:var(--logo-bg,transparent);border-radius:12px;padding:4px 8px;display:block;margin:0 auto}
 
+/* .pend también existe como tarjeta suelta, y .acc como fila de botones:
+   ninguna de las dos debe colarse en el visor ni en la píldora */
+.estado.pend{border:0;padding:18px 20px;margin-bottom:0;
+  background:var(--avi-bg);color:var(--avi-ink)}
+.chip.acc{margin-top:0}
+.chip.avi{background:var(--avi-bg);color:var(--avi-ink)}
+
+.visor.visor-anu{
+  margin-top:16px;border:1px solid var(--mal);
+  background:color-mix(in srgb, var(--mal) 7%, var(--panel))
+}
+.visor.visor-anu .vk{color:var(--mal-ink)}
+.visor.visor-anu .vn{color:var(--mal-ink)}
+.visor.visor-anu .veq{color:var(--mal-ink);opacity:.72}
+
+/* Las 33 tablas anteriores a la integración contable nunca se envolvieron en
+   .tabwrap, así que en pantalla estrecha desbordaban el cuerpo entero y se
+   iba de lado el encabezado con ellas. Que scrollee la tabla, no la página. */
+@media (max-width:900px){
+  .card table.dat{display:block;width:100%;overflow-x:auto}
+}
+/* el plan son seis tablas apiladas que el ojo lee como una sola */
+table.dat.plan{table-layout:fixed}
+table.dat.plan td:nth-child(1){width:120px}
+table.dat.plan td:nth-child(3){width:34%}
+/* la cédula y el sufijo del porcentaje son datos atómicos */
+table.dat.reps td:nth-child(3), table.dat.reps td:nth-child(5){white-space:nowrap}
+/* un solo día en la tendencia no debe leerse como una barra de progreso */
+.tend .d{max-width:96px}
+
+/* ---------- KPIs ejecutivos y estadísticas ---------- */
+:root{
+  --s1:var(--oro);
+  --s2:color-mix(in srgb, var(--oro) 78%, var(--panel));
+  --s3:color-mix(in srgb, var(--oro) 58%, var(--panel));
+  --s4:color-mix(in srgb, var(--oro) 42%, var(--panel));
+  --s5:color-mix(in srgb, var(--oro) 30%, var(--panel));
+  --s6:color-mix(in srgb, var(--oro) 22%, var(--panel));
+}
+.hero{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.hero .h.dest{background:color-mix(in srgb, var(--crema) 55%, var(--panel))}
+.hero .vrow{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-top:5px}
+.hero .vrow .v{font-size:34px;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.05}
+.hero .vrow .u{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:0}
+.dlt{
+  display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;
+  font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;
+  background:var(--sup2);color:var(--muted);white-space:nowrap
+}
+.dlt.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.dlt.mal{background:var(--mal-bg);color:var(--mal-ink)}
+
+.cats.perper{margin:0 0 18px}
+
+/* tendencia */
+.tend{
+  display:flex;align-items:flex-end;gap:6px;height:104px;position:relative;
+  padding-top:20px;border-bottom:1px solid var(--linea)
+}
+.tend .d{flex:1 1 0;min-width:12px;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.tend .d i{display:block;border-radius:4px 4px 0 0;min-height:3px;background:var(--s3)}
+.tend .d.hoy i{background:var(--oro)}
+.tend .prom{position:absolute;left:0;right:0;border-top:1px dashed var(--muted);pointer-events:none}
+.tend .prom b{
+  position:relative;top:-9px;background:var(--panel);padding:0 6px;
+  font-size:10.5px;font-weight:600;color:var(--muted)
+}
+.tendpie{display:flex;gap:6px;margin-top:6px}
+.tendpie span{flex:1 1 0;min-width:12px;text-align:center;font-size:10.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+
+/* barras horizontales */
+.bh{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:baseline;margin-bottom:13px}
+.bh .l{font-size:13.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bh .m{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bh .m em{font-style:normal;font-weight:600;font-size:12px;color:var(--muted);margin-left:7px}
+.bh .t{grid-column:1/-1;height:10px;border-radius:999px;background:var(--sup2);overflow:hidden}
+.bh .t i{display:block;height:100%;border-radius:999px;background:var(--s1)}
+.bh.s2 .t i{background:var(--s2)}
+.bh.s3 .t i{background:var(--s3)}
+.bh.s4 .t i{background:var(--s4)}
+.bh.s5 .t i{background:var(--s5)}
+.bh.s6 .t i{background:var(--s6)}
+
+/* tabla comparativa con micro-barra de margen */
+table.dat.cmp td{padding:9px 10px}
+table.dat.cmp .rank{width:26px;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.mgb{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end;
+  font-variant-numeric:tabular-nums}
+.mgb .mt{flex:0 0 auto;width:56px;height:6px;border-radius:999px;background:var(--sup2);overflow:hidden}
+.mgb .mt i{display:block;height:100%;background:var(--ok)}
+.mgb .mt i.medio{background:var(--avi)}
+.mgb .mt i.bajo{background:var(--mal)}
+
+/* nota de crédito en el libro */
+table.libro tr.nc td.n{color:var(--mal)}
+
+/* ---------- navegación de segundo nivel ---------- */
+.subtabs.sub2{
+  background:transparent;padding:0;gap:2px;margin:-4px 0 18px;
+  border-bottom:1px solid var(--linea);border-radius:0
+}
+.subtabs.sub2 button{
+  border-radius:0;background:transparent;padding:9px 14px;
+  border-bottom:2px solid transparent;font-size:13px
+}
+.subtabs.sub2 button.on{
+  background:transparent;color:var(--ink);border-bottom-color:var(--oro);font-weight:700
+}
+
+/* ---------- lo que todavía no existe ---------- */
+.card.enobra{
+  border-style:dashed;background:linear-gradient(180deg,var(--sup) 0%,var(--panel) 60%);
+  text-align:center;padding:40px 26px
+}
+.card.enobra .obra-ic{font-size:30px;opacity:.5;margin-bottom:10px}
+.card.enobra h2{margin-bottom:8px}
+.card.enobra .cap{max-width:62ch;margin:0 auto 16px}
+.card.enobra .nota{text-align:left;max-width:62ch;margin:0 auto}
+
+/* ---------- encabezado con acción a la derecha ---------- */
+.lvhd{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.lvhd>div:first-child{flex:1 1 240px}
+.lvhd .cap{margin:2px 0 0}
+.lvsel{flex:0 0 auto;min-width:190px}
+.hero.lvtot{margin-bottom:16px}
+
+/* ---------- libro ---------- */
+table.libro tr.anu td{opacity:.55}
+table.libro td:nth-child(2),table.libro td:nth-child(4){white-space:nowrap}
+table.libro td:nth-child(2) .chip{
+  margin-left:6px;vertical-align:middle;font-size:9.5px;padding:1px 6px;font-weight:600
+}
+table.libro tr.anu td.n{text-decoration:line-through}
+/* los códigos de cuenta, los RIF y las cédulas: dato atómico, nunca se parte.
+   No se llama .mono porque ese nombre ya es el monograma del logo. */
+.codn{
+  font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap
+}
+b.codn{font-weight:600;color:var(--ink)}
+td.codn{color:var(--ink2)}
+h3.grp{
+  font-size:11px;margin:22px 0 8px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);font-weight:700
+}
+
 /* ---------- Contabilidad · modelos de asiento ---------- */
 .kpis-mod{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
 .kpis-mod .kpi{
-  border:1px solid var(--linea);border-radius:12px;padding:14px 16px;
+  border:1px solid var(--linea);border-radius:var(--r2);padding:14px 16px;
   display:flex;flex-direction:column;gap:3px;background:var(--panel)
 }
 .kpis-mod .kpi .kn{font-size:28px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
@@ -394,7 +542,7 @@ input[type=password]::placeholder{letter-spacing:normal;font-family:inherit}
 .fams{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px;margin:18px 0}
 .fams .fam{
   display:flex;flex-direction:column;gap:5px;text-align:left;
-  border:1px solid var(--linea);border-radius:12px;padding:14px;background:var(--panel);
+  border:1px solid var(--linea);border-radius:var(--r2);padding:14px;background:var(--panel);
   cursor:pointer;transition:border-color .12s,transform .12s
 }
 .fams .fam:hover{transform:translateY(-1px)}
@@ -420,7 +568,7 @@ input[type=password]::placeholder{letter-spacing:normal;font-family:inherit}
 .modest{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .modcap{margin:-2px 0 12px;max-width:84ch}
 
-.tabwrap{overflow-x:auto;border:1px solid var(--linea);border-radius:10px}
+.tabwrap{overflow-x:auto;border:1px solid var(--linea);border-radius:var(--r1)}
 table.asiento{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
 table.asiento th{
   text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
@@ -436,7 +584,7 @@ td.cta{min-width:230px;display:table-cell}
 td.cta .cnt{
   display:block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;font-weight:600
 }
-td.cta .cnt.din{color:var(--oro)}
+td.cta .cnt.din{color:var(--oro-os)}
 td.cta .ctn{display:block;font-size:11.5px;opacity:.62;line-height:1.4;margin-top:1px}
 td.org b{display:block;font-size:12.5px;font-weight:600}
 td.org .ord{display:block;font-size:11.5px;opacity:.58;line-height:1.42;margin-top:2px;max-width:52ch}
@@ -738,7 +886,7 @@ function selBanco(id,val,extra,o){
 /* ==========================================================================
    Estado
    ========================================================================== */
-let TAB='caja', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
+let TAB='vta', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
 let VTA=null;
 function nuevaVenta(){
   VTA={paso:'cliente',doc:'',cli:null,
@@ -866,9 +1014,8 @@ function cliListo(){
 /* ==========================================================================
    Render
    ========================================================================== */
-const TABS=[['caja','Ingresos'],['dev','Devoluciones'],['tes','Tesorería'],['rep','Reportes'],
-            ['correos','Clientes'],['tasas','Tasas'],['accion','Accionista'],['conta','Contabilidad'],
-            ['cfg','Configuración'],['ger','Gerencial']];
+const TABS=[['vta','Ventas'],['tes','Tesorería'],['trib','Tributos'],['conta','Contabilidad'],
+            ['bd','Base de datos'],['cfg','Configuración'],['ger','Gerencial']];
 function pinta(){
   aplicaTema();
   pintaMarca();
@@ -879,10 +1026,9 @@ function pinta(){
     +(t[0]==='conta'&&nr?'<span class="pip">'+nr+'</span>':'')+'</button>').join('');
   cinta();
   $('#app').innerHTML =
-      TAB==='tasas'?vistaTasas(): TAB==='accion'?vistaAcc(): TAB==='correos'?vistaCorreos()
-    : TAB==='cfg'?vistaCfg(): TAB==='tes'?vistaTes(): TAB==='rep'?vistaRep()
-    : TAB==='ger'?vistaGer(): TAB==='dev'?vistaDevMod(): TAB==='conta'?vistaCont()
-    : (avisoSetup()+vistaCaja());
+      TAB==='tes'?vistaTes(): TAB==='trib'?vistaTrib(): TAB==='conta'?vistaCont()
+    : TAB==='bd'?vistaBD(): TAB==='cfg'?vistaCfg(): TAB==='ger'?vistaGer()
+    : vistaVentas();
   barra();
   guardar();
 }
@@ -1435,7 +1581,7 @@ function pasoCorreo(){
   PS.forEach((p,i)=>{h+='<button class="p '+(i===ia?'on':'ya')+'"><span class="n">'+(i<ia?'✓':(i+1))+'</span><span>'+p[1]+'</span></button>';});
   h+='</div>';
   if(v.pend>0.005) h+='<div class="nota rj" style="margin:0 0 18px"><b>Quedó USD '+fN(v.pend)+' de vuelto por entregar.</b> '
-    +'Ya está en la pestaña <b>Vueltos</b> a nombre de '+esc(nomComp(c))+'. La venta quedó cerrada igual.</div>';
+    +'Ya está en la pestaña <b>Tesorería</b> a nombre de '+esc(nomComp(c))+'. La venta quedó cerrada igual.</div>';
   h+='<div class="g2"><div class="card"><h2>Correo que se le envía</h2>'
     +'<p class="cap">Personalizado con su nombre y con trato '+(c.gen==='X'?'neutro':(c.gen==='F'?'femenino':'masculino'))
     +', con el detalle de lo comprado y el catálogo disponible.</p>'+correoHTML()+'</div>';
@@ -1479,20 +1625,6 @@ function esperadoCaja(f){
   r.efec_bs.esperado=r.efec_bs.neto;
   return r;
 }
-function vistaTes(){
-  const np=pendAbiertos();
-  let h='<h1>Tesorería</h1>'
-    +'<p class="sub">Aquí vive el dinero que no es venta: lo que se le debe a un cliente, lo que se le debe al accionista, '
-    +'y el cuadre del día.</p>'
-    +'<div class="subtabs">'
-    +[['vueltos','Vueltos y devoluciones'+(np.length?' ('+np.length+')':'')],['reint','Reintegros al accionista'],['cierre','Cierre de caja']]
-      .map(x=>'<button data-tsub="'+x[0]+'" class="'+(TSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
-    +'</div>';
-  if(TSUB==='vueltos') h+=tesVueltos();
-  if(TSUB==='reint')   h+=tesReintegros();
-  if(TSUB==='cierre')  h+=tesCierre();
-  return h;
-}
 function tesReintegros(){
   const s=saldoAcc(),t=tasaVigente();
   let h='<div class="hero">'
@@ -1500,7 +1632,7 @@ function tesReintegros(){
     +'<span class="v">'+fN(Math.abs(s))+' <small>USD</small></span>'
     +'<span class="s">'+(t?'Bs '+fN(Math.abs(s)*t.bcv):'')+'</span></div>'
     +'<div class="h"><span class="k">Movimientos</span><span class="v">'+DB.accionista.length+'</span>'
-    +'<span class="s">ver el detalle en la pestaña Accionista</span></div>'
+    +'<span class="s">ver el detalle en Tesorería · Estado de cuenta del accionista</span></div>'
     +'<div class="h"><span class="k">Reintegros hechos</span><span class="v">'+DB.accionista.filter(m=>m.tipo==='reintegro').length+'</span>'
     +'<span class="s">todos salen de aquí</span></div></div>';
   h+='<div class="card" style="margin-top:18px"><h2>Reponerle el dinero al accionista</h2>'
@@ -1594,7 +1726,7 @@ function formEntrega(v,c,t){
   h+='<div><label class="f">Correo que se le enviará</label>'
     +'<div class="mail"><div class="mailhd">'
     +'<div><span class="mk">Para</span>'+esc(nomComp(c))+' &lt;'+esc(c.mail)+'&gt;</div>'
-    +'<div><span class="mk">Asunto</span><b>Su vuelto de la compra '+esc(v.venta)+' ya fue entregado</b></div></div>'
+    +'<div><span class="mk">Asunto</span><b>Su reembolso de la compra '+esc(v.venta)+' ya fue entregado</b></div></div>'
     +'<div class="mailbd" style="padding:20px"><p style="margin-top:0">Hola '+esc(c.nom)+', le confirmamos que le entregamos '
     +'el vuelto pendiente de su compra <b>'+esc(v.venta)+'</b> del '+fFecha(v.fecha)+'.</p>'
     +'<div class="bloque" style="margin:14px 0"><table><tbody>'
@@ -1693,90 +1825,688 @@ function tesCierre(){
 }
 
 /* ----------------------------------------------------------- REPORTES ---- */
-function vistaRep(){
-  let h='<h1>Reportes de ventas</h1>'
-    +'<p class="sub">Lo que se vendió hoy, y de dónde viene. Los totales son netos: lo anulado no suma y lo devuelto resta.</p>'
-    +'<div class="subtabs">'
-    +[['dia','Resumen del día'],['vtas','Todas las ventas'],['est','Estadísticas']]
-      .map(x=>'<button data-rsub="'+x[0]+'" class="'+(RSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
-    +'</div>';
-  return h+(RSUB==='vtas'?repVentas():RSUB==='est'?repEst():repDia());
-}
-function repDia(){
-  const vs=ventasVal(hoy),t=tasaVigente();
-  const tot=vs.reduce((a,v)=>a+netoVenta(v),0), uds=vs.reduce((a,v)=>a+v.lineas.reduce((b,l)=>b+l.cant,0),0);
-  let h='<div class="hero">'
-    +'<div class="h dest"><span class="k">Vendido hoy</span><span class="v">'+fN(tot)+' <small>USD</small></span>'
-    +'<span class="s">'+(t?'Bs '+fN(tot*t.bcv,0):'')+'</span></div>'
-    +'<div class="h"><span class="k">Ventas</span><span class="v">'+vs.length+'</span><span class="s">'+uds+' unidades</span></div>'
-    +'<div class="h"><span class="k">Ticket promedio</span><span class="v">'+fN(vs.length?tot/vs.length:0)+' <small>USD</small></span>'
-    +'<span class="s">por venta</span></div>'
-    +'<div class="h"><span class="k">Delivery facturado</span><span class="v">'+fN(vs.reduce((a,v)=>a+v.deliv,0))+' <small>USD</small></span>'
-    +'<span class="s">'+vs.filter(v=>v.entrega==='delivery').length+' entregas</span></div>'
-    +'<div class="h"><span class="k">Pagos mixtos</span><span class="v">'+vs.filter(v=>v.cobros.length>1).length+'</span>'
-    +'<span class="s">ventas cobradas con más de una vía</span></div></div>';
-  h+='<div class="card" style="margin-top:18px"><h2>Detalle</h2>';
-  if(!vs.length) h+='<div class="vacio"><div class="vi">⌕</div>Todavía no hay ventas hoy.</div>';
-  else{
-    h+='<table class="dat"><thead><tr><th>Hora</th><th>Venta</th><th>Cliente</th><th>Canal</th><th>Vendedor</th>'
-      +'<th>Cajera</th><th>Pago</th><th class="n">Total USD</th></tr></thead><tbody>';
-    vs.slice().sort((a,b)=>b.hora.localeCompare(a.hora)).forEach(v=>{
-      const c=DB.clientes.find(x=>x.id===v.cliId)||{nom:'—',ape:''};
-      h+='<tr><td class="mini">'+esc(v.hora)+'</td><td><b>'+esc(v.num)+'</b>'
-        +(v.pend>0.005?'<div class="mini"><span class="chip avi">vuelto pendiente</span></div>':'')+'</td>'
-        +'<td>'+esc(nomComp(c))+'</td><td>'+esc(v.canal||'—')+'</td>'
-        +'<td class="mini">'+(v.vendedorId?esc(vendNom(v.vendedorId)):'Autoservicio')+'</td>'
-        +'<td class="mini">'+esc(cajeraNom(v.cajera))+'</td>'
-        +'<td class="mini">'+v.cobros.map(x=>(METODOS.find(y=>y.k===x.met)||{}).n).join(' + ')
-        +(v.cobros.length>1?' <span class="chip acc">mixto</span>':'')+'</td>'
-        +'<td class="n"><b>'+fN(v.total)+'</b></td></tr>';});
-    h+='<tr><td colspan="7" style="text-align:right"><b>Total del día</b></td><td class="n"><b>'+fN(tot)+'</b></td></tr>';
-    h+='</tbody></table>';
-  }
-  return h+'</div>';
-}
-function barras(titulo,datos,uni){
-  const max=Math.max.apply(null,datos.map(d=>d[1]).concat([0.0001]));
-  let h='<div class="card"><h2>'+titulo+'</h2>';
-  if(!datos.length) h+='<div class="vacio"><div class="vi">⌕</div>Sin datos.</div>';
-  datos.forEach(d=>{
-    h+='<div class="bar"><div class="bl"><span>'+esc(d[0])+'</span><b>'+(uni||'USD ')+fN(d[1])+'</b></div>'
-      +'<div class="bt"><i style="width:'+Math.max(2,d[1]/max*100)+'%"></i></div></div>';});
-  return h+'</div>';
-}
-function repEst(){
-  const vs=ventasVal(hoy);
-  const agrupa=(fn)=>{const m={};vs.forEach(v=>{const k=fn(v);if(!k)return;m[k]=(m[k]||0)+v.total;});
-    return Object.keys(m).map(k=>[k,Math.round(m[k]*100)/100]).sort((a,b)=>b[1]-a[1]);};
-  const canal=agrupa(v=>v.canal);
-  const vend=agrupa(v=>v.vendedorId?vendNom(v.vendedorId):'Autoservicio');
-  const caj=agrupa(v=>cajeraNom(v.cajera));
-  const met={};
-  vs.forEach(v=>v.cobros.forEach(c=>{const t=tasaEn(v.fecha);
-    const usd=c.mon==='BS'&&t?c.monto/t.bcv:c.monto;
-    const n=(METODOS.find(y=>y.k===c.met)||{}).n;met[n]=(met[n]||0)+usd;}));
-  const metArr=Object.keys(met).map(k=>[k,Math.round(met[k]*100)/100]).sort((a,b)=>b[1]-a[1]);
-  const art={};
-  vs.forEach(v=>v.lineas.forEach(l=>{art[l.nom]=(art[l.nom]||0)+l.cant;}));
-  const artArr=Object.keys(art).map(k=>[k,art[k]]).sort((a,b)=>b[1]-a[1]);
-  const cats={};
-  vs.forEach(v=>v.lineas.forEach(l=>{if(l.cat)cats[l.cat]=(cats[l.cat]||0)+l.precio*l.cant;}));
-  const catArr=Object.keys(cats).map(k=>[k,Math.round(cats[k]*100)/100]).sort((a,b)=>b[1]-a[1]);
+/* ==========================================================================
+   SICOM · Reportes de ventas · resumen y estadísticas
+   Rehecho: una cifra manda, las demás la acompañan, y todo responde a las
+   cinco preguntas que un dueño de tienda se hace al abrir la pantalla.
+   ========================================================================== */
+let ESTPER = 'hoy';
 
-  let h='<div class="g2b" style="margin-top:0">'
-    +'<div>'+barras('Por canal de venta',canal)+barras('Por vendedor',vend)+barras('Por cajera',caj)+'</div>'
-    +'<div>'+barras('Por método de pago',metArr)+barras('Por categoría',catArr)
-    +barras('Artículos más vendidos',artArr,'')+'</div></div>';
-  h+='<div class="card"><h2>Comparativo</h2><table class="dat"><thead><tr><th>Día</th><th class="n">Ventas</th>'
-    +'<th class="n">Total USD</th><th class="n">Ticket promedio</th></tr></thead><tbody>';
-  const fechas=Array.from(new Set(DB.ventas.map(v=>v.fecha))).sort().reverse();
-  fechas.forEach(f=>{const g=ventasVal(f),tt=g.reduce((a,v)=>a+netoVenta(v),0);
-    h+='<tr><td><b>'+fFecha(f)+'</b>'+(f===hoy?' <span class="chip ok">hoy</span>':'')+'</td>'
-      +'<td class="n">'+g.length+'</td><td class="n"><b>'+fN(tt)+'</b></td>'
-      +'<td class="n">'+fN(g.length?tt/g.length:0)+'</td></tr>';});
-  h+='</tbody></table><div class="nota">En el sistema real esto se filtra por rango de fechas y se exporta. '
-    +'Aquí se muestran los días que tienen ventas cargadas.</div></div>';
+const PERIODOS = [['hoy','Hoy'],['ayer','Ayer'],['7d','Últimos 7 días'],['mes','Este mes']];
+
+function diaMenos(n){
+  const d = new Date(hoy + 'T12:00:00'); d.setDate(d.getDate() - n);
+  return isoLocal(d);
+}
+/* {desde, hasta, nom} del período elegido, y el comparable anterior */
+function rangoDe(k){
+  if(k === 'ayer'){ const a = diaMenos(1); return {d:a, h:a, n:'ayer', prev:{d:diaMenos(2), h:diaMenos(2), n:fFecha(diaMenos(2))}}; }
+  if(k === '7d')  return {d:diaMenos(6), h:hoy, n:'los últimos 7 días',
+                          prev:{d:diaMenos(13), h:diaMenos(7), n:'los 7 anteriores'}};
+  if(k === 'mes'){ const p = hoy.slice(0,8) + '01';
+    const ant = new Date(hoy + 'T12:00:00'); ant.setDate(1); ant.setMonth(ant.getMonth()-1);
+    const pa = isoLocal(ant), ua = isoLocal(new Date(new Date(hoy+'T12:00:00').setDate(0)));
+    return {d:p, h:hoy, n:'este mes', prev:{d:pa, h:ua, n:'el mes pasado'}}; }
+  return {d:hoy, h:hoy, n:'hoy', prev:{d:diaMenos(1), h:diaMenos(1), n:fFecha(diaMenos(1))}};
+}
+function ventasRango(d, h){
+  return DB.ventas.filter(v=>v.fecha >= d && v.fecha <= h && !anulada(v));
+}
+/* el costo de una línea: las ventas viejas no lo guardaron, sale del catálogo */
+function costoLinea(l){
+  if(l.costo > 0) return l.costo;
+  const p = DB.productos.find(x=>x.sku === l.sku);
+  return (p && p.costo) || 0;
+}
+function tieneCosto(l){ return costoLinea(l) > 0; }
+
+/* el bloque de cifras de un rango */
+function cifrasDe(d, h){
+  const vs = ventasRango(d, h);
+  let venta = 0, costo = 0, uds = 0, conCosto = 0;
+  vs.forEach(v=>{
+    venta += netoVenta(v);
+    v.lineas.forEach(l=>{
+      uds += l.cant;
+      const c = costoLinea(l);
+      if(c > 0){ costo += c * l.cant; conCosto += l.precio * l.cant; }
+    });
+  });
+  const fug = DB.ventas.filter(x=>anulada(x) && x.anulada.fecha >= d && x.anulada.fecha <= h)
+                .reduce((a,x)=>a+x.total, 0)
+            + DB.ventas.reduce((a,x)=>a + devDe(x).filter(y=>y.fecha >= d && y.fecha <= h)
+                .reduce((b,y)=>b+y.usd, 0), 0);
+  return {n:vs.length, venta:r2(venta), costo:r2(costo), uds:uds,
+          margen:r2(conCosto - costo), baseMargen:r2(conCosto),
+          ticket:r2(vs.length ? venta / vs.length : 0), fugas:r2(fug), ventas:vs};
+}
+
+/* la píldora de variación. subeBueno dice si subir es bueno: en las fugas no */
+function delta(act, ant, subeBueno, sufijo){
+  if(!(ant > 0.005)) return '';
+  const p = ((act - ant) / ant) * 100;
+  if(Math.abs(p) < 1) return '<span class="dlt">= 0,0 %</span>';
+  const bien = (p > 0) === (subeBueno !== false);
+  return '<span class="dlt '+(bien?'ok':'mal')+'">'+(p>0?'▲':'▼')+' '+fN(Math.abs(p),1)+' %'
+    +(sufijo||'')+'</span>';
+}
+function kpiCard(rot, cifra, uni, dlt, sub, dest){
+  return '<div class="h'+(dest?' dest':'')+'"><span class="k">'+esc(rot)+'</span>'
+    + '<div class="vrow"><span class="v">'+cifra+'</span>'
+    + (uni?'<span class="u">'+esc(uni)+'</span>':'') + (dlt||'') + '</div>'
+    + (sub?'<span class="s">'+sub+'</span>':'') + '</div>';
+}
+
+/* ------------------------------------------------- la cabecera de cifras -- */
+function bandaKPI(R){
+  const A = cifrasDe(R.d, R.h), B = cifrasDe(R.prev.d, R.prev.h);
+  const t = tasaEn(R.h) || tasaVigente();
+  const pct = A.baseMargen > 0.005 ? (A.margen / A.baseMargen) * 100 : null;
+  const pctB = B.baseMargen > 0.005 ? (B.margen / B.baseMargen) * 100 : null;
+  const dPts = (pct !== null && pctB !== null && Math.abs(pct - pctB) >= 0.1)
+    ? '<span class="dlt '+(pct>=pctB?'ok':'mal')+'">'+(pct>=pctB?'▲':'▼')+' '
+      + fN(Math.abs(pct-pctB),1)+' pts</span>' : '';
+
+  return '<div class="hero">'
+    + kpiCard('Vendido neto', fN(A.venta), 'USD', delta(A.venta, B.venta, true),
+        (t ? 'Bs '+fN(A.venta*t.bcv, 0)+' · ' : '')
+        + (B.venta > 0.005 ? 'vs '+fN(B.venta)+' '+esc(R.prev.n) : 'sin comparable'), true)
+    + kpiCard('Margen bruto', pct === null ? '—' : fN(A.margen), pct === null ? '' : 'USD', dPts,
+        pct === null ? 'ningún artículo tiene costo cargado'
+          : fN(pct,1)+' % sobre lo que tiene costo')
+    + kpiCard('Ticket promedio', fN(A.ticket), 'USD', delta(A.ticket, B.ticket, true),
+        A.n + ' ' + (A.n===1?'venta':'ventas') + ' · ' + A.uds + ' ' + (A.uds===1?'unidad':'unidades'))
+    + kpiCard('Fugas', fN(A.fugas), 'USD', delta(A.fugas, B.fugas, false),
+        A.fugas < 0.005 ? 'sin anulaciones ni devoluciones' : 'anulado y devuelto en el período')
+    + '</div>';
+}
+
+/* ------------------------------------------------------------ tendencia -- */
+function bloqueTendencia(R){
+  const dias = [];
+  let f = R.d, guarda = 0;
+  while(f <= R.h && guarda++ < 40){ dias.push(f);
+    const x = new Date(f + 'T12:00:00'); x.setDate(x.getDate()+1); f = isoLocal(x); }
+  const datos = dias.map(d=>({f:d, v:r2(ventasRango(d,d).reduce((a,x)=>a+netoVenta(x),0))}));
+  const conVta = datos.filter(x=>x.v > 0.005);
+  if(!conVta.length) return '';
+  const max = Math.max.apply(null, datos.map(x=>x.v)) || 1;
+  const prom = r2(datos.reduce((a,x)=>a+x.v,0) / datos.length);
+  const unico = conVta.length === 1;
+
+  let h = '<div class="card"><h2>Cómo viene el período</h2>'
+    + '<div class="tend">'
+    + (unico ? '' : '<div class="prom" style="bottom:'+(prom/max*100)+'%"><b>promedio '+fN(prom)+'</b></div>')
+    + datos.map(x=>'<div class="d'+(x.f===hoy?' hoy':'')+'" title="'+fFecha(x.f)+' · USD '+fN(x.v)+'">'
+        + '<i style="height:'+(x.v/max*100)+'%"></i></div>').join('')
+    + '</div><div class="tendpie">'
+    + datos.map(x=>'<span>'+x.f.slice(8)+'</span>').join('')+'</div>';
+  if(unico) h += '<div class="nota">Un solo día con ventas en este período. '
+    + 'La comparación aparece cuando haya un segundo día.</div>';
+  return h + '</div>';
+}
+
+/* --------------------------------------------------- barras horizontales -- */
+function bhLista(datos, opt){
+  opt = opt || {};
+  const max = opt.max || Math.max.apply(null, datos.map(x=>x[1])) || 1;
+  const tot = datos.reduce((a,x)=>a+x[1], 0) || 1;
+  const uni = opt.uni === undefined ? 'USD ' : opt.uni;
+  const dec = opt.dec === undefined ? 2 : opt.dec;
+  return datos.map((x,i)=>'<div class="bh s'+Math.min(i+1,6)+'">'
+    + '<span class="l">'+esc(x[0])+'</span>'
+    + '<span class="m">'+uni+fN(x[1],dec)+'<em>'+fN(x[1]/tot*100,1)+' %</em></span>'
+    + '<span class="t"><i style="width:'+Math.max(2, x[1]/max*100)+'%"></i></span></div>').join('');
+}
+/* agrupa, ordena y deja «Otros» si hay cola larga */
+function agrupaTop(pares, tope){
+  const m = {};
+  pares.forEach(p=>{ if(!p[0]) return; m[p[0]] = (m[p[0]]||0) + p[1]; });
+  const ls = Object.keys(m).map(k=>[k, r2(m[k])]).sort((a,b)=>b[1]-a[1]);
+  if(ls.length <= (tope||6)) return ls;
+  const cab = ls.slice(0, (tope||6)-1);
+  const col = ls.slice((tope||6)-1);
+  cab.push(['Otros ('+col.length+')', r2(col.reduce((a,x)=>a+x[1],0))]);
+  return cab;
+}
+
+function bloqueOrigen(R){
+  const vs = ventasRango(R.d, R.h);
+  if(!vs.length) return '';
+  const canal = agrupaTop(vs.map(v=>[v.canal, netoVenta(v)]));
+  const met = [];
+  vs.forEach(v=>v.cobros.forEach(c=>{
+    const t = tasaEn(v.fecha);
+    const usd = c.mon === 'BS' && t ? c.monto / t.bcv : c.monto;
+    const mm = METODOS.find(y=>y.k === c.met);
+    met.push([mm ? mm.n : c.met, usd]);
+  }));
+  const igtf = r2(vs.reduce((a,v)=>a + ((v.fis||{}).igtf || 0), 0));
+  const deliv = r2(vs.reduce((a,v)=>a + (v.deliv || 0), 0));
+
+  return '<div class="card"><h2>De dónde vino el dinero</h2>'
+    + '<div class="g2b">'
+    + '<div><h3 class="grp">Canal de venta</h3>'+bhLista(canal)+'</div>'
+    + '<div><h3 class="grp">Método de pago</h3>'+bhLista(agrupaTop(met))
+      + '<div class="mini" style="margin-top:12px">'
+      + (igtf > 0.005 ? 'IGTF percibido: <b>USD '+fN(igtf)+'</b>' : 'Sin IGTF en el período')
+      + (deliv > 0.005 ? ' · Delivery facturado: <b>USD '+fN(deliv)+'</b>' : '')
+      + '</div></div>'
+    + '</div></div>';
+}
+
+function bloqueArticulos(R){
+  const vs = ventasRango(R.d, R.h);
+  const m = {};
+  vs.forEach(v=>v.lineas.forEach(l=>{
+    const k = l.sku || l.nom;
+    if(!m[k]) m[k] = {nom:l.nom, cat:l.cat || '—', uds:0, venta:0, costo:0, sinCosto:false};
+    const c = costoLinea(l);
+    m[k].uds += l.cant; m[k].venta += l.precio * l.cant;
+    if(c > 0) m[k].costo += c * l.cant; else m[k].sinCosto = true;
+  }));
+  const ls = Object.keys(m).map(k=>m[k]).sort((a,b)=>b.venta - a.venta);
+  if(!ls.length) return '';
+  return '<div class="card"><h2>Qué se vendió</h2>'
+    + '<div class="tabwrap"><table class="dat cmp"><thead><tr>'
+    + '<th class="rank">#</th><th>Artículo</th><th>Categoría</th>'
+    + '<th class="n">Und</th><th class="n">Venta USD</th><th class="n">Costo USD</th>'
+    + '<th class="n">Margen USD</th><th class="n">Margen</th></tr></thead><tbody>'
+    + ls.map((x,i)=>{
+        const mg = r2(x.venta - x.costo);
+        const p = x.sinCosto || x.costo <= 0 ? null : (mg / x.venta) * 100;
+        const cl = p === null ? '' : (p >= 40 ? '' : p >= 15 ? ' medio' : ' bajo');
+        return '<tr><td class="rank">'+(i+1)+'</td><td><b>'+esc(x.nom)+'</b></td>'
+          + '<td class="mini">'+esc(x.cat)+'</td>'
+          + '<td class="n">'+x.uds+'</td><td class="n">'+fN(x.venta)+'</td>'
+          + '<td class="n">'+(x.costo>0?fN(x.costo):'—')+'</td>'
+          + '<td class="n">'+(p===null?'—':fN(mg))+'</td>'
+          + '<td class="n">'+(p===null
+              ? '<span class="mini">sin costo</span>'
+              : '<span class="mgb"><span class="mt"><i class="'+cl.trim()+'" style="width:'
+                + Math.max(2, Math.min(100, p))+'%"></i></span>'+fN(p,1)+' %</span>')
+          + '</td></tr>'; }).join('')
+    + '</tbody></table></div></div>';
+}
+
+function bloqueVendedoras(R){
+  const vs = ventasRango(R.d, R.h);
+  const m = {};
+  vs.forEach(v=>{
+    const k = v.vendedorId ? vendNom(v.vendedorId) : 'Autoservicio';
+    if(!m[k]) m[k] = {n:0, usd:0};
+    m[k].n++; m[k].usd += netoVenta(v);
+  });
+  const ls = Object.keys(m).map(k=>[k, m[k]]).sort((a,b)=>b[1].usd - a[1].usd);
+  if(!ls.length) return '';
+  const tot = ls.reduce((a,x)=>a+x[1].usd, 0) || 1;
+  return '<div class="card"><h2>Quién vendió</h2><table class="dat"><thead><tr>'
+    + '<th>Vendedora</th><th class="n">Ventas</th><th class="n">USD</th>'
+    + '<th class="n">Ticket</th><th class="n">% del total</th></tr></thead><tbody>'
+    + ls.map(x=>'<tr><td><b>'+esc(x[0])+'</b></td><td class="n">'+x[1].n+'</td>'
+        + '<td class="n">'+fN(r2(x[1].usd))+'</td>'
+        + '<td class="n">'+fN(r2(x[1].usd / x[1].n))+'</td>'
+        + '<td class="n">'+fN(x[1].usd / tot * 100, 1)+' %</td></tr>').join('')
+    + '</tbody></table></div>';
+}
+
+function bloqueComparativo(){
+  const fechas = Array.from(new Set(DB.ventas.map(v=>v.fecha))).sort().reverse().slice(0, 30);
+  if(!fechas.length) return '';
+  let ant = null;
+  return '<div class="card"><h2>Día por día</h2><div class="tabwrap"><table class="dat"><thead><tr>'
+    + '<th>Día</th><th class="n">Ventas</th><th class="n">Total USD</th>'
+    + '<th class="n">Ticket</th><th class="n">Margen</th><th class="n">Δ vs día anterior</th>'
+    + '</tr></thead><tbody>'
+    + fechas.map(f=>{
+        const c = cifrasDe(f, f);
+        const p = c.baseMargen > 0.005 ? (c.margen / c.baseMargen) * 100 : null;
+        const prev = fechas[fechas.indexOf(f) + 1];
+        const cp = prev ? cifrasDe(prev, prev) : null;
+        const d = cp && cp.venta > 0.005 ? delta(c.venta, cp.venta, true) : '';
+        return '<tr><td><b>'+fFecha(f)+'</b>'+(f===hoy?' <span class="chip ok">hoy</span>':'')+'</td>'
+          + '<td class="n">'+c.n+'</td><td class="n"><b>'+fN(c.venta)+'</b></td>'
+          + '<td class="n">'+fN(c.ticket)+'</td>'
+          + '<td class="n">'+(p===null?'—':fN(p,1)+' %')+'</td>'
+          + '<td class="n">'+(d||'—')+'</td></tr>'; }).join('')
+    + '</tbody></table></div></div>';
+}
+
+/* ---------------------------------------------------------- las pantallas -- */
+function selPeriodo(){
+  return '<div class="cats perper">'
+    + PERIODOS.map(p=>'<button class="'+(ESTPER===p[0]?'on':'')+'" data-estper="'+p[0]+'">'+p[1]+'</button>').join('')
+    + '</div>';
+}
+
+function vacioVentas(R){
+  if(!DB.ventas.length)
+    return '<div class="card enobra"><div class="obra-ic">📈</div>'
+      + '<h2>Aquí verá cuánto vendió, cuánto ganó y de dónde vino el dinero</h2>'
+      + '<p class="cap">Se llena solo con la primera venta.</p>'
+      + '<div class="acc" style="justify-content:center"><button class="b oro" data-goto="caja|ing">Registrar la primera venta</button></div></div>';
+  const ay = cifrasDe(diaMenos(1), diaMenos(1));
+  const ha = ay.ventas.filter(v=>String(v.hora) <= horaAhora()).reduce((a,v)=>a+netoVenta(v),0);
+  return '<div class="vacio"><div class="vi">◷</div>'
+    + 'Todavía no hay ventas en '+esc(R.n)+'.'
+    + (ha > 0.005 ? '<div class="mini">Ayer a esta hora llevaba USD '+fN(r2(ha))+'.</div>' : '')
+    + '<div class="acc" style="justify-content:center"><button class="b oro sm" data-estper="7d">Ver los últimos 7 días</button></div></div>';
+}
+
+function repEst(){
+  const R = rangoDe(ESTPER);
+  let h = selPeriodo() + bandaKPI(R);
+  if(!ventasRango(R.d, R.h).length) return h + vacioVentas(R);
+  h += bloqueTendencia(R) + bloqueOrigen(R) + bloqueArticulos(R)
+     + bloqueVendedoras(R) + bloqueComparativo();
   return h;
+}
+
+function repDia(){
+  const R = rangoDe('hoy');
+  let h = bandaKPI(R);
+  if(!ventasRango(R.d, R.h).length) return h + vacioVentas(R);
+  h += bloqueOrigen(R) + bloqueArticulos(R) + bloqueVendedoras(R);
+  return h;
+}
+
+/* ==========================================================================
+   SICOM · NAVEGACIÓN
+   Siete módulos. Cada uno agrupa lo suyo; nada vive en dos sitios.
+   ========================================================================== */
+let VSUB = 'ing';      /* Ventas */
+let TRSUB = 'iva';     /* Tesorería · tributos */
+let BSUB = 'ventas';   /* Tributos */
+let BDSUB = 'cli';     /* Base de datos */
+let RCSUB = 'diario';  /* Contabilidad · Reportes */
+
+/* placeholder honesto: dice qué va a hacer y qué le falta para funcionar */
+function porHacer(titulo, que, falta){
+  return '<div class="card enobra"><div class="obra-ic">🚧</div>'
+    + '<h2>'+esc(titulo)+'</h2>'
+    + '<p class="cap">'+esc(que)+'</p>'
+    + (falta ? '<div class="nota"><b>Falta para poder construirlo:</b> '+esc(falta)+'</div>' : '')
+    + '</div>';
+}
+/* fila de subopciones de segundo nivel */
+function subs2(attr, lista, sel){
+  return '<div class="subtabs sub2">'
+    + lista.map(x=>'<button data-'+attr+'="'+x[0]+'" class="'+(sel===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
+    + '</div>';
+}
+
+/* =============================================================== VENTAS == */
+function vistaVentas(){
+  const np = DB.ventas.filter(v=>!anulada(v) && v.fecha===hoy).length;
+  let h = '<div class="subtabs">'
+    + [['ing','Ingresos'],['dev','Devoluciones'],['rep','Reportes de ventas']]
+      .map(x=>'<button data-vsub="'+x[0]+'" class="'+(VSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
+    + '</div>';
+  if(VSUB === 'dev') return h + vistaDevMod();
+  if(VSUB === 'rep'){
+    h += '<h1>Reportes de ventas</h1>'
+      + '<p class="sub">Lo que se vendió, y de dónde viene. Los totales son netos: lo anulado no suma y lo devuelto resta.</p>'
+      + subs2('rsub', [['dia','Resumen del día'],['vtas','Todas las ventas'],['est','Estadísticas']], RSUB);
+    return h + (RSUB==='vtas' ? repVentas() : RSUB==='est' ? repEst() : repDia());
+  }
+  return h + avisoSetup() + vistaCaja();
+}
+
+/* ============================================================ TESORERÍA == */
+function vistaTes(){
+  const np = pendAbiertos();
+  let h = '<h1>Tesorería</h1>'
+    + '<p class="sub">El dinero que no es venta: lo que se le debe a un cliente, lo que se le paga al personal, '
+    + 'lo que se le debe al accionista y el cuadre del día.</p>'
+    + '<div class="subtabs">'
+    + [['vueltos','Vueltos y devoluciones'+(np.length?' ('+np.length+')':'')],
+       ['acc','Estado de cuenta del accionista'],
+       ['opauto','Orden de pago automática'],
+       ['opman','Orden de pago manual'],
+       ['conc','Conceptos de pago'],
+       ['repd','Reporte de pagos diarios'],
+       ['repm','Reporte de pagos mensuales'],
+       ['reint','Reintegros al accionista'],
+       ['cierre','Cierre de caja'],
+       ['trib','Configuración de tributos']]
+      .map(x=>'<button data-tsub="'+x[0]+'" class="'+(TSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
+    + '</div>';
+  if(TSUB==='vueltos') return h + tesVueltos();
+  if(TSUB==='acc')     return h + vistaAcc();
+  if(TSUB==='reint')   return h + tesReintegros();
+  if(TSUB==='cierre')  return h + tesCierre();
+  if(TSUB==='trib')    return h + tesTributos();
+  if(TSUB==='opauto')  return h + porHacer('Orden de pago automática',
+    'Acumula lo que se le debe a cada vendedora y a cada repartidor hasta el día anterior al día de pago, '
+    + 'arma la orden y la deja lista para aprobar. Descuenta los anticipos entregados.',
+    'definir el día de pago semanal y la ficha de anticipos. Los modelos DL-02 y VD-02 ya están.');
+  if(TSUB==='opman')   return h + porHacer('Orden de pago manual',
+    'Pagos fuera del ciclo: un adelanto, un gasto puntual, una compra de última hora. '
+    + 'Toma su cuenta contable del concepto de pago.',
+    'los conceptos de pago. El modelo EG-02 ya está.');
+  if(TSUB==='conc')    return h + porHacer('Conceptos de pago',
+    'La lista de por qué sale dinero — sueldos, almuerzo, taxi, caja chica, comisiones bancarias — '
+    + 'cada uno amarrado a su cuenta contable.',
+    '');
+  if(TSUB==='repd')    return h + porHacer('Reporte de pagos diarios',
+    'Lo pagado en el día, por persona y por concepto. Sirve de comprobante para el vendedor y el repartidor.',
+    'las órdenes de pago.');
+  if(TSUB==='repm')    return h + porHacer('Reporte de pagos mensuales',
+    'El acumulado del mes por persona y por concepto, para cierre y para declaración.',
+    'las órdenes de pago.');
+  return h + tesVueltos();
+}
+
+/* Tesorería · Configuración de tributos */
+function tesTributos(){
+  let h = subs2('trsub', [['iva','IVA'],['islr','ISLR']], TRSUB);
+  if(TRSUB === 'islr') return h + porHacer('ISLR',
+    'Retenciones de impuesto sobre la renta: porcentaje por tipo de proveedor, base de retención, '
+    + 'comprobante de retención y acumulado por período.',
+    'el módulo de compras y proveedores.');
+  return h + cfgImpuestos();
+}
+
+/* ============================================================= TRIBUTOS == */
+function vistaTrib(){
+  let h = '<h1>Tributos</h1>'
+    + '<p class="sub">Los libros que exige el SENIAT, con el encabezado de '+esc(DB.empresa.nom)
+    + ' · RIF '+esc(DB.empresa.rif)+' · '+esc(condIVA())+'.</p>'
+    + '<div class="subtabs">'
+    + [['compras','Libro de compras'],['ventas','Libro de ventas']]
+      .map(x=>'<button data-bsub="'+x[0]+'" class="'+(BSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
+    + '</div>';
+  if(BSUB === 'compras') return h + porHacer('Libro de compras',
+    'Las compras del período con su crédito fiscal, en el formato del SENIAT: fecha, número de factura, '
+    + 'RIF y razón social del proveedor, base imponible por alícuota, crédito fiscal e IVA retenido.',
+    'el módulo de compras y proveedores. Hoy el sistema no registra ninguna compra.');
+  return h + tribLibroVentas();
+}
+
+/* ========================================================= BASE DE DATOS == */
+function vistaBD(){
+  let h = '<div class="subtabs">'
+    + [['cli','Datos de clientes']]
+      .map(x=>'<button data-bdsub="'+x[0]+'" class="'+(BDSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
+    + '</div>';
+  return h + vistaCorreos();
+}
+
+/* ========================================================= CONTABILIDAD == */
+function vistaCont(){
+  const nr = modelosRotos().length + modelosHuerfanos().length;
+  let h = '<h1>Contabilidad</h1>'
+    + '<div class="subtabs">'
+    + [['manual','Asiento contable manual'],
+       ['modelos','Modelo de asiento automático'+(nr?' ('+nr+')':'')],
+       ['concil','Conciliación bancaria'],
+       ['cfgmod','Configuración de asiento automático'],
+       ['plan','Plan de cuentas'],
+       ['ctas','Creación o modificación de cuentas'],
+       ['reportes','Reportes']]
+      .map(x=>'<button data-ksub="'+x[0]+'" class="'+(KSUB===x[0]?'on':'')+'">'+x[1]+'</button>').join('')
+    + '</div>';
+  if(KSUB === 'modelos')  return h + contModelos(false);
+  if(KSUB === 'cfgmod')   return h + contModelos(true);
+  if(KSUB === 'plan')     return h + contPlan();
+  if(KSUB === 'ctas')     return h + contCuentas();
+  if(KSUB === 'reportes') return h + contReportes();
+  if(KSUB === 'concil')   return h + porHacer('Conciliación bancaria',
+    'Cruza los cobros con referencia bancaria contra el estado de cuenta del banco y marca lo que no aparece.',
+    'poder cargar el estado de cuenta del banco.');
+  return h + porHacer('Asiento contable manual',
+    'Para lo que no nace de una operación del sistema: comisiones bancarias, depreciaciones, '
+    + 'pago de impuestos, ajustes de cierre. Con comprobante correlativo y validación de cuadre.',
+    'el generador de comprobantes, que es lo mismo que necesitan los modelos automáticos.');
+}
+
+function contReportes(){
+  const R = [['diario','Libro diario'],['inv','Libro de inventario'],['mayor','Libro mayor'],
+             ['balcom','Balance de comprobación'],['gyp','Estado de ganancias y pérdidas']];
+  const nom = (R.find(x=>x[0]===RCSUB)||R[0])[1];
+  const que = {
+    diario:'Todos los comprobantes del período en orden de fecha, con su debe y su haber.',
+    inv:'La existencia y el costo de cada artículo a la fecha de corte, con su movimiento del período.',
+    mayor:'El movimiento y el saldo de cada cuenta, con enlace al comprobante que lo originó.',
+    balcom:'Los saldos de todas las cuentas, con la comprobación de que el debe total iguala al haber total.',
+    gyp:'Ingresos menos costos y gastos del período, con el resultado del ejercicio.'
+  }[RCSUB];
+  return subs2('rcsub', R, RCSUB)
+    + porHacer(nom, que, 'el generador de comprobantes. Los reportes se arman solos una vez que existan los asientos.');
+}
+
+/* ==========================================================================
+   SICOM · TRIBUTOS · Libro de ventas del SENIAT
+   ========================================================================== */
+let LVMES = null;   /* 'AAAA-MM'; null = el mes en curso */
+
+function mesDe(f){ return String(f||'').slice(0,7); }
+function mesActual(){ return LVMES || mesDe(hoy); }
+function mesesConVentas(){
+  const m = Array.from(new Set(DB.ventas.map(v=>mesDe(v.fecha)))).sort().reverse();
+  const h = mesDe(hoy); if(!m.includes(h)) m.unshift(h);
+  return m;
+}
+const MESNOM = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                'agosto','septiembre','octubre','noviembre','diciembre'];
+function mesTexto(m){
+  const p = String(m).split('-');
+  return MESNOM[(+p[1])-1] + ' de ' + p[0];
+}
+
+/* El RIF del comprador. Casi toda la clientela es persona natural: su RIF es
+   la letra más la cédula. Si el cliente es una empresa, se toma su RIF tal
+   como esté cargado. */
+function rifCliente(c){
+  if(!c) return '—';
+  if(c.rif) return c.rif;
+  const d = String(c.doc||'').replace(/\D/g,'');
+  return d ? (c.tipoDoc || 'V') + '-' + d : '—';
+}
+
+/* una fila del libro por cada venta del mes, anuladas incluidas en cero */
+/* ==========================================================================
+   SICOM · Libro de ventas del SENIAT · versión corregida
+
+   Tres cosas que estaban mal y por qué importan:
+
+   1. Una devolución hecha en agosto rebajaba el libro de JULIO. Julio ya se
+      declaró. Un libro fiscal de un período cerrado no se puede mover.
+   2. La devolución se prorrateaba entre lo gravado y lo exento por igual, sin
+      mirar qué artículo regresó. Devolver un artículo exento bajaba un débito
+      fiscal que sí se causó.
+   3. Redondear base, IVA y total por separado sobre una fracción hacía que la
+      fila no sumara: 15,52 + 2,49 = 18,01 contra un total de 18,00.
+
+   La corrección es la misma para las tres: la venta se asienta ENTERA en su
+   mes, y cada devolución y cada anulación es un ajuste aparte —una nota de
+   crédito— en el mes en que ocurrió, calculado sobre las líneas que de verdad
+   regresaron. Nunca se prorratea nada.
+   ========================================================================== */
+
+/* el desglose de un juego de líneas devueltas, respetando la condición
+   de cada artículo tal como estaba al venderse */
+function desgLineasDev(v, ls){
+  let base = 0, iva = 0, exe = 0;
+  (ls||[]).forEach(l=>{
+    const orig = (v.lineas||[])[l.i] || {};
+    const m = r2(l.precio * l.cant);
+    if(orig.exento === true || !alicIVA()){ exe += m; }
+    else { const b = baseDe(m); base += b; iva += r2(m - b); }
+  });
+  return {base:r2(base), iva:r2(iva), exento:r2(exe)};
+}
+/* lo que queda vivo de una venta: lo vendido menos lo ya devuelto */
+function desgVivo(v){
+  const d = desgDe(v);
+  let base = d.base, iva = d.iva, exe = d.exento || 0;
+  devDe(v).forEach(x=>{
+    const q = desgLineasDev(v, x.lineas);
+    base = r2(base - q.base); iva = r2(iva - q.iva); exe = r2(exe - q.exento);
+  });
+  return {base:base, iva:iva, exento:exe};
+}
+
+function filaLibro(o){
+  return {num:o.num, fecha:o.fecha, tipo:o.tipo, ref:o.ref || '',
+          cli:o.cli, rif:o.rif, alic:o.alic,
+          base:o.base, iva:o.iva, exento:o.exento,
+          total:r2(o.base + o.iva + o.exento),
+          derivado:!!o.derivado};
+}
+
+function filasLibroVentas(m){
+  const fs = [];
+  DB.ventas.forEach(v=>{
+    const c = DB.clientes.find(x=>x.id === v.cliId) || null;
+    const cli = c ? nomComp(c) : '—', rif = rifCliente(c);
+    const d = desgDe(v);
+    const anu = v.anulada || null;
+    const anuMismoMes = anu && mesDe(anu.fecha) === mesDe(v.fecha);
+
+    /* 1 · la factura, entera, en el mes en que se emitió */
+    if(mesDe(v.fecha) === m){
+      /* anulada dentro del mismo período: va en cero, conservando el número */
+      const z = anuMismoMes;
+      fs.push(filaLibro({num:v.num, fecha:v.fecha, tipo: z ? 'anulada' : 'factura',
+        cli:cli, rif:rif, alic:d.alic, derivado:d.derivado,
+        base: z ? 0 : d.base, iva: z ? 0 : d.iva, exento: z ? 0 : (d.exento||0)}));
+    }
+
+    /* 2 · cada devolución, como nota de crédito, en SU mes */
+    devDe(v).forEach((x, k)=>{
+      if(mesDe(x.fecha) !== m) return;
+      const q = desgLineasDev(v, x.lineas);
+      if(q.base + q.iva + q.exento < 0.005) return;
+      fs.push(filaLibro({num:'NC-' + v.num + '-' + (k+1), fecha:x.fecha, tipo:'devolucion',
+        ref:v.num, cli:cli, rif:rif, alic:d.alic, derivado:d.derivado,
+        base:r2(-q.base), iva:r2(-q.iva), exento:r2(-q.exento)}));
+    });
+
+    /* 3 · la anulación de un mes anterior, como nota de crédito, en su mes */
+    if(anu && !anuMismoMes && mesDe(anu.fecha) === m){
+      const q = desgVivo(v);
+      if(Math.abs(q.base) + Math.abs(q.iva) + Math.abs(q.exento) >= 0.005)
+        fs.push(filaLibro({num:'NC-' + v.num + '-A', fecha:anu.fecha, tipo:'anulacion',
+          ref:v.num, cli:cli, rif:rif, alic:d.alic, derivado:d.derivado,
+          base:r2(-q.base), iva:r2(-q.iva), exento:r2(-q.exento)}));
+    }
+  });
+  return fs.sort((a,b)=> a.fecha === b.fecha
+    ? String(a.num).localeCompare(String(b.num)) : a.fecha.localeCompare(b.fecha));
+}
+
+function totalesLibro(fs){
+  const s = k => r2((fs||[]).reduce((a,x)=>a+x[k], 0));
+  return {total:s('total'), exento:s('exento'), base:s('base'), iva:s('iva'), n:(fs||[]).length};
+}
+
+function mesesConMovimiento(){
+  const m = new Set();
+  DB.ventas.forEach(v=>{
+    m.add(mesDe(v.fecha));
+    if(v.anulada) m.add(mesDe(v.anulada.fecha));
+    devDe(v).forEach(x=>m.add(mesDe(x.fecha)));
+  });
+  m.add(mesDe(hoy));
+  return Array.from(m).sort().reverse();
+}
+
+const TIPO_FILA = {
+  factura:    {t:'', c:''},
+  anulada:    {t:'anulada', c:'mal'},
+  devolucion: {t:'nota de crédito', c:'avi'},
+  anulacion:  {t:'nota de crédito · anulación', c:'mal'}
+};
+
+function tribLibroVentas(){
+  const m = mesActual(), fs = filasLibroVentas(m), T = totalesLibro(fs);
+  const der = fs.filter(x=>x.derivado).length;
+  const nc  = fs.filter(x=>x.tipo === 'devolucion' || x.tipo === 'anulacion').length;
+  const anu = fs.filter(x=>x.tipo === 'anulada').length;
+
+  let h = '<div class="card"><div class="lvhd">'
+    + '<div><h2>Libro de ventas</h2>'
+    + '<p class="cap">'+esc(mesTexto(m))+' · '+fs.length+' '+(fs.length===1?'operación':'operaciones')+'</p></div>'
+    + '<div class="lvsel"><label class="f">Período</label><select id="lv_mes">'
+    + mesesConMovimiento().map(x=>'<option value="'+x+'"'+(x===m?' selected':'')+'>'+esc(mesTexto(x))+'</option>').join('')
+    + '</select></div>'
+    + '<button class="b oro" id="lv_csv">Descargar</button>'
+    + '</div>';
+
+  h += '<div class="hero lvtot">'
+    + '<div class="h dest"><span class="k">Total de ventas con IVA</span>'
+    + '<div class="vrow"><span class="v">'+fN(T.total)+'</span><span class="u">USD</span></div></div>'
+    + '<div class="h"><span class="k">Base imponible</span>'
+    + '<div class="vrow"><span class="v">'+fN(T.base)+'</span><span class="u">USD</span></div></div>'
+    + '<div class="h"><span class="k">Débito fiscal</span>'
+    + '<div class="vrow"><span class="v">'+fN(T.iva)+'</span><span class="u">USD</span></div>'
+    + '<span class="s">alícuota '+fN(fisc().alic,0)+' %</span></div>'
+    + '<div class="h"><span class="k">Ventas no gravadas</span>'
+    + '<div class="vrow"><span class="v">'+fN(T.exento)+'</span><span class="u">USD</span></div></div>'
+    + '</div>';
+
+  if(!fs.length){
+    h += '<div class="vacio"><div class="vi">📘</div>No hay operaciones en este período.</div></div>';
+    return h;
+  }
+
+  h += '<div class="tabwrap"><table class="asiento libro"><thead><tr>'
+    + '<th>Fecha</th><th>Documento</th><th>Nombre o razón social</th><th>RIF</th>'
+    + '<th class="n">Total con IVA</th><th class="n">No gravadas</th>'
+    + '<th class="n">Base imponible</th><th class="n">Débito fiscal</th>'
+    + '</tr></thead><tbody>';
+  fs.forEach(x=>{
+    const t = TIPO_FILA[x.tipo] || TIPO_FILA.factura;
+    h += '<tr class="'+(x.tipo==='anulada'?'anu':'')+(x.base<0?' nc':'')+'">'
+      + '<td>'+fFecha(x.fecha)+'</td>'
+      + '<td class="codn">'+esc(x.num)
+      + (t.t ? ' <span class="chip '+t.c+'">'+t.t+'</span>' : '')
+      + (x.ref ? '<div class="mini">sobre '+esc(x.ref)+'</div>' : '')
+      + (x.derivado ? ' <span class="chip">derivado</span>' : '')+'</td>'
+      + '<td>'+esc(x.cli)+'</td><td class="codn">'+esc(x.rif)+'</td>'
+      + '<td class="n">'+fN(x.total)+'</td><td class="n">'+fN(x.exento)+'</td>'
+      + '<td class="n">'+fN(x.base)+'</td><td class="n">'+fN(x.iva)+'</td></tr>';
+  });
+  h += '<tr class="tot"><td colspan="4"><b>Totales del período</b></td>'
+    + '<td class="n"><b>'+fN(T.total)+'</b></td><td class="n"><b>'+fN(T.exento)+'</b></td>'
+    + '<td class="n"><b>'+fN(T.base)+'</b></td><td class="n"><b>'+fN(T.iva)+'</b></td></tr>'
+    + '</tbody></table></div>';
+
+  if(nc) h += '<div class="nota">Hay <b>'+nc+'</b> '+(nc===1?'nota de crédito':'notas de crédito')
+    + ' en este período. Una devolución o una anulación no reescribe el mes en que se vendió: '
+    + 'se asienta como ajuste en el mes en que ocurrió, que es cuando se causa.</div>';
+  if(anu) h += '<div class="nota">Las <b>'+anu+'</b> '+(anu===1?'operación anulada aparece':'operaciones anuladas aparecen')
+    + ' en cero, conservando su número. El correlativo no puede tener saltos.</div>';
+  if(der) h += '<div class="nota"><b>'+der+'</b> '+(der===1?'fila está marcada':'filas están marcadas')
+    + ' como <b>derivada</b>: la venta se registró antes de que el sistema manejara IVA y no guardó su desglose. '
+    + 'El que se muestra se calculó con la alícuota vigente hoy.</div>';
+  h += '<div class="nota">A los clientes personas naturales se les arma el RIF con la letra y su cédula. '
+    + 'Si alguno factura como empresa, cárguele su RIF en la ficha del cliente.</div>';
+  return h + '</div>';
+}
+
+function csvLibroVentas(){
+  const m = mesActual(), fs = filasLibroVentas(m), T = totalesLibro(fs), e = DB.empresa;
+  const q = s => '"' + String(s==null?'':s).replace(/"/g,'""') + '"';
+  const L = [];
+  L.push([q(e.nom)].join(';'));
+  L.push([q('RIF ' + e.rif), q(condIVA())].join(';'));
+  L.push([q(dirFiscal())].join(';'));
+  L.push([q('LIBRO DE VENTAS · ' + mesTexto(m))].join(';'));
+  L.push('');
+  L.push(['Fecha','Documento','Sobre','Nombre o razón social','RIF','Total con IVA',
+          'Ventas no gravadas','Base imponible','Alícuota','Débito fiscal','Condición']
+         .map(q).join(';'));
+  fs.forEach(x=>{
+    L.push([q(fFecha(x.fecha)), q(x.num), q(x.ref), q(x.cli), q(x.rif),
+            q(fN(x.total)), q(fN(x.exento)), q(fN(x.base)),
+            q(fN(x.alic,0)+'%'), q(fN(x.iva)),
+            q((TIPO_FILA[x.tipo]||{}).t || '')].join(';'));
+  });
+  L.push(['','','','','TOTALES', fN(T.total), fN(T.exento), fN(T.base), '', fN(T.iva), '']
+         .map(q).join(';'));
+  return '﻿' + L.join('\r\n');
 }
 
 /* -------------------------------------------------------------- TASAS ---- */
@@ -1902,7 +2632,7 @@ function vistaAcc(){
 /* ----------------------------------------------------------- CORREOS ----- */
 function vistaCorreos(){
   const cm=DB.clientes.filter(c=>c.mkt);
-  let h='<h1>Base de correos y mercadeo</h1>'
+  let h='<h1>Datos de clientes</h1>'
     +'<p class="sub">Cada venta deja el correo del cliente y su historial: esto es lo que permite mandar campañas a quien de verdad compra.</p>'
     +'<div class="hero">'
     +'<div class="h dest"><span class="k">Clientes con correo</span><span class="v">'+DB.clientes.filter(c=>c.mail).length+'</span>'
@@ -1941,81 +2671,63 @@ function vistaCorreos(){
    ========================================================================== */
 let KSUB = 'modelos', KFAM = 'venta', KMOD = null;
 
-function vistaCont(){
-  let h = '<h1>Contabilidad</h1>'
-    + '<p class="sub">Aquí se define cómo el sistema contabiliza cada cosa que pasa en la tienda. '
-    + 'Los modelos de asiento son la columna vertebral: todo lo demás cuelga de ellos.</p>'
-    + '<div class="subtabs">'
-    + [['modelos','Modelos de asiento'],['ctas','Catálogo de cuentas'],['mapa','Cuentas por operación']]
-      .map(s=>'<button data-ksub="'+s[0]+'" class="'+(KSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
-    + '</div>';
-  if(KSUB === 'ctas' || KSUB === 'mapa') return h + cfgContab();
-  return h + contModelos();
-}
-
 /* --------------------------------------------------------- LOS MODELOS -- */
-function contModelos(){
+/* ==========================================================================
+   SICOM · CONTABILIDAD · modelos de asiento
+   Consulta (KSUB 'modelos') y configuración (KSUB 'cfgmod').
+   ========================================================================== */
+function contModelos(editable){
   const rotos = modelosRotos(), huerf = modelosHuerfanos(), apag = modelosApagados();
   let h = '';
 
-  /* el estado de salud, primero: si algo está roto se ve antes que nada */
-  h += '<div class="card"><h2>Estado de los modelos</h2>'
-    + '<div class="kpis kpis-mod">'
-    + kpiMod(modelos().length, 'Modelos definidos', 'uno por cada transacción que el sistema sabe hacer', '')
-    + kpiMod(FAMILIAS.length, 'Familias', 'cada transacción pertenece a una', '')
-    + kpiMod(rotos.length, 'Sin cuadrar', rotos.length ? 'debe y haber no se cancelan' : 'todos cuadran para cualquier monto', rotos.length?'mal':'bien')
-    + kpiMod(huerf.length, 'Con cuenta inexistente', huerf.length ? 'apuntan a una cuenta que no está en el catálogo' : 'todas las cuentas existen', huerf.length?'mal':'bien')
-    + kpiMod(apag.length, 'Desactivados', apag.length ? 'no generan asiento' : 'todos activos', apag.length?'avi':'')
-    + '</div>';
-  if(rotos.length) h += '<div class="err">Hay '+rotos.length+' '+(rotos.length===1?'modelo que no cuadra':'modelos que no cuadran')
-    + ': '+rotos.map(m=>esc(m.c)).join(' · ')+'. Un modelo que no cuadra produce un comprobante descuadrado cada vez que se dispara.</div>';
-  if(huerf.length) h += '<div class="err">Hay '+huerf.length+' '+(huerf.length===1?'modelo que apunta':'modelos que apuntan')
-    + ' a una cuenta que ya no existe: '+huerf.map(m=>esc(m.c)).join(' · ')+'. Corrija la cuenta o vuelva a crearla en el catálogo.</div>';
-  h += '<div class="nota">Un modelo <b>cuadra</b> cuando el debe y el haber se cancelan pieza por pieza — no para el ejemplo de abajo, '
-    + 'sino para cualquier monto que se le presente. Eso es lo que el sistema comprueba antes de dejarle guardar un cambio.</div></div>';
+  if(rotos.length) h += '<div class="err">Sin cuadrar: '
+    + rotos.map(m=>esc(m.c)).join(' · ')+'</div>';
+  if(huerf.length) h += '<div class="err">Con cuenta inexistente: '
+    + huerf.map(m=>esc(m.c)).join(' · ')+'</div>';
 
-  /* las familias */
+  h += '<div class="kpis kpis-mod">'
+    + kpiMod(modelos().length, 'Modelos', '')
+    + kpiMod(FAMILIAS.length, 'Familias', '')
+    + kpiMod(rotos.length, 'Sin cuadrar', rotos.length?'mal':'bien')
+    + kpiMod(huerf.length, 'Cuenta inexistente', huerf.length?'mal':'bien')
+    + kpiMod(apag.length, 'Desactivados', apag.length?'avi':'')
+    + '</div>';
+
   h += '<div class="fams">'+FAMILIAS.map(f=>{
     const ms = modelosDe(f.k), ro = ms.filter(m=>m.activo!==false && !cuadraModelo(m).ok).length;
     return '<button class="fam'+(KFAM===f.k?' on':'')+(ro?' mal':'')+'" data-kfam="'+f.k+'">'
       +'<span class="fic">'+f.ic+'</span><b>'+esc(f.n)+'</b>'
-      +'<span class="fn">'+ms.length+' '+(ms.length===1?'modelo':'modelos')
-      +(ro?' · '+ro+' sin cuadrar':'')+'</span></button>';}).join('')+'</div>';
+      +'<span class="fn">'+ms.length+' '+(ms.length===1?'modelo':'modelos')+'</span></button>';}).join('')+'</div>';
 
-  const fa = familiaDe(KFAM);
-  h += '<div class="card"><h2>'+fa.ic+' '+esc(fa.n)+'</h2><p class="cap">'+esc(fa.d)+'</p></div>';
+  modelosDe(KFAM).forEach(m=>{ h += tarjetaModelo(m, editable); });
 
-  modelosDe(KFAM).forEach(m=>{ h += tarjetaModelo(m); });
+  if(editable) h += contMapaOps();
   return h;
 }
 
-function kpiMod(n, t, d, cl){
+function kpiMod(n, t, cl){
   return '<div class="kpi'+(cl?' '+cl:'')+'"><span class="kn">'+n+'</span>'
-    + '<span class="kt">'+esc(t)+'</span><span class="kd">'+esc(d)+'</span></div>';
+    + '<span class="kt">'+esc(t)+'</span></div>';
 }
 
-/* ------------------------------------------------------- UNA TARJETA --- */
-function tarjetaModelo(m){
+function tarjetaModelo(m, editable){
   const cu = cuadraModelo(m), hu = ctasHuerfanas(m), sim = simulaModelo(m);
-  const ab = (KMOD === m.c);
+  const ab = editable && (KMOD === m.c);
   let h = '<div class="card modelo'+(m.activo===false?' apagado':'')+(cu.ok?'':' roto')+'">'
     + '<div class="modhd">'
     + '<div class="modid"><span class="cod">'+esc(m.c)+'</span>'
-    + '<span class="ver" title="Versión del modelo">v'+(m.ver||1)+'</span></div>'
+    + '<span class="ver">v'+(m.ver||1)+'</span></div>'
     + '<div class="modtx"><b>'+esc(m.n)+'</b><span>'+esc(m.disp)+'</span></div>'
     + '<div class="modest">'
     + (m.activo===false ? '<span class="chip apg">Desactivado</span>'
         : (cu.ok ? '<span class="chip ok">Cuadra</span>' : '<span class="chip mal">No cuadra</span>'))
     + (hu.length ? '<span class="chip mal">Cuenta inexistente</span>' : '')
     + '</div>'
-    + '<button class="b sm gh" data-kmod="'+esc(m.c)+'">'+(ab?'Cerrar':'Ver y editar')+'</button>'
+    + (editable ? '<button class="b sm gh" data-kmod="'+esc(m.c)+'">'+(ab?'Cerrar':'Editar')+'</button>' : '')
     + '</div>';
 
-  if(m.d) h += '<p class="cap modcap">'+esc(m.d)+'</p>';
-
-  /* el asiento, siempre visible: es lo que el usuario vino a ver */
   h += '<div class="tabwrap"><table class="asiento"><thead><tr>'
-    + '<th>Cuenta</th><th>De dónde sale el monto</th><th class="n">Debe</th><th class="n">Haber</th>'
+    + '<th>Cuenta</th><th>Monto</th><th class="n">Debe</th><th class="n">Haber</th>'
     + '</tr></thead><tbody>';
   sim.lineas.forEach((l,i)=>{
     const mudo = Math.abs(l.monto) < 0.005;
@@ -2023,36 +2735,112 @@ function tarjetaModelo(m){
     h += '<tr class="'+(mudo?'muda':'')+(falta?' falta':'')+'">'
       + '<td class="cta">'
       + (ab ? selCta('mo_c_'+m.c+'_'+i, l.cta)
-            : '<span class="cnt'+(din?' din':'')+'">'+esc(din ? l.cta : l.cta)+'</span>'
+            : '<span class="cnt'+(din?' din':'')+'">'+esc(l.cta)+'</span>'
               +'<span class="ctn">'+esc(din ? CTAS_DIN[l.cta] : (ctaNom(l.cta) || '⚠ no está en el catálogo'))+'</span>')
       + '</td>'
-      + '<td class="org"><b>'+esc(orgNom(l.org))+'</b>'
-      + (l.d ? '<span class="ord">'+esc(l.d)+'</span>' : '')+'</td>'
+      + '<td class="org">'+esc(orgNom(l.org))+'</td>'
       + '<td class="n">'+(l.nat==='D' ? fN(l.monto) : '')+'</td>'
       + '<td class="n">'+(l.nat==='H' ? fN(l.monto) : '')+'</td></tr>';
   });
-  h += '<tr class="tot"><td colspan="2">Sobre el ejemplo de la matriz'
-    + (sim.mudas ? ' <span class="mininota">('+sim.mudas+' '+(sim.mudas===1?'línea no aplica':'líneas no aplican')+' en este caso)</span>' : '')
-    + '</td><td class="n"><b>'+fN(sim.debe)+'</b></td><td class="n"><b>'+fN(sim.haber)+'</b></td></tr>'
+  h += '<tr class="tot"><td colspan="2">Ejemplo</td>'
+    + '<td class="n"><b>'+fN(sim.debe)+'</b></td><td class="n"><b>'+fN(sim.haber)+'</b></td></tr>'
     + '</tbody></table></div>';
 
-  if(!cu.ok) h += '<div class="err">Este modelo no cuadra. Sobra en el '
-    + (cu.desc[0].neto > 0 ? 'debe' : 'haber') + ': '
-    + cu.desc.map(x=>esc(x.n)).join(' · ')
-    + '. Mientras no cuadre, cada vez que se dispare va a producir un comprobante descuadrado.</div>';
+  if(!cu.ok) h += '<div class="err">Sobra en el '+(cu.desc[0].neto > 0 ? 'debe' : 'haber')+': '
+    + cu.desc.map(x=>esc(x.n)).join(' · ')+'</div>';
 
-  if(ab){
-    h += '<div class="nota">Puede cambiar <b>a qué cuenta</b> va cada línea y <b>activar o desactivar</b> el modelo. '
-      + 'La estructura del asiento y el origen de cada monto no se editan: son lo que hace que cuadre siempre. '
-      + 'Si necesita agregar o quitar una línea, dígamelo — eso sí requiere programación.</div>'
-      + '<div class="acc">'
-      + '<button class="b oro" data-kgua="'+esc(m.c)+'">Guardar las cuentas</button>'
-      + '<button class="b gh" data-kmtog="'+esc(m.c)+'">'+(m.activo===false?'Activar el modelo':'Desactivar el modelo')+'</button>'
-      + '<button class="b gh" data-krest="'+esc(m.c)+'">Volver al modelo de fábrica</button>'
-      + '</div>';
-  }
+  if(ab) h += '<div class="acc">'
+    + '<button class="b oro" data-kgua="'+esc(m.c)+'">Guardar</button>'
+    + '<button class="b gh" data-kmtog="'+esc(m.c)+'">'+(m.activo===false?'Activar':'Desactivar')+'</button>'
+    + '<button class="b gh" data-krest="'+esc(m.c)+'">Restaurar de fábrica</button>'
+    + '</div>';
   h += '</div>';
   return h;
+}
+
+/* ------------------------------- cuentas que dependen de la operación --- */
+function contMapaOps(){
+  const sinCta = OPS.filter(o=>!ctaDe(o.k)).length;
+  let h = '<div class="card"><h2>Cuentas por operación</h2>';
+  if(sinCta) h += '<div class="nota">'+sinCta+' sin asignar.</div>';
+  const grupos = [];
+  OPS.forEach(o=>{ if(!grupos.includes(o.g)) grupos.push(o.g); });
+  grupos.forEach(g=>{
+    h += '<h3 class="grp">'+esc(g)+'</h3><table class="dat"><tbody>';
+    OPS.filter(o=>o.g === g).forEach(o=>{
+      const cod = ctaDe(o.k);
+      h += '<tr><td style="width:44%"><b>'+esc(o.n)+'</b></td>'
+        + '<td><select data-opcta="'+o.k+'"><option value="">Sin asignar</option>'
+        + (DB.cuentas||[]).map(c=>'<option value="'+esc(c.c)+'"'+(c.c === cod ? ' selected' : '')+'>'
+            +esc(c.c)+' · '+esc(c.n)+'</option>').join('')+'</select></td></tr>';
+    });
+    h += '</tbody></table>';
+  });
+  return h + '</div>';
+}
+
+/* ------------------------------------------------------ plan de cuentas -- */
+function contPlan(){
+  const cs = (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c));
+  const tipos = ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'];
+  let h = '<div class="card"><div class="lvhd">'
+    + '<div><h2>Plan de cuentas</h2><p class="cap">NIIF para PYMES · '+cs.length+' cuentas</p></div>'
+    + '<button class="b oro" id="pc_csv">Descargar</button></div>';
+  h += '<div class="kpis kpis-mod">'
+    + tipos.map(t=>kpiMod(cs.filter(c=>c.t===t).length, t, '')).join('') + '</div>';
+  tipos.forEach(t=>{
+    const g = cs.filter(c=>c.t===t); if(!g.length) return;
+    h += '<h3 class="grp">'+esc(t)+'</h3><table class="dat plan"><tbody>'
+      + g.map(c=>{
+          const us = modelos().filter(m=>m.lineas.some(l=>l.cta===c.c)).map(m=>m.c);
+          return '<tr><td style="width:120px"><b class="codn">'+esc(c.c)+'</b></td>'
+            + '<td>'+esc(c.n)+'</td>'
+            + '<td class="mini">'+(us.length ? us.join(' · ') : '—')+'</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+  });
+  return h + '</div>';
+}
+
+/* -------------------------------------- creación o modificación de cuentas */
+function contCuentas(){
+  let h = '<div class="card"><h2>Creación o modificación de cuentas</h2>'
+    + '<div class="fila">'
+    + '<div style="flex:0 0 150px"><label class="f">Código</label>'
+    + '<input id="ct_c" placeholder="1.1.01" maxlength="14"></div>'
+    + '<div style="flex:2 1 280px"><label class="f">Nombre de la cuenta</label>'
+    + '<input id="ct_n" placeholder="Escriba el nombre" maxlength="60"></div>'
+    + '<div><label class="f">Tipo</label><select id="ct_t">'
+    + ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'].map(x=>'<option>'+x+'</option>').join('')
+    + '</select></div>'
+    + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="ct_g">Agregar</button></div></div>';
+
+  h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Código</th><th>Cuenta</th><th>Tipo</th>'
+    + '<th>Se usa en</th><th></th></tr></thead><tbody>';
+  (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c)).forEach(c=>{
+    const ops = OPS.filter(o=>ctaDe(o.k) === c.c).map(o=>o.n);
+    const mds = modelos().filter(m=>m.lineas.some(l=>l.cta===c.c)).map(m=>m.c);
+    const usos = ops.concat(mds);
+    h += '<tr><td><b class="codn">'+esc(c.c)+'</b></td><td>'+esc(c.n)+'</td>'
+      + '<td><span class="chip">'+esc(c.t)+'</span></td>'
+      + '<td class="mini">'+(usos.length ? usos.join(' · ') : '—')+'</td>'
+      + '<td class="n">'+(usos.length
+          ? '<span class="mini">en uso</span>'
+          : '<button class="b sm gh" data-ctdel="'+esc(c.c)+'">Eliminar</button>')+'</td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+function csvPlanCuentas(){
+  const q = s => '"' + String(s==null?'':s).replace(/"/g,'""') + '"';
+  const L = [[q(DB.empresa.nom)].join(';'), [q('RIF ' + DB.empresa.rif)].join(';'),
+             [q('PLAN DE CUENTAS · NIIF para PYMES')].join(';'), '',
+             ['Código','Cuenta','Tipo','Usada en'].map(q).join(';')];
+  (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c)).forEach(c=>{
+    const us = modelos().filter(m=>m.lineas.some(l=>l.cta===c.c)).map(m=>m.c);
+    L.push([q(c.c), q(c.n), q(c.t), q(us.join(' '))].join(';'));
+  });
+  return '﻿' + L.join('\r\n');
 }
 
 /* selector de cuenta: el catálogo más las cuentas que dependen de la operación */
@@ -2079,19 +2867,19 @@ function vistaCfg(){
   let h='<h1>Configuración</h1>'
     +'<p class="sub">Todo lo que la caja ofrece se administra aquí. Cambie una tarifa o agregue un canal y aparece en la venta al instante.</p>'
     +'<div class="subtabs">'
-    +[['emp','Empresa'],['imp','Impuestos'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
+    +[['emp','Empresa'],['tasas','Tasas de cambio'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
       ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras'],
       ['dev','Devoluciones']]
       .map(s=>'<button data-csub="'+s[0]+'" class="'+(CSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     +'</div>';
 
   if(CSUB==='emp')   return h + cfgEmpresa();
-  if(CSUB==='imp')   return h + cfgImpuestos();
+  if(CSUB==='tasas') return h + vistaTasas();
   if(CSUB==='marca') return h + cfgMarca();
   if(CSUB==='prod')  return h + cfgProd();
   if(CSUB==='cat')   return h + cfgCat();
   if(CSUB==='dev')    return h + cfgDevol();
-  if(CSUB==='contab'){ TAB='conta'; KSUB='ctas'; return vistaCont(); }
+
 
   if(CSUB==='vend'){
     h+='<div class="card"><h2>Agregar vendedor</h2>'
@@ -2130,7 +2918,7 @@ function vistaCfg(){
       +'<select id="nr_op"><option value="">Código</option>'+OPERADORAS.map(o=>'<option value="'+o+'">'+o+'</option>').join('')+'</select>'
       +'<input id="nr_tel" placeholder="Escriba los 7 dígitos" inputmode="numeric" maxlength="7"></div></div>'
       +'</div><div class="acc"><button class="b oro" id="nr_g">Agregar repartidor</button></div></div>'
-      +'<div class="card"><h2>Repartidores</h2><table class="dat"><thead><tr><th>Nombre</th><th>Apellido</th><th>Cédula</th>'
+      +'<div class="card"><h2>Repartidores</h2><table class="dat reps"><thead><tr><th>Nombre</th><th>Apellido</th><th>Cédula</th>'
       +'<th>Pago móvil</th><th class="n">% del delivery</th><th class="n">Ejemplo</th><th>Estado</th><th></th></tr></thead><tbody>';
     DB.cfg.repartidores.forEach(r=>{
       h+='<tr><td><b>'+esc(r.nom)+'</b></td><td><b>'+esc(r.ape)+'</b></td><td class="mini">V-'+esc(r.ci)+'</td>'
@@ -2188,7 +2976,7 @@ function vistaCfg(){
 
 /* ---------------------------------------------------------- BARRA -------- */
 function barra(){
-  if(TAB!=='caja'||VTA.paso==='correo'){$('#barra').style.display='none';return;}
+  if(TAB!=='vta'||VSUB!=='ing'||VTA.paso==='correo'){$('#barra').style.display='none';return;}
   $('#barra').style.display='';
   const falta=faltaUSD(),vue=vueltoTotal(),resta=vueltoResta(),c=cliActual();
   let izq='',der='',inf='';
@@ -2206,7 +2994,8 @@ function barra(){
     der='<button class="b oro" id="b_arts"'+(ok?'':' disabled')+'>Continuar →</button>';
   }else if(VTA.paso==='arts'){
     izq='<button class="b gh" data-paso="canal">← Atrás</button>';
-    inf=VTA.lineas.length?VTA.lineas.reduce((a,l)=>a+l.cant,0)+' unidades · USD '+fN(totalVenta()):'Agregue al menos un artículo.';
+    const nu=VTA.lineas.reduce((a,l)=>a+l.cant,0);
+    inf=VTA.lineas.length?nu+(nu===1?' unidad · USD ':' unidades · USD ')+fN(totalVenta()):'Agregue al menos un artículo.';
     der='<button class="b oro" id="b_cobro"'+(VTA.lineas.length?'':' disabled')+'>Ir al cobro →</button>';
   }else if(VTA.paso==='cobro'){
     izq='<button class="b gh" data-paso="arts">← Atrás</button>';
@@ -2239,7 +3028,7 @@ document.addEventListener('click',e=>{
   const pz=e.target.closest('.dzp');
   if(pz&&!e.target.closest('button')){ const f=pz.querySelector('input[type=file]'); if(f) f.click(); return; }
   const b=e.target.closest('button'); if(!b)return;
-  if(b.dataset.tab){TAB=b.dataset.tab;PSEL=null;pinta();return;}
+  if(b.dataset.tab){TAB=b.dataset.tab;PSEL=null;pinta();window.scrollTo(0,0);return;}
   if(b.dataset.sub){SUB=b.dataset.sub;PREV=null;pinta();return;}
   if(b.dataset.csub){pbufOlvida();CSUB=b.dataset.csub;pinta();return;}
 
@@ -2684,11 +3473,25 @@ function bitacora(modulo, accion, detalle){
   const u = cajeraNom(DB.turno);
   const h = hash(prev + ts + u + modulo + accion + detalle);
   DB.bitacora.push({ ts, u, modulo, accion, detalle, prev, h });
-  if(DB.bitacora.length > 4000) DB.bitacora.splice(0, DB.bitacora.length - 4000);
+  /* La bitácora se poda para no llenar el navegador. Podar rompía la cadena:
+     el asiento más viejo que sobrevivía seguía apuntando a uno que ya no
+     estaba, y desde ahí la verificación acusaba manipulación para siempre —
+     un aviso que suena siempre deja de ser un aviso.
+     Ahora el corte se anota aparte, con el sello del último asiento podado.
+     La cadena arranca de ese sello en vez de arrancar de cero, así que sigue
+     verificando, y queda constancia de cuántos asientos se archivaron. */
+  if(DB.bitacora.length > 4000){
+    const podados = DB.bitacora.length - 4000;
+    const ultimo = DB.bitacora[podados - 1];
+    DB.bitacora.splice(0, podados);
+    DB.bitCorte = {n: ((DB.bitCorte || {}).n || 0) + podados,
+                   sello: ultimo.h, ts: new Date().toISOString()};
+  }
 }
 function verificaCadena(){
   const L = DB.bitacora || [];
-  let prev = '000000000000';
+  /* si hubo poda, la cadena arranca del sello del último asiento archivado */
+  let prev = (DB.bitCorte && DB.bitCorte.sello) ? DB.bitCorte.sello : '000000000000';
   for(let i=0;i<L.length;i++){
     const r = L[i];
     if(r.prev !== prev) return {ok:false, i};
@@ -2787,7 +3590,10 @@ function temaDesde(base, logoBg){
   t.hair   = hx(h, Math.min(0.24, sat*0.38), 0.912);
   t.ink    = hx(h, Math.min(0.30, sat*0.45), 0.130);
   t.ink2   = hx(h, Math.min(0.20, sat*0.32), 0.360);
-  t.muted  = hx(h, Math.min(0.16, sat*0.26), 0.545);
+  /* el texto secundario también se elige por contraste, no a ojo:
+     con 0,545 daba 3,12 sobre blanco y es el color de casi todas las
+     etiquetas del sistema */
+  t.muted  = hx(h, Math.min(0.16, sat*0.26), 0.415);
   /* el texto sobre el color de marca se elige por contraste, nunca a ojo */
   t.oroTx = contraste(t.oro, '#ffffff') >= contraste(t.oro, t.marronOs) ? '#ffffff' : t.marronOs;
   const rgbOro = hex2rgb(t.oro);
@@ -2907,7 +3713,7 @@ function pasos(){
      d:'Razón social y RIF con el dígito verificador correcto. Salen impresos en cada recibo y en cada correo.',
      tab:'cfg', sub:'emp'},
     {ok: !!t, t:'Tasa de cambio confirmada',
-     d:'Sin una tasa confirmada no se puede cobrar en bolívares.', tab:'tasas', sub:''},
+     d:'Sin una tasa confirmada no se puede cobrar en bolívares.', tab:'cfg', sub:'tasas'},
     {ok: DB.categorias.length > 0, t:'Categorías del catálogo',
      d:'Un artículo no se puede guardar sin categoría.', tab:'cfg', sub:'cat'},
     {ok: DB.productos.filter(p=>p.activo!==false).length > 0, t:'Artículos y precios',
@@ -3085,7 +3891,7 @@ function cfgMarca(){
   h += '<div class="fila" style="margin-top:16px">'
      + '<div><label class="f">Color de la marca</label>'
      + '<input type="color" id="mk_color" value="'+t.base+'" style="height:46px;padding:4px;cursor:pointer"></div>'
-     + '<div><label class="f">Cómo va a quedar</label><div class="prev">'
+     + '<div><label class="f">Cómo va a quedar</label><div class="prevcol">'
      + '<span style="background:'+t.marron+'"></span><span style="background:'+t.marron2+'"></span>'
      + '<span style="background:'+t.oro+'"></span><span style="background:'+t.crema+'"></span>'
      + '<span class="tx" style="background:'+t.oro+';color:'+t.oroTx+'">Botón</span></div>'
@@ -3390,11 +4196,19 @@ let PTAL = 'no';
 const TALLAS_NUEVAS = [{t:'S',e:0},{t:'M',e:0},{t:'L',e:0},{t:'XL',e:0}];
 
 function irAcfg(tab, sub){
+  /* los destinos viejos siguen funcionando: se traducen al menú nuevo */
+  const viejo = {caja:['vta','ing'], dev:['vta','dev'], rep:['vta','rep'],
+                 correos:['bd','cli'], tasas:['cfg','tasas'], accion:['tes','acc']};
+  if(viejo[tab]){ sub = sub || viejo[tab][1]; tab = viejo[tab][0]; }
   TAB = tab;
-  if(tab==='cfg' && sub) CSUB = sub;
-  if(tab==='tes' && sub) TSUB = sub;
-  if(tab==='ger' && sub) GSUB = sub;
-  pinta(); window.scrollTo(0,0);
+  if(tab==='vta'  && sub){ if(['dia','vtas','est'].indexOf(sub)>=0){ VSUB='rep'; RSUB=sub; } else VSUB = sub; }
+  if(tab==='cfg'  && sub) CSUB = sub;
+  if(tab==='tes'  && sub) TSUB = sub;
+  if(tab==='ger'  && sub) GSUB = sub;
+  if(tab==='conta'&& sub) KSUB = sub;
+  if(tab==='trib' && sub) BSUB = sub;
+  if(tab==='bd'   && sub) BDSUB = sub;
+  pinta(); window.scrollTo(0, 0);
 }
 
 document.addEventListener('click', e=>{
@@ -4090,6 +4904,22 @@ function modelosHuerfanos(){ return modelos().filter(m=>ctasHuerfanas(m).length)
    Ventas válidas, anuladas y devueltas
    ========================================================================== */
 function anulada(v){ return !!(v && v.anulada); }
+
+/* Lo que hay que sacar de la caja al anular una venta.
+   No es el total: es lo que la clienta entregó menos lo que ya salió —
+   el vuelto que se le dio en el momento, y los abonos de un vuelto que
+   había quedado pendiente. Anular reversa la operación completa, así que
+   después de devolver esto, nadie le debe nada a nadie. */
+function usdDe(x, tasa){ return x.mon === 'BS' ? (tasa ? x.monto / tasa : 0) : x.monto; }
+function devolverAlAnular(v){
+  if(!v) return 0;
+  const t = v.tasa || (tasaEn(v.fecha) || {}).bcv || 0;
+  const cob = (v.cobros || []).reduce((a, x) => a + usdDe(x, t), 0);
+  const vue = (v.vueltos || []).reduce((a, x) => a + usdDe(x, t), 0);
+  const abo = DB.vpend.filter(x => x.venta === v.num && !x.anulado)
+                .reduce((a, x) => a + (x.usd - x.saldo), 0);
+  return Math.max(0, r2(cob - vue - abo));
+}
 function ventasVal(f){ return DB.ventas.filter(v=>v.fecha===f && !anulada(v)); }
 function devDe(v){ return (v.devuelto || []); }
 function devueltoUSD(v){ return Math.round(devDe(v).reduce((a,d)=>a+d.usd,0)*100)/100; }
@@ -4181,13 +5011,16 @@ function anularVenta(num, cod, det, clave){
                motivoC:cod, detalle:String(det||'').trim(),
                por:cajeraNom(DB.turno), cierre: cie ? cie.fecha : null,
                vueltoCancelado:Math.round(vueltoCancelado*100)/100,
-               yaEntregado:Math.round(yaEntregado*100)/100, op:'anul'};
+               yaEntregado:Math.round(yaEntregado*100)/100,
+               devuelto:devolverAlAnular(v), op:'anul'};
 
   bitacora('caja','Venta anulada', v.num + ' · USD ' + fN(v.total) + ' · ' + cod + ' · ' + motivo
     + (cie ? ' · afecta el cierre del ' + fFecha(cie.fecha) : '')
-    + (yaEntregado > 0.005 ? ' · ya se le había entregado USD ' + fN(yaEntregado) : ''));
+    + ' · se le devuelven USD ' + fN(v.anulada.devuelto)
+    + (yaEntregado > 0.005 ? ' (ya se le había entregado USD ' + fN(yaEntregado) + ' de vuelto)' : ''));
 
-  aviso('Venta ' + v.num + ' anulada.' + (cie ? ' El cierre del ' + fFecha(cie.fecha) + ' quedó marcado como afectado.' : ''));
+  aviso('Venta ' + v.num + ' anulada. Entréguele USD ' + fN(v.anulada.devuelto) + ' a la clienta.'
+    + (cie ? ' El cierre del ' + fFecha(cie.fecha) + ' quedó marcado como afectado.' : ''));
   VSEL = v.num; VACC = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = '';
   pinta();
 }
@@ -4299,21 +5132,22 @@ function repVentas(){
   }
 
   h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Venta</th><th>Fecha</th><th>Cliente</th>'
-     + '<th>Artículos</th><th class="n">Total USD</th><th class="n">Neto</th><th>Estado</th><th></th></tr></thead><tbody>';
+     + '<th>Cédula</th><th>Artículos</th><th class="n">Total USD</th><th class="n">Neto</th><th>Estado</th><th></th></tr></thead><tbody>';
   ls.slice(0, 60).forEach(v=>{
-    const c = DB.clientes.find(x=>x.id === v.cliId) || {nom:'—', ape:''};
+    const c = DB.clientes.find(x=>x.id === v.cliId) || {nom:'—', ape:'', doc:''};
     const e = estadoVenta(v), sel = VSEL === v.num;
     h += '<tr'+(anulada(v) ? ' style="opacity:.62"' : '')+'>'
       + '<td><b>'+esc(v.num)+'</b><div class="mini">'+esc(v.hora)+'</div></td>'
       + '<td class="mini">'+fFecha(v.fecha)+'</td>'
       + '<td>'+esc(nomComp(c))+'</td>'
+      + '<td class="codn">'+esc(c.doc || '—')+'</td>'
       + '<td class="mini">'+v.lineas.reduce((a,l)=>a+l.cant,0)+' und · '+esc(v.canal||'—')+'</td>'
       + '<td class="n"'+(anulada(v) ? ' style="text-decoration:line-through"' : '')+'>'+fN(v.total)+'</td>'
       + '<td class="n"><b>'+fN(netoVenta(v))+'</b></td>'
       + '<td><span class="chip '+e.c+'">'+e.t+'</span></td>'
       + '<td class="n"><button class="b sm '+(sel ? 'gh' : 'oro')+'" data-vsel="'+esc(v.num)+'">'
       + (sel ? 'Cerrar' : 'Ver')+'</button></td></tr>';
-    if(sel) h += '<tr><td colspan="8" style="padding:0;background:var(--sup)">'+fichaVenta(v, c, t)+'</td></tr>';
+    if(sel) h += '<tr><td colspan="9" style="padding:0;background:var(--sup)">'+fichaVenta(v, c, t)+'</td></tr>';
   });
   h += '</tbody></table>';
   if(ls.length > 60) h += '<div class="nota">Se muestran las 60 más recientes de '+ls.length+'. Afine la búsqueda para ver el resto.</div>';
@@ -4558,63 +5392,6 @@ function gerSeguridad(){
 }
 
 /* ------------------------------------------------------- CONTABILIDAD ---- */
-function cfgContab(){
-  const sinCta = OPS.filter(o=>!ctaDe(o.k)).length;
-  let h = '<div class="card"><h2>Cómo se asienta cada operación</h2>'
-    + '<p class="cap">El módulo contable todavía no existe. Lo que sí existe desde ya es que cada movimiento de dinero '
-    + 'nace marcado con su tipo de operación. Cuando llegue la contabilidad, va a poder asentar todo el histórico de una '
-    + 'sola pasada, sin que nadie tenga que adivinar qué fue cada cosa.</p>';
-
-  h += sinCta
-    ? '<div class="nota">Quedan <b>'+sinCta+'</b> tipos de operación sin cuenta asignada. No frena nada hoy, pero conviene dejarlos listos.</div>'
-    : '<div class="nota"><b>Todos los tipos de operación tienen su cuenta.</b> El día que se active la contabilidad, el histórico se asienta solo.</div>';
-
-  const grupos = [];
-  OPS.forEach(o=>{ if(!grupos.includes(o.g)) grupos.push(o.g); });
-  grupos.forEach(g=>{
-    h += '<h3 style="font-size:13px;margin:20px 0 8px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">'+esc(g)+'</h3>'
-       + '<table class="dat"><tbody>';
-    OPS.filter(o=>o.g === g).forEach(o=>{
-      const cod = ctaDe(o.k);
-      h += '<tr><td style="width:44%"><b>'+esc(o.n)+'</b>'+(o.d ? '<div class="mini">'+esc(o.d)+'</div>' : '')+'</td>'
-        + '<td><select data-opcta="'+o.k+'"><option value="">Sin cuenta asignada</option>'
-        + (DB.cuentas||[]).map(c=>'<option value="'+esc(c.c)+'"'+(c.c === cod ? ' selected' : '')+'>'
-            +esc(c.c)+' · '+esc(c.n)+'</option>').join('')+'</select></td></tr>';
-    });
-    h += '</tbody></table>';
-  });
-  h += '</div>';
-
-  /* plan de cuentas */
-  h += '<div class="card"><h2>Plan de cuentas</h2>'
-     + '<p class="cap">El esqueleto viene cargado. Ajústelo a como lleva usted la contabilidad.</p>'
-     + '<div class="fila">'
-     + '<div style="flex:0 0 150px"><label class="f">Código</label>'
-     + '<input id="ct_c" placeholder="1.1.01" maxlength="14"></div>'
-     + '<div style="flex:2 1 280px"><label class="f">Nombre de la cuenta</label>'
-     + '<input id="ct_n" placeholder="Escriba el nombre" maxlength="60"></div>'
-     + '<div><label class="f">Tipo</label><select id="ct_t">'
-     + ['Activo','Pasivo','Patrimonio','Ingreso','Costo','Gasto'].map(x=>'<option>'+x+'</option>').join('')
-     + '</select></div>'
-     + '<div style="flex:0 0 auto;align-self:flex-end"><button class="b oro" id="ct_g">Agregar</button></div></div>';
-
-  h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Código</th><th>Cuenta</th><th>Tipo</th>'
-     + '<th>Se usa en</th><th></th></tr></thead><tbody>';
-  (DB.cuentas||[]).slice().sort((a,b)=>a.c.localeCompare(b.c)).forEach(c=>{
-    const usos = OPS.filter(o=>ctaDe(o.k) === c.c);
-    h += '<tr><td><b>'+esc(c.c)+'</b></td><td>'+esc(c.n)+'</td>'
-      + '<td><span class="chip">'+esc(c.t)+'</span></td>'
-      + '<td class="mini">'+(usos.length ? usos.map(o=>esc(o.n)).join(' · ') : '—')+'</td>'
-      + '<td class="n">'+(usos.length
-          ? '<span class="mini">en uso</span>'
-          : '<button class="b sm gh" data-ctdel="'+esc(c.c)+'">Eliminar</button>')+'</td></tr>';
-  });
-  h += '</tbody></table>'
-     + '<div class="nota">Una cuenta asignada a alguna operación no se elimina: primero desasígnela arriba. '
-     + 'Así ningún movimiento ya registrado se queda apuntando a una cuenta que dejó de existir.</div></div>';
-  return h;
-}
-
 /* -------------------------------------- devoluciones pendientes en tesorería */
 function pendDev(){ return DB.vpend.filter(p=>p.tipo === 'devolucion' && p.saldo > 0.005 && !p.anulado); }
 function pendVue(){ return DB.vpend.filter(p=>p.tipo !== 'devolucion' && p.saldo > 0.005 && !p.anulado); }
@@ -5150,7 +5927,7 @@ document.addEventListener('click', e=>{
     const c = DB.clientes.find(x=>x.id === v.cliId);
     nuevaRV();
     if(c){ RV.doc = c.doc; RV.cliId = c.id; RV.buscado = true; RV.num = v.num; }
-    TAB = 'dev'; DSUB = 'dvr'; pinta(); window.scrollTo(0, 0);
+    TAB = 'vta'; VSUB = 'dev'; DSUB = 'dvr'; pinta(); window.scrollTo(0, 0);
     if(!c) aviso('Esa venta no tiene cliente registrado.', true);
     return;
   }
@@ -5386,7 +6163,7 @@ document.addEventListener('click', e=>{
     }
     pinta(); window.scrollTo(0, 0); return;
   }
-  if(b.dataset.irdev){ TAB = 'dev'; DSUB = b.dataset.irdev; pinta(); window.scrollTo(0, 0); return; }
+  if(b.dataset.irdev){ TAB = 'vta'; VSUB = 'dev'; DSUB = b.dataset.irdev; pinta(); window.scrollTo(0, 0); return; }
 });
 
 /* ==========================================================================
@@ -5400,6 +6177,7 @@ document.addEventListener('click', e=>{
 
 function esDevolver(){ return DSUB === 'dvr'; }
 function esAnular(){ return DSUB === 'anl'; }
+function t2Anu(){ const t = tasaVigente(); return t ? t.bcv : 0; }
 
 /* las compras que se pueden tocar, según el camino */
 function comprasPara(cliId, modo){
@@ -5604,8 +6382,20 @@ function flujoAnular(){
   const vp = DB.vpend.filter(x=>x.venta === v.num && !x.anulado);
   const entregado = vp.reduce((a,x)=>a+(x.usd-x.saldo), 0);
 
+  const aDevolver = devolverAlAnular(v);
+  const cobrado = (v.fis && v.fis.cobrado) ? v.fis.cobrado : v.total;
   h += '<div class="card editando"><h2>¿Por qué se anula la orden '+esc(v.num)+'?</h2>'
      + '<p class="cap">La orden se anula completa, por USD '+fN(v.total)+'. Elija la causa.</p>';
+
+  h += '<div class="visor visor-anu"><span class="vk">Devuélvale ahora mismo</span>'
+     + '<div class="vn">USD '+fN(aDevolver)+'</div>'
+     + (t2Anu(v) ? '<span class="veq">Bs '+fN(aDevolver * t2Anu(v))+' a la tasa de hoy</span>' : '')
+     + '</div>';
+  h += '<div class="nota" style="margin-top:12px">'
+     + 'Es lo que la clienta puso sobre el mostrador y todavía está en la caja. '
+     + 'La cuenta era de USD '+fN(cobrado)+'.'
+     + (entregado > 0.005 ? ' Ya se le habían entregado USD '+fN(entregado)+', y eso está descontado.' : '')
+     + ' Anular reversa la operación completa: entregado esto, no queda deuda con nadie.</div>';
 
   h += '<div class="lineas">'
      + '<div class="lin"><div class="li"><b>Vuelven al inventario</b><div class="mini">'
@@ -5625,8 +6415,9 @@ function flujoAnular(){
   if(cie) h += '<div class="nota rj" style="margin-top:14px"><b>Ojo: el '+fFecha(v.fecha)+' ya tiene cierre de caja '
      + 'firmado.</b> Anular esta orden cambia lo que ese día debió haber en caja, y el arqueo que se contó deja de '
      + 'coincidir. El sistema lo marca como afectado y deja constancia. Es lo correcto, pero sépalo antes.</div>';
-  if(entregado > 0.005) h += '<div class="nota rj" style="margin-top:14px"><b>Ya se le entregó USD '+fN(entregado)
-     + ' de vuelto.</b> Ese dinero salió de la caja y anular no lo trae de vuelta: hay que cobrárselo aparte.</div>';
+  if(entregado > 0.005) h += '<div class="nota" style="margin-top:14px"><b>Ya se le había entregado USD '
+     + fN(entregado)+' de vuelto.</b> Ese dinero ya salió, así que está descontado de lo que hay que '
+     + 'devolverle ahora. No hay que cobrarle nada aparte.</div>';
 
   h += '<div class="fila" style="margin-top:16px">'
      + '<div><label class="f">Causa de la anulación</label>'
@@ -5650,7 +6441,7 @@ function flujoAnular(){
      + 'placeholder="Escriba la clave"><div class="ayuda">Sin ella la anulación no procede.</div></div>';
 
   h += '<div class="acc"><button class="b oro" id="rv_g"'+(m ? '' : ' disabled')+'>'
-     + (m ? 'Anular la orden '+esc(v.num) : 'Elija la causa de la anulación')+'</button>'
+     + (m ? 'Anular y devolver USD '+fN(aDevolver) : 'Elija la causa de la anulación')+'</button>'
      + '<button class="b gh" id="rv_can">← Elegir otra orden</button>'
      + '<button class="b gh" data-cruza="dvr">Esto no es anulación, es devolución →</button></div></div>';
   return h;
@@ -5679,7 +6470,7 @@ function rvEjecuta(){
     if(!claveOK(RV.clave)) return aviso('La clave de administrador no es correcta.', true);
     const no = puedeAnular(v); if(no) return aviso(no, true);
     anularVenta(v.num, RV.cod, RV.det, RV.clave);
-    if(anulada(v)){ nuevaRV(); TAB = 'dev'; DSUB = 'anl'; pinta(); window.scrollTo(0, 0); }
+    if(anulada(v)){ nuevaRV(); TAB = 'vta'; VSUB = 'dev'; DSUB = 'anl'; pinta(); window.scrollTo(0, 0); }
     return;
   }
 
@@ -5741,6 +6532,13 @@ document.addEventListener('click', e=>{
     /* el cuadre no depende de las cuentas, pero una cuenta vacía sí rompe */
     const vacia = nuevas.findIndex(c=>!c);
     if(vacia >= 0) return aviso('La línea '+(vacia+1)+' se quedó sin cuenta.', true);
+    /* una cuenta que aparece en el debe y en el haber del mismo asiento se
+       cancela sola: el asiento cuadra pero no mueve nada */
+    const dd = {}, hh = {};
+    m.lineas.forEach((l,i)=>{ (l.nat === 'D' ? dd : hh)[nuevas[i]] = true; });
+    const ambas = Object.keys(dd).filter(c=>hh[c]);
+    if(ambas.length) return aviso('La cuenta ' + ambas[0]
+      + ' quedaría en el debe y en el haber del mismo asiento: se cancelaría sola.', true);
     const cam = [];
     nuevas.forEach((c,i)=>{ if(c !== m.lineas[i].cta)
       cam.push('línea '+(i+1)+': '+m.lineas[i].cta+' → '+c); });
@@ -5793,6 +6591,42 @@ document.addEventListener('click', e=>{
 document.addEventListener('change', e=>{
   if(e.target && e.target.dataset && e.target.dataset.ctasel) e.stopPropagation();
 }, true);
+
+/* ==========================================================================
+   SICOM v18 · eventos de la nueva navegación
+   ========================================================================== */
+function bajaArchivo(nombre, texto, tipo){
+  const b = new Blob([texto], {type: (tipo||'text/csv') + ';charset=utf-8'});
+  const u = URL.createObjectURL(b), a = document.createElement('a');
+  a.href = u; a.download = nombre; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(u), 1500);
+}
+
+document.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.vsub){ VSUB = b.dataset.vsub; pinta(); window.scrollTo(0,0); return; }
+  if(b.dataset.estper){ ESTPER = b.dataset.estper; VSUB = 'rep'; RSUB = 'est'; pinta(); window.scrollTo(0,0); return; }
+  if(b.dataset.bsub){ BSUB = b.dataset.bsub; pinta(); window.scrollTo(0,0); return; }
+  if(b.dataset.bdsub){ BDSUB = b.dataset.bdsub; pinta(); return; }
+  if(b.dataset.trsub){ TRSUB = b.dataset.trsub; pinta(); return; }
+  if(b.dataset.rcsub){ RCSUB = b.dataset.rcsub; pinta(); return; }
+
+  if(b.id === 'lv_csv'){
+    bajaArchivo('libro-de-ventas-' + mesActual() + '.csv', csvLibroVentas());
+    bitacora('trib','Libro de ventas descargado', mesTexto(mesActual()));
+    aviso('Libro de ventas de ' + mesTexto(mesActual()) + ' descargado.');
+    return;
+  }
+  if(b.id === 'pc_csv'){
+    bajaArchivo('plan-de-cuentas.csv', csvPlanCuentas());
+    aviso('Plan de cuentas descargado.');
+    return;
+  }
+});
+
+document.addEventListener('change', e=>{
+  if(e.target && e.target.id === 'lv_mes'){ LVMES = e.target.value; pinta(); window.scrollTo(0,0); }
+});
 
 </script>
 </body>
