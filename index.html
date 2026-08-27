@@ -3813,6 +3813,11 @@ function cargar(){
 }
 function normaliza(b){
   const v = SEMILLA();
+  /* Las banderas de migración se leen ANTES de rellenar lo que falte. Si no,
+     el propio relleno las copia de la semilla —donde ya vienen al día— y las
+     migraciones se dan por hechas sin haber corrido. Es un error que en una
+     base nueva no se ve, porque ahí la semilla ya trae todo migrado. */
+  const eraPlan = b.planV, eraMod = b.modelosV, eraMarca = b.marcaV;
   Object.keys(v).forEach(k=>{ if(b[k]===undefined) b[k] = v[k]; });
   Object.keys(v.cfg).forEach(k=>{ if(b.cfg[k]===undefined) b.cfg[k] = v.cfg[k]; });
   Object.keys(v.corr).forEach(k=>{ if(b.corr[k]===undefined) b.corr[k] = v.corr[k]; });
@@ -3828,16 +3833,17 @@ function normaliza(b){
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
   /* el logo y la paleta del diseño 1 entran una sola vez: si la empresa ya
      subió otro logo o eligió otros colores, no se le pisan */
-  if(b.marcaV !== 1){
+  if(eraMarca !== 1){
     b.marcaV = 1;
     if(!b.empresa.logo){ b.empresa.logo = LOGO_CK; b.empresa.mono = LOGOM_CK;
       b.paleta = PALETA_CK.slice(); b._migMarca = true; }
-    if(!b.tema || !b.tema.oro){ b.tema = temaPorDefecto(); }
+    if(!b.tema || !b.tema.oro){ b.tema = temaPorDefecto(); b._migMarca = true; }
   }
   /* El plan pasó de una lista plana a un árbol de tres niveles, y los códigos
      cambiaron de sitio. No hay forma de convertir uno en otro sin inventar:
      se rehace de fábrica una sola vez y queda registrado en la bitácora. */
-  if(b.planV !== 3){
+  if(eraPlan !== 3){
+    b._planViejo = (b.cuentas || []).length;
     b.cuentas = CUENTAS_BASE(); b.mapaCtas = MAPA_BASE(); b.planV = 3;
     b._migPlan = true;
   }
@@ -3845,7 +3851,7 @@ function normaliza(b){
   CUENTAS_BASE().forEach(c=>{ if(!b.cuentas.some(x=>x.c===c.c)) b.cuentas.push(c); });
   b.cuentas.sort((x,y)=>cmpCod(x.c, y.c));
   /* los modelos quedan sin cuentas: las asigna la empresa */
-  if(b.modelosV !== 2){
+  if(eraMod !== 2){
     b.modelos = MODELOS_BASE(); b.modelosV = 2; b._migMod = true;
   }
   if(!b.modelos || !b.modelos.length) b.modelos = MODELOS_BASE();
@@ -7123,9 +7129,11 @@ document.addEventListener('click', e=>{
    ========================================================================== */
 DB = cargar();
 if(!DB.bitacora.length) bitacora('datos','Sistema iniciado','base de calidad con datos de prueba');
-if(DB._migPlan){ delete DB._migPlan;
+if(DB._migPlan){ const vj = DB._planViejo || 0; delete DB._migPlan; delete DB._planViejo;
   bitacora('contab','Plan de cuentas reestructurado',
-    'tres niveles: cuenta madre, cuenta título y cuenta detalle · '+DB.cuentas.length+' cuentas'); }
+    'tres niveles: cuenta madre, cuenta título y cuenta detalle · '
+    + DB.cuentas.length + ' cuentas'
+    + (vj ? ' · el plan anterior tenía ' + vj : '')); }
 if(DB._migMarca){ delete DB._migMarca;
   bitacora('marca','Logo y paleta del diseño 1',
     'monograma dorado sobre blanco · oro '+ORO_CK+' · tinta #22180f'); }
