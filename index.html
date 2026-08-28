@@ -785,6 +785,22 @@ body.enhome .barra{display:none !important}
 }
 .hmod:hover .hfl,.hmod:focus-visible .hfl{opacity:1;transform:translateX(0)}
 
+/* la caja trancada: no es un aviso que se desvanece, es la pantalla tomada */
+.tranca{
+  position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:22px;
+  background:rgba(20,16,8,.62);backdrop-filter:blur(3px)
+}
+.trbox{
+  background:var(--panel,#fff);border-radius:var(--r2);max-width:520px;width:100%;
+  padding:26px 28px;box-shadow:0 24px 70px -20px rgba(0,0,0,.55);
+  border-top:4px solid var(--mal)
+}
+.tranca.otra .trbox{border-top-color:var(--avi)}
+.trbox h2{margin:0 0 12px;font-size:21px;color:var(--ink)}
+.trbox p{margin:0 0 12px;font-size:15px;line-height:1.55;color:var(--ink2,var(--ink))}
+.trbox p.trmini{font-size:12.5px;color:var(--muted);font-family:ui-monospace,monospace}
+.tracc{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+body.trancado{overflow:hidden}
 .hpie{margin:0;font-size:12px;color:var(--muted);line-height:1.6}
 
 /* el logo del encabezado vuelve al inicio */
@@ -1563,6 +1579,9 @@ function suRefresca(){
    pruebas puedan llamarla sin pasar por el cuadro de confirmación */
 function cargaDemo(){
   DB = normaliza(DEMO());
+  /* la demo trae su propia bitácora: el testigo se reajusta a ella, si no el
+     verificador acusaría un faltante que nadie causó */
+  fijaBit((DB.bitacora || []).length + ((DB.bitCorte || {}).n || 0));
   bitacora('datos','Datos de ejemplo cargados','para recorrer el sistema, no para trabajar');
   TAB = 'home'; nuevoSU(); pinta();
 }
@@ -2153,6 +2172,30 @@ function pasoVuelto(){
 /* registrar */
 function registrar(){
   if(trancaTasa('registrar la venta')) return;
+  if(TRANCA){ return aviso('Resuelva primero el aviso que está en pantalla.', true); }
+  /* el botón ya valida, pero el botón no es la última palabra: quien escribe
+     vuelve a comprobarlo todo, porque a la función se puede llegar por otros
+     caminos —y con dos pestañas abiertas, el botón mira datos viejos */
+  if(!VTA.lineas.length) return aviso('La venta no tiene artículos.', true);
+  const _falta = faltaExistencia();
+  if(_falta) return aviso('No hay existencia suficiente. ' + _falta, true);
+  /* Cobrar de más no es un error: ese exceso es exactamente el vuelto. Lo que
+     no puede pasar es cerrar una venta con dinero sin cobrar, o entregar más
+     vuelto del que corresponde. */
+  if(faltaUSD() > 0.005)
+    return aviso('Faltan USD ' + fN(faltaUSD()) + ' por cobrar.', true);
+  if(vueltoResta() < -0.005)
+    return aviso('Está entregando USD ' + fN(-vueltoResta()) + ' más de vuelto del que corresponde.', true);
+  const _cliAntes = VTA.cli;
+  const _ok = conTx('registrar la venta', function(){ return registraVenta(); });
+  if(!_ok){ VTA.cli = _cliAntes; return; }
+  aviso('Venta ' + VTA.hecha.num + ' registrada · recibo enviado a ' + (VTA.hecha.mail || ''));
+  VTA.paso='correo'; pinta();
+}
+
+/* el cuerpo de la venta: solo toca DB, no avisa ni pinta. Quien decide si
+   quedó hecha es conTx, después de que el disco lo confirme. */
+function registraVenta(){
   const t=tasaVigente(); let c=cliActual();
   if(c&&c.nuevo){
     const nc={id:'c'+(++DB.corr.cli),doc:c.doc,nom:c.nom.trim(),ape:c.ape.trim(),gen:c.gen,op:c.op,tel:c.tel,
@@ -2163,6 +2206,7 @@ function registrar(){
     if(l.talla&&p.tallas){const tt=p.tallas.find(x=>x.t===l.talla); if(tt)tt.e=Math.max(0,tt.e-l.cant);}
     else p.exi=Math.max(0,p.exi-l.cant);});
   const num='V-'+String(++DB.corr.venta).padStart(5,'0');
+  subePiso(DB.corr.venta);
   c.compras=(c.compras||0)+1; c.monto=Math.round(((c.monto||0)+totalVenta())*100)/100; c.ultima=hoy;
 
   VTA.cobros.filter(x=>x.fuente==='accionista').forEach(x=>{
@@ -2183,7 +2227,9 @@ function registrar(){
     fis:(function(){ const d=desgVenta(); return {alic:fisc().alic, base:d.base, iva:d.iva, exento:d.exento,
       igtfPct:fisc().igtfPct, igtf:igtfVenta(), cobrado:totalCobrar()}; })(),
     lineas:VTA.lineas.map(l=>{const p=DB.productos.find(x=>x.id===l.id)||{};
-      return {sku:l.sku,nom:l.nom,talla:l.talla,cant:l.cant,precio:l.precio,cat:p.cat||'',costo:p.costo||0};}),
+      /* desc = lo que de verdad salió del estante. Anular repone esto, no lo
+         que se pidió: así una venta vieja con sobreventa no infla el inventario */
+      return {sku:l.sku,nom:l.nom,talla:l.talla,cant:l.cant,desc:l.cant,precio:l.precio,cat:p.cat||'',costo:p.costo||0};}),
     op:'vta',
     cobros:VTA.cobros.map(x=>Object.assign({},x,{op:'cob_'+x.met})),
     vueltos:VTA.vueltos.map(x=>Object.assign({},x,{op:'vue_'+x.met})),
@@ -2197,8 +2243,8 @@ function registrar(){
   bitacora('caja','Venta registrada', num+' · '+nomComp(c)+' · USD '+fN(totalVenta())
     +' · '+VTA.canal+' · '+VTA.cobros.length+(VTA.cobros.length===1?' cobro':' cobros')
     +(resta>0.005?' · queda vuelto pendiente USD '+fN(resta):''));
-  aviso('Venta '+num+' registrada · recibo enviado a '+c.mail);
-  VTA.paso='correo'; pinta();
+  VTA.hecha.mail = c.mail;
+  return true;
 }
 
 /* 6 · CORREO */
@@ -2581,6 +2627,19 @@ function tesCierre(){
       +'<td class="n"><b>'+u+fN(debe)+'</b></td></tr>';});
   h+='</tbody></table>'
     +'<div class="nota">Los métodos electrónicos no se cuentan a mano: se concilian contra el estado de cuenta con su referencia y su banco.</div></div>';
+
+  /* El fondo es la base de todo el arqueo y de todo vuelto en efectivo. Vivía
+     como un número que ninguna pantalla podía escribir: el checklist nunca
+     llegaba a listo y dar vuelto en dólares era imposible. */
+  h+='<div class="card"><h2>Fondo de caja</h2>'
+    +'<div class="fila"><div><label class="f">Efectivo en dólares que queda en la caja para dar vuelto</label>'
+    +'<input id="fondo_v" inputmode="decimal" maxlength="9" placeholder="Escriba el monto" value="'
+    + esc(DB.fondoUSD ? fN(DB.fondoUSD) : '') + '"></div>'
+    +'<div class="acc" style="align-self:end"><button class="b oro" id="fondo_g">Fijar el fondo</button></div></div>'
+    + (DB.fondoUSD > 0
+        ? '<p class="cap">Hoy el fondo es de <b>USD '+fN(DB.fondoUSD)+'</b>. Con eso se comparan el arqueo y los vueltos en efectivo.</p>'
+        : '<p class="cap mal">Sin fondo cargado no se puede entregar un vuelto en efectivo en dólares, y el arqueo sale como si la caja hubiera abierto vacía.</p>')
+    +'</div>';
 
   h+='<div class="card peg"><h2>Conteo de la cajera</h2>'
     +'<p class="cap">Cuente el efectivo y escriba lo que hay. El sistema compara.</p><div class="fila">'
@@ -4351,11 +4410,19 @@ document.addEventListener('click',e=>{
     else {const vp=DB.vpend.find(x=>x.id===PSEL); if(vp) vp._print=null;}
     pinta();return;}
 
-  if(b.id==='m_imp'){let n=0;PREV.filter(r=>!r.mal&&r.tipo!=='igual').forEach(r=>{
+  if(b.id==='m_imp'){let n=0, act=0;
+    const filas = PREV.filter(r=>!r.mal&&r.tipo!=='igual');
+    const fs = filas.map(r=>r.fecha).sort();
+    filas.forEach(r=>{
       const ya=DB.tasas.find(t=>t.fecha===r.fecha);
-      if(ya){ya.bcv=r.bcv;if(r.par)ya.par=r.par;ya.estado='confirmada';}
+      if(ya){ya.bcv=r.bcv;if(r.par)ya.par=r.par;ya.estado='confirmada';act++;}
       else DB.tasas.push({fecha:r.fecha,bcv:r.bcv,par:r.par||null,estado:'confirmada'});n++;});
-    PREV=null;MTXT='';aviso(n+' tasas importadas.');pinta();return;}
+    /* una tasa cambia el bolívar de cada venta de ese día: importarlas en
+       lote sin dejar constancia es cambiar el pasado en silencio */
+    if(n || act) bitacora('cfg','Tasas importadas en lote',
+      n+' nuevas · '+act+' actualizadas'
+      + (fs.length ? ' · del '+fFecha(fs[0])+' al '+fFecha(fs[fs.length-1]) : ''));
+    PREV=null;MTXT='';aviso((n+act)+' tasas importadas.');pinta();return;}
 
   /* accionista */
   if(b.dataset.reiex!==undefined){ REI.buf=b.dataset.reiex==='1'?String(r2(saldoAcc())).replace('.',','):'';
@@ -4399,7 +4466,15 @@ document.addEventListener('click',e=>{
     bitacora('tes','Caja cerrada',fFecha(hoy)+' · USD '+fN(pila(CIERRE.usd))+' · Bs '+fN(pila(CIERRE.bs),0)
       +(cuadro?' · cuadró exacto':' · diferencia USD '+fN(dU)+' y Bs '+fN(dB,0)+' · '+(CIERRE.motivo||'')));
     CIERRE=null;
+    guardar();
     aviso(cuadro?'Caja cerrada · cuadró exacto.':'Caja cerrada con diferencia autorizada.');
+    /* El respaldo era voluntario y por eso no pasaba. El cierre de caja es el
+       momento natural: el día está cuadrado y no hay nada a medias. */
+    setTimeout(function(){
+      if(confirm('Caja cerrada.\n\n¿Bajamos el respaldo del día ahora?\n\n'
+        + 'Guárdelo fuera de esta computadora: si se daña el equipo, se pierde todo lo posterior al último respaldo.'))
+        bajaRespaldo();
+    }, 400);
     pinta();return;}
 
   /* navegación */
@@ -4529,6 +4604,15 @@ document.addEventListener('click',e=>{
   if(b.dataset.pfu){const [id,f]=b.dataset.pfu.split('|');const v=DB.vpend.find(x=>x.id===id);v._fu=f;pinta();return;}
   if(b.dataset.pex){const v=DB.vpend.find(x=>x.id===b.dataset.pex);
     v._buf=v.saldo.toFixed(2).replace('.',',');pinta();return;}
+  if(b.id==='fondo_g'){
+    const n = Math.round(pila($('#fondo_v').value)*100)/100;
+    if(!(n >= 0)) return aviso('Escriba cuánto efectivo en dólares queda en la caja para dar vuelto.', true);
+    if(n > 100000) return aviso('Ese monto no parece un fondo de caja.', true);
+    const antes = DB.fondoUSD || 0;
+    DB.fondoUSD = n;
+    bitacora('tes','Fondo de caja fijado','de USD '+fN(antes)+' a USD '+fN(n));
+    guardar(); aviso('Fondo de caja: USD '+fN(n)+'.'); pinta(); return;
+  }
   if(b.dataset.pgo){
     if(trancaTasa('entregar el vuelto'))return;
     const v=DB.vpend.find(x=>x.id===b.dataset.pgo),t=tasaVigente();
@@ -4551,10 +4635,27 @@ document.addEventListener('click',e=>{
     const c=DB.clientes.find(x=>x.id===v.cliId);
     DB.correos.push({fecha:hoy,cli:nomComp(c),mail:c.mail,venta:v.venta,arts:0,tipo:'vuelto',estado:'enviado'});
     v._buf='';v._ref='';v._banco='';
+    /* Es la salida de efectivo más frecuente de la tienda y era la única que
+       no dejaba rastro: el saldo bajaba y no quedaba quién, cuánto ni por
+       qué vía. */
+    bitacora('tes', v.tipo === 'devolucion' ? 'Devolución pagada' : 'Vuelto entregado',
+      v.venta + ' · ' + nomComp(c) + ' · USD ' + fN(usd) + ' · ' + m.n
+      + (ref ? ' · ' + org(m).ref.toLowerCase() + ' ' + ref : '')
+      + (bcoP ? ' · ' + bcoP : '')
+      + (m.banco && v._fu === 'accionista' ? ' · con fondos del accionista' : '')
+      + (v.saldo > 0.005 ? ' · quedan USD ' + fN(v.saldo) : ' · saldado'));
     aviso(v.saldo>0.005?'Entrega parcial · quedan USD '+fN(v.saldo)+' · correo enviado a '+c.mail
                        :'Vuelto saldado · correo enviado a '+c.mail);
     if(v.saldo<=0.005) PSEL=null;
     pinta();return;}
+
+  if(b.dataset.tranca){
+    const k = b.dataset.tranca;
+    if(k === 'resp'){ bajaRespaldo(); return; }
+    if(k === 'recarga'){ location.reload(); return; }
+    if(k === 'reint'){ destrancaCaja(); if(guardar()) aviso('Guardado.'); return; }
+    destrancaCaja(); return;
+  }
 
   /* configuración */
   if(b.dataset.ctapers){
@@ -4609,15 +4710,29 @@ document.addEventListener('click',e=>{
   if(b.id==='nz_g'){const nom=$('#nz_nom').value.trim(),usd=pila($('#nz_usd').value),t=$('#nz_t').value.trim();
     if(nom.length<3)return aviso('Escriba el nombre de la zona.',true);
     if(usd<=0)return aviso('La tarifa debe ser mayor que cero.',true);
-    DB.cfg.zonas.push({id:nid('z'),nom,usd,t:t||'Por confirmar',activo:true});aviso('Zona agregada.');pinta();return;}
+    DB.cfg.zonas.push({id:nid('z'),nom,usd,t:t||'Por confirmar',activo:true});
+    bitacora('cfg','Zona de delivery agregada', nom+' · USD '+fN(usd));
+    aviso('Zona agregada.');pinta();return;}
   if(b.dataset.ztog){const z=DB.cfg.zonas.find(x=>x.id===b.dataset.ztog);z.activo=!z.activo;pinta();return;}
   if(b.id==='nc_g'){const n=$('#nc_nom').value.trim();
     if(n.length<3)return aviso('Escriba el nombre del canal.',true);
     if(DB.cfg.canales.some(c=>c.toLowerCase()===n.toLowerCase()))return aviso('Ese canal ya existe.',true);
-    DB.cfg.canales.push(n);aviso('Canal agregado.');pinta();return;}
+    DB.cfg.canales.push(n);
+    bitacora('cfg','Canal agregado', n);
+    aviso('Canal agregado.');pinta();return;}
   if(b.dataset.cdel!==undefined&&b.dataset.cdel!==''){
     if(DB.cfg.canales.length<=1)return aviso('Debe quedar al menos un canal.',true);
-    DB.cfg.canales.splice(+b.dataset.cdel,1);pinta();return;}
+    const cn = DB.cfg.canales[+b.dataset.cdel];
+    /* borrar una categoría con artículos está protegido desde siempre; borrar
+       un canal usado por ventas viejas no lo estaba, y esas ventas quedan
+       apuntando a algo que ya no se puede volver a elegir */
+    const usos = DB.ventas.filter(v=>v.canal === cn).length;
+    if(usos) return aviso('«'+cn+'» tiene '+usos+(usos===1?' venta':' ventas')
+      +' registradas. No se puede borrar: las ventas viejas quedarían apuntando a un canal que ya no existe.', true);
+    if(!confirm('¿Borrar el canal «'+cn+'»?')) return;
+    DB.cfg.canales.splice(+b.dataset.cdel,1);
+    bitacora('cfg','Canal borrado', cn);
+    pinta();return;}
   if(b.id==='nk_g'){const nom=$('#nk_nom').value.trim(),ape=$('#nk_ape').value.trim();
     {const vn=valNom(nom,'nombre'); if(!vn.ok) return aviso(vn.msg,true);
      const va=valNom(ape,'apellido'); if(!va.ok) return aviso(va.msg,true);}
@@ -4694,15 +4809,34 @@ document.addEventListener('change',e=>{
   }
   if(id==='a_banco'){ REI.banco=e.target.value; return; }
   if(id==='cl_op'){VTA.nuevo.op=e.target.value;pinta();return;}
-  if(id==='k_turno'){DB.turno=e.target.value;aviso('Turno de '+cajeraNom(DB.turno));pinta();return;}
+  if(id==='k_turno'){
+    const antes = DB.turno, nuevo = e.target.value;
+    if(antes === nuevo) return;
+    /* La venta se firma con quien la registra. Cambiar de cajera con el
+       carrito armado hacía que la venta saliera a nombre de quien no la
+       hizo, justo lo contrario de lo que la pantalla promete. */
+    if(TAB==='vta' && VSUB==='ing' && VTA && VTA.lineas && VTA.lineas.length && VTA.paso!=='correo'){
+      e.target.value = antes;
+      return aviso('Hay una venta a medio armar de '+cajeraNom(antes)
+        +'. Termínela o descártela antes de cambiar de turno.', true);
+    }
+    DB.turno = nuevo;
+    bitacora('caja','Cambio de turno', cajeraNom(antes)+' → '+cajeraNom(nuevo));
+    aviso('Turno de '+cajeraNom(DB.turno));pinta();return;}
   if(e.target.dataset.vcom){const v=DB.cfg.vendedores.find(x=>x.id===e.target.dataset.vcom);
-    const n=pila(e.target.value); if(n<0||n>50){aviso('La comisión debe estar entre 0 y 50 %.',true);}else{v.com=n;aviso('Comisión actualizada.');}
+    const n=pila(e.target.value); if(n<0||n>50){aviso('La comisión debe estar entre 0 y 50 %.',true);}
+    else{ const ant=v.com; if(n!==ant) bitacora('cfg','Comisión de vendedora',
+      nomPersona(v)+': '+fN(ant,2)+' % → '+fN(n,2)+' %'); v.com=n;aviso('Comisión actualizada.');}
     pinta();return;}
   if(e.target.dataset.zusd){const z=DB.cfg.zonas.find(x=>x.id===e.target.dataset.zusd);
-    const n=pila(e.target.value); if(n<=0){aviso('La tarifa debe ser mayor que cero.',true);}else{z.usd=n;aviso('Tarifa actualizada.');}
+    const n=pila(e.target.value); if(n<=0){aviso('La tarifa debe ser mayor que cero.',true);}
+    else{ const ant=z.usd; if(n!==ant) bitacora('cfg','Tarifa de delivery',
+      z.nom+': USD '+fN(ant)+' → USD '+fN(n)); z.usd=n;aviso('Tarifa actualizada.');}
     pinta();return;}
   if(e.target.dataset.rpct){const r=DB.cfg.repartidores.find(x=>x.id===e.target.dataset.rpct);
-    const n=pila(e.target.value); if(n<=0||n>100){aviso('El porcentaje debe estar entre 1 y 100.',true);}else{r.pct=n;aviso('Porcentaje actualizado.');}
+    const n=pila(e.target.value); if(n<=0||n>100){aviso('El porcentaje debe estar entre 1 y 100.',true);}
+    else{ const ant=r.pct; if(n!==ant) bitacora('cfg','Porcentaje del repartidor',
+      nomPersona(r)+': '+fN(ant,2)+' % → '+fN(n,2)+' %'); r.pct=n;aviso('Porcentaje actualizado.');}
     pinta();return;}
   if(id==='c_banco'){VTA.banco=e.target.value;e.target.className=e.target.value?'':'mal';return;}
   if(id==='p_banco'){const vp=DB.vpend.find(x=>x.id===PSEL);if(vp)vp._banco=e.target.value;return;}
@@ -4729,13 +4863,208 @@ function isoLocal(d){ d = d || new Date();
 function horaLocal(d){ d = d || new Date();
   return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 
+/* ==========================================================================
+   Blindaje transaccional
+
+   Tres cosas que un sistema de caja no puede hacer nunca, y que este hacía:
+
+   · Emitir dos veces el mismo número de factura. El correlativo vivía en la
+     memoria de cada pestaña y se reponía al restaurar un respaldo. Ahora hay
+     un piso guardado aparte que solo sube; ni restaurar ni vaciar lo bajan.
+
+   · Decir «venta registrada» sin haberla guardado. La venta se aplicaba en
+     memoria y se guardaba después; si el guardado fallaba, nadie leía el
+     error. Ahora toda operación de dinero corre dentro de conTx(): se toma
+     una foto, se aplica, se guarda, y si el guardado falla se vuelve a la
+     foto y la caja se tranca con un aviso que no se puede ignorar.
+
+   · Dejar que dos pestañas se pisen. Cada escritura lleva un número de
+     revisión en su propia llave; antes de guardar se compara con el disco, y
+     si otra pestaña escribió, esta no guarda nada: avisa y manda a recargar.
+   ========================================================================== */
+
+const CLAVE_REV  = CLAVE + '.rev';   /* la revisión escrita en disco */
+const CLAVE_PISO = CLAVE + '.piso';  /* el número de factura más alto emitido */
+
+let TXREV = 0;          /* la revisión que esta pestaña tiene cargada */
+/* El testigo distingue nuestras escrituras de las ajenas. localStorage se
+   comparte entre procesos y una lectura puede llegar rezagada unos
+   milisegundos: por eso no basta con mirar antes de escribir, hay que releer
+   después y comprobar que lo que quedó es lo nuestro. */
+const TXYO = Math.random().toString(36).slice(2, 10);
+let ULT_ESCRITO = null; /* lo último que esta pestaña escribió, para no reescribir igual */
+let TRANCA = null;      /* qué tranca la caja ahora mismo, si algo la tranca */
+let TXAJENA = false;    /* otra pestaña escribió: esta copia ya no manda */
+
+/* ---------- el número de factura no retrocede jamás ---------- */
+function pisoCorr(){ try{ return Math.max(0, +(localStorage.getItem(CLAVE_PISO) || 0) || 0); }catch(e){ return 0; } }
+function subePiso(n){
+  n = Math.max(0, +n || 0);
+  try{ if(n > pisoCorr()) localStorage.setItem(CLAVE_PISO, String(n)); }catch(e){}
+}
+/* al cargar, al restaurar y al vaciar: el contador se sube al piso, nunca al revés */
+function aplicaPiso(){
+  if(!DB || !DB.corr) return;
+  const p = pisoCorr(), c = Math.max(0, +DB.corr.venta || 0);
+  if(p > c){ DB.corr.venta = p; DB._corrSubido = p - c; }
+  else subePiso(c);
+}
+
+/* ---------- la revisión en disco ---------- */
+function selloDisco(){ try{ return String(localStorage.getItem(CLAVE_REV) || '0:'); }catch(e){ return '0:'; } }
+function revEnDisco(){ return +(selloDisco().split(':')[0]) || 0; }
+function quienEscribio(){ return selloDisco().split(':')[1] || ''; }
+/* Estar al día es cuestión de revisión, no de autoría: una pestaña recién
+   abierta leyó lo último aunque lo haya escrito otra. El testigo sirve para
+   otra cosa —comprobar que nuestra propia escritura es la que quedó—, y
+   confundir ambas cosas dejaba trancada a una pestaña que estaba al día. */
+function otraEscribio(){ return TXAJENA || revEnDisco() !== TXREV; }
+
+/* ---------- la caja trancada ---------- */
+/* No es un aviso que se desvanece: mientras haya algo sin guardar, la pantalla
+   queda tomada. Un mensaje que se va solo es exactamente lo que hizo que se
+   perdieran tres ventas seguidas sin que nadie lo notara. */
+function trancaCaja(clase, titulo, cuerpo, botones){
+  if(TRANCA === clase) return;
+  TRANCA = clase;
+  const b = (botones || []).map(x=>'<button class="b '+(x.oro?'oro':'gh')+'" data-tranca="'+x.k+'">'+esc(x.t)+'</button>').join('');
+  let d = document.getElementById('tranca');
+  if(!d){ d = document.createElement('div'); d.id = 'tranca'; document.body.appendChild(d); }
+  d.className = 'tranca ' + clase;
+  d.innerHTML = '<div class="trbox" role="alertdialog" aria-modal="true" aria-labelledby="trtit">'
+    + '<h2 id="trtit">' + esc(titulo) + '</h2>' + cuerpo
+    + '<div class="tracc">' + b + '</div></div>';
+  document.body.classList.add('trancado');
+}
+function destrancaCaja(){
+  TRANCA = null;
+  const d = document.getElementById('tranca');
+  if(d) d.remove();
+  document.body.classList.remove('trancado');
+}
+function trancaLleno(){
+  trancaCaja('lleno', 'La última operación no se guardó',
+    '<p>El almacenamiento del navegador está lleno, así que lo que acaba de hacer <b>no quedó grabado</b> '
+    + 'y se deshizo para que los números no queden a medias.</p>'
+    + '<p>Baje el respaldo ahora mismo y guárdelo fuera de esta computadora. Después libere espacio '
+    + 'o pídame que mude el almacenamiento.</p>',
+    [{k:'resp', t:'Descargar el respaldo', oro:true}, {k:'reint', t:'Reintentar'}]);
+}
+function trancaOtra(){
+  trancaCaja('otra', 'Otra pestaña guardó cambios',
+    '<p>SICOM está abierto en otra pestaña o ventana y allí se guardó algo después de que esta cargó. '
+    + 'Si esta pestaña grabara, borraría ese trabajo.</p>'
+    + '<p><b>Trabaje en una sola pestaña.</b> Recargue esta para ver lo último y siga desde ahí.</p>',
+    [{k:'recarga', t:'Recargar y seguir', oro:true}, {k:'resp', t:'Descargar el respaldo'}]);
+}
+function trancaFallo(etq, msg){
+  trancaCaja('fallo', 'La operación se deshizo',
+    '<p>Algo falló a mitad de <b>' + esc(etq) + '</b>, así que se devolvió todo al estado anterior: '
+    + 'no quedó un número consumido ni un inventario descontado a medias.</p>'
+    + (msg ? '<p class="trmini">' + esc(String(msg)) + '</p>' : ''),
+    [{k:'cerrar', t:'Entendido', oro:true}, {k:'resp', t:'Descargar el respaldo'}]);
+}
+
+/* ---------- guardar ---------- */
+function guardar(){
+  let s;
+  try{ s = JSON.stringify(DB); }
+  catch(e){ return false; }
+  /* si nada cambió no se toca el disco: así navegar entre pantallas no le
+     mueve la revisión a la otra pestaña */
+  if(s === ULT_ESCRITO) return true;
+  if(otraEscribio()){ trancaOtra(); return false; }
+  try{
+    localStorage.setItem(CLAVE, s);
+    /* ahora sí: lo que quedó en disco es lo que el testigo cuenta */
+    subeBit(((DB.bitacora || []).length) + ((DB.bitCorte || {}).n || 0));
+    TXREV = TXREV + 1;
+    localStorage.setItem(CLAVE_REV, TXREV + ':' + TXYO);
+    /* releer: si lo que quedó no es lo nuestro, otra pestaña escribió en el
+       mismo instante y hay dos verdades. No se sigue como si nada. */
+    if(selloDisco() !== TXREV + ':' + TXYO){ trancaOtra(); return false; }
+    ULT_ESCRITO = s;
+    ERRGUARDA = false;
+    if(TRANCA === 'lleno') destrancaCaja();
+    return true;
+  }catch(e){
+    ERRGUARDA = true;
+    trancaLleno();
+    return false;
+  }
+}
+
+/* ---------- una operación de dinero, entera o nada ----------
+   fn devuelve false para abortar por su cuenta (una validación que no pasó).
+   Si el guardado falla, se vuelve a la foto: la memoria nunca queda adelantada
+   respecto del disco. */
+function conTx(etq, fn){
+  if(otraEscribio()){ trancaOtra(); return false; }
+  let foto;
+  try{ foto = JSON.stringify(DB); }
+  catch(e){ trancaFallo(etq, 'no se pudo tomar el respaldo previo'); return false; }
+  let r;
+  try{ r = fn(); }
+  catch(e){
+    DB = JSON.parse(foto);
+    trancaFallo(etq, e && e.message);
+    try{ pinta(); }catch(_){}
+    return false;
+  }
+  if(r === false){ DB = JSON.parse(foto); return false; }
+  if(!guardar()){ DB = JSON.parse(foto); try{ pinta(); }catch(_){} return false; }
+  return true;
+}
+
+/* ---------- lo que de verdad hay en el estante ---------- */
+function existenciaDe(id, talla){
+  const p = DB.productos.find(x=>x.id === id); if(!p) return 0;
+  if(talla && p.tallas){ const t = p.tallas.find(x=>x.t === talla); return t ? t.e : 0; }
+  return Math.max(0, +p.exi || 0);
+}
+/* la venta no puede sacar del estante lo que no está */
+function faltaExistencia(){
+  const pide = {};
+  VTA.lineas.forEach(l=>{ const k = l.id + '|' + (l.talla || ''); pide[k] = (pide[k] || 0) + l.cant; });
+  for(const k in pide){
+    const [id, ta] = k.split('|');
+    const hay = existenciaDe(id, ta);
+    if(pide[k] > hay){
+      const l = VTA.lineas.find(x=>x.id === id && (x.talla || '') === ta) || {};
+      return (l.nom || 'Ese artículo') + (ta ? ' talla ' + ta : '') + ': pide ' + pide[k]
+        + ' y quedan ' + hay + '.';
+    }
+  }
+  return '';
+}
+
+/* ---------- avisar a las otras pestañas ----------
+   Sin servidor no hay bloqueo de verdad: el navegador comparte localStorage
+   entre procesos y una lectura puede llegar rezagada unos milisegundos. Por
+   eso hay dos defensas y no una: mirar la revisión antes de escribir, y este
+   aviso, que llega solo y no depende de que alguien lea. Dos personas que
+   guarden en el mismo milisegundo siguen siendo una carrera que este diseño
+   no puede resolver; a velocidad humana, cualquiera de las dos la detecta.
+   La única solución completa es un servidor. */
+window.addEventListener('storage', function(e){
+  if(e.key !== CLAVE_REV) return;
+  const q = (String(e.newValue || '').split(':')[1]) || '';
+  if(q === TXYO) return;              /* es nuestra propia escritura rebotando */
+  TXAJENA = true;                     /* alguien más escribió: esta copia quedó vieja */
+  trancaOtra();
+});
+
 /* ---------- lectura y escritura ---------- */
 function cargar(){
-  let b = null;
+  let b = null, crudo = null;
   try{
-    const crudo = localStorage.getItem(CLAVE);
+    crudo = localStorage.getItem(CLAVE);
     if(crudo) b = JSON.parse(crudo);
   }catch(e){ console.warn('No se pudo leer el almacenamiento del navegador:', e); }
+  /* esta pestaña queda anclada a la revisión que acaba de leer: si otra
+     escribe después, esta lo sabrá antes de guardar encima */
+  TXREV = revEnDisco();
+  ULT_ESCRITO = crudo;
   if(!b) b = SEMILLA();
   return normaliza(b);
 }
@@ -4792,15 +5121,75 @@ function normaliza(b){
   return b;
 }
 let ERRGUARDA = false;
-function guardar(){
-  try{ localStorage.setItem(CLAVE, JSON.stringify(DB)); ERRGUARDA = false; return true; }
-  catch(e){
-    if(!ERRGUARDA){ ERRGUARDA = true;
-      aviso('No se pudo guardar: el almacenamiento del navegador está lleno. Haga un respaldo desde Gerencial.', true); }
-    return false;
-  }
-}
+/* guardar() vive ahora en el bloque de blindaje, más arriba */
 function pesoDatos(){ try{ return (localStorage.getItem(CLAVE)||'').length; }catch(e){ return 0; } }
+
+/* ==========================================================================
+   Rastro completo y respaldo sellado
+
+   La auditoría encontró que la bitácora sirve contra el error pero no contra
+   el fraude, y que había huecos donde el dinero sale sin dejar constancia.
+   Tres cosas se arreglan aquí:
+
+   · La salida de efectivo más frecuente de la tienda —entregar un vuelto o
+     pagar una devolución— no escribía un solo asiento. Ahora sí, con monto,
+     vía, referencia y cajera.
+
+   · Cortar la cola de la bitácora, o vaciarla entera, dejaba al verificador
+     diciendo «íntegra»: solo miraba hacia adentro de lo que quedaba. Ahora un
+     contador guardado aparte recuerda cuántos asientos llegó a haber, y solo
+     sube. Si faltan, se ve.
+
+   · El respaldo no decía de quién era, y la restauración no lo miraba. Un
+     respaldo de otra empresa convertía esta en aquella sin preguntar. Ahora
+     va sellado con el RIF y restaurar sobre otra empresa exige confirmarlo
+     escribiendo, no con un clic de más.
+   ========================================================================== */
+
+const CLAVE_BIT = CLAVE + '.bitn';   /* cuántos asientos llegó a tener la bitácora */
+
+function contBit(){ try{ return Math.max(0, +(localStorage.getItem(CLAVE_BIT) || 0) || 0); }catch(e){ return 0; } }
+function subeBit(n){
+  n = Math.max(0, +n || 0);
+  try{ if(n > contBit()) localStorage.setItem(CLAVE_BIT, String(n)); }catch(e){}
+}
+/* solo en un hecho legítimo y registrado —restaurar un respaldo— el contador
+   puede bajar; y queda dicho en la propia bitácora */
+function fijaBit(n){ try{ localStorage.setItem(CLAVE_BIT, String(Math.max(0, +n || 0))); }catch(e){} }
+
+/* ---------- lo que el verificador no veía ----------
+   Faltar asientos no rompe la cadena de los que quedan: por eso hacía falta
+   un testigo fuera de la propia bitácora. */
+function faltanAsientos(){
+  const L = (DB.bitacora || []).length + ((DB.bitCorte || {}).n || 0);
+  const c = contBit();
+  return c > L ? c - L : 0;
+}
+
+/* ---------- el respaldo dice de quién es ---------- */
+function selloEmpresa(){
+  return String((DB.empresa && DB.empresa.rif) || '').trim().toUpperCase();
+}
+function mismoDueno(d){
+  const a = selloEmpresa();
+  const b = String((d && d.empresa && d.empresa.rif) || '').trim().toUpperCase();
+  if(!a || !b) return true;      /* una instalación en blanco acepta cualquiera */
+  return a === b;
+}
+
+/* ---------- el respaldo, al día ---------- */
+function diasSinRespaldo(){
+  if(!DB.ultResp) return null;
+  return Math.round((new Date(hoy) - new Date(DB.ultResp)) / 86400000);
+}
+function respaldoVencido(){
+  const d = diasSinRespaldo();
+  if(d === null) return (DB.ventas || []).length > 0;   /* nunca bajó uno y ya hay ventas */
+  return d >= 1 && ventasVal(hoy).length > 0;           /* hubo ventas hoy y el respaldo es de antes */
+}
+
+/* ---------- decir lo que cambió, no solo que cambió ---------- */
+function siNo(v){ return v ? 'sí' : 'no'; }
 
 /* ---------- bitácora encadenada ----------
    cada asiento guarda el sello del anterior; si alguien altera uno,
@@ -4820,6 +5209,10 @@ function bitacora(modulo, accion, detalle){
   const u = cajeraNom(DB.turno);
   const h = hash(prev + ts + u + modulo + accion + detalle);
   DB.bitacora.push({ ts, u, modulo, accion, detalle, prev, h });
+  /* El testigo NO sube aquí. Sube en guardar(), cuando el asiento está de
+     verdad en disco: un asiento que se escribió en memoria y no llegó a
+     guardarse dejaría el testigo adelantado y el verificador acusaría un
+     faltante que nadie causó. El testigo cuenta lo grabado, no lo intentado. */
   /* La bitácora se poda para no llenar el navegador. Podar rompía la cadena:
      el asiento más viejo que sobrevivía seguía apuntando a uno que ya no
      estaba, y desde ahí la verificación acusaba manipulación para siempre —
@@ -4845,6 +5238,10 @@ function verificaCadena(){
     if(hash(prev + r.ts + r.u + r.modulo + r.accion + r.detalle) !== r.h) return {ok:false, i};
     prev = r.h;
   }
+  /* la cadena puede estar impecable y faltar asientos: cortar la cola no
+     rompe nada de lo que queda. Por eso se compara contra el testigo. */
+  const f = faltanAsientos();
+  if(f) return {ok:false, faltan:f, n:L.length};
   return {ok:true, n:L.length};
 }
 
@@ -5596,7 +5993,11 @@ function gerResp(){
 function bajaRespaldo(){
   DB.ultResp = hoy;
   bitacora('datos','Respaldo bajado', DB.ventas.length+' ventas · '+DB.clientes.length+' clientes');
-  const paq = { sistema:'SICOM', version:2, empresa:DB.empresa.nom, generado:new Date().toISOString(), datos:DB };
+  /* El respaldo tiene que decir de quién es. Sin eso, restaurarlo sobre otra
+     empresa la convierte en esta —RIF incluido— sin una sola advertencia. */
+  const paq = { sistema:'SICOM', version:3, empresa:DB.empresa.nom, rif:selloEmpresa(),
+                corr:(DB.corr||{}).venta || 0, bitN:contBit(),
+                generado:new Date().toISOString(), datos:DB };
   const blob = new Blob([JSON.stringify(paq)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -5616,13 +6017,42 @@ function restauraRespaldo(file){
     if(!d || !Array.isArray(d.ventas) || !Array.isArray(d.productos)){
       aviso('Ese archivo no tiene la forma de un respaldo de SICOM.', true); return; }
     const cuando = paq.generado ? new Date(paq.generado) : null;
+    /* De quién es este respaldo. Los sellados traen el RIF arriba; los viejos
+       hay que mirárselo a los datos. */
+    const rifPaq = String(paq.rif || (d.empresa && d.empresa.rif) || '').trim().toUpperCase();
+    const rifMio = selloEmpresa();
+    if(rifMio && rifPaq && rifMio !== rifPaq){
+      /* Aquí no basta un clic de más: es el error más caro que se puede
+         cometer con dos empresas en el mismo sistema. */
+      const conf = prompt('OJO: este respaldo NO es de esta empresa.\n\n'
+        + 'Aquí está ' + (DB.empresa.nom || 'esta empresa') + ' · RIF ' + rifMio + '\n'
+        + 'El respaldo es de ' + (paq.empresa || d.empresa && d.empresa.nom || 'otra empresa') + ' · RIF ' + rifPaq + '\n\n'
+        + 'Restaurarlo BORRA ' + DB.ventas.length + ' ventas de esta empresa y la convierte en la otra.\n\n'
+        + 'Si de verdad es lo que quiere, escriba el RIF del respaldo para confirmarlo:');
+      if(String(conf || '').trim().toUpperCase() !== rifPaq){
+        aviso('Restauración cancelada: el respaldo es de otra empresa.', true); return; }
+    }
     if(!confirm('Va a reemplazar TODO lo que hay ahora ('+DB.ventas.length+' ventas) por el contenido del respaldo ('
       + d.ventas.length + ' ventas' + (cuando ? ', del '+isoLocal(cuando).split('-').reverse().join('/') : '')
       + ').\n\nEsto no se puede deshacer. ¿Continúa?')) return;
+    const bitAntes = contBit(), ventasAntes = DB.ventas.length;
     DB = normaliza(d);
-    bitacora('datos','Respaldo restaurado', d.ventas.length+' ventas · '+d.clientes.length+' clientes');
+    /* el respaldo puede traer un contador viejo; los números que ya salieron
+       de esta caja no se reemiten jamás */
+    aplicaPiso();
+    /* La bitácora que trae el respaldo se verifica antes de darla por buena, y
+       el contador se reajusta a lo que hay: es la única baja legítima, y queda
+       dicha en la propia bitácora. */
+    const cad = verificaCadena();
+    fijaBit((DB.bitacora || []).length + ((DB.bitCorte || {}).n || 0));
+    bitacora('datos','Respaldo restaurado', d.ventas.length+' ventas · '+d.clientes.length+' clientes'
+      + ' · reemplazó '+ventasAntes+(ventasAntes===1?' venta':' ventas')
+      + ' · asientos antes '+bitAntes+', ahora '+((DB.bitacora||[]).length + ((DB.bitCorte||{}).n||0))
+      + (cad.ok ? ' · la cadena que traía verifica bien' : ' · OJO: la cadena que traía NO verifica')
+      + (DB._corrSubido ? ' · el correlativo se mantuvo en '+DB.corr.venta+' para no reemitir facturas' : ''));
     guardar();
-    aviso('Respaldo restaurado.');
+    aviso('Respaldo restaurado.' + (DB._corrSubido
+      ? ' La numeración siguió en V-'+String(DB.corr.venta+1).padStart(5,'0')+': los números ya emitidos no se repiten.' : ''));
     TAB='ger'; GSUB='resp'; nuevaVenta(); pinta();
   };
   r.readAsText(file);
@@ -5632,9 +6062,19 @@ function vaciaMovimientos(){
     + 'el estado de cuenta del accionista, los correos y la bitácora.\n\nEsto no se puede deshacer. ¿Continúa?')) return;
   if(!confirm('Confírmelo una vez más: se borran todos los movimientos.')) return;
   DB.ventas = []; DB.clientes = []; DB.vpend = []; DB.accionista = []; DB.correos = []; DB.cierres = [];
-  DB.bitacora = [];
-  DB.corr.venta = 0; DB.corr.cli = 0; DB.corr.id = 100;
-  bitacora('datos','Movimientos vaciados','el sistema quedó sin ventas ni clientes');
+  const bitAntes = contBit();
+  DB.bitacora = []; DB.bitCorte = null;
+  /* Vaciar es legítimo —lo confirmó dos veces— así que el testigo se reajusta
+     en vez de dejar una alarma sonando para siempre. Lo que no se pierde es
+     la constancia: el vaciado y cuántos asientos había quedan escritos. */
+  fijaBit(0);
+  /* el correlativo NO se toca: esas facturas salieron de esta caja y sus
+     números no pueden volver a usarse aunque se borren los movimientos */
+  DB.corr.cli = 0; DB.corr.id = 100;
+  aplicaPiso();
+  bitacora('datos','Movimientos vaciados','el sistema quedó sin ventas ni clientes · se borraron '
+    + bitAntes + ' asientos de bitácora · la numeración sigue en '
+    + 'V-'+String(DB.corr.venta+1).padStart(5,'0'));
   guardar();
   aviso('El sistema quedó vacío de movimientos.');
   nuevaVenta(); pinta();
@@ -5704,12 +6144,31 @@ document.addEventListener('click', e=>{
   }
 
   /* ---------------- impuestos ---------------- */
-  if(b.dataset.ivaon){ DB.fisc.ivaActivo = b.dataset.ivaon === 'si'; guardar(); pinta(); return; }
-  if(b.dataset.delgrav){ DB.fisc.delivGravado = b.dataset.delgrav === 'si'; guardar(); pinta(); return; }
-  if(b.dataset.igtfon){ DB.fisc.igtfActivo = b.dataset.igtfon === 'si'; guardar(); pinta(); return; }
+  /* Cambiar el porcentaje sí se registraba; apagar el impuesto entero, no.
+     Y apagarlo cambia el cálculo de todas las facturas que vengan. */
+  if(b.dataset.ivaon){
+    const v = b.dataset.ivaon === 'si';
+    if(v !== ivaActivo()){ DB.fisc.ivaActivo = v;
+      bitacora('fisc','IVA '+(v?'activado':'apagado'),
+        'las facturas siguientes '+(v?'llevan IVA del '+fN(fisc().alic,0)+' %':'salen sin IVA')); }
+    guardar(); pinta(); return; }
+  if(b.dataset.delgrav){
+    const v = b.dataset.delgrav === 'si';
+    if(v !== (fisc().delivGravado !== false)){ DB.fisc.delivGravado = v;
+      bitacora('fisc','Delivery '+(v?'gravado':'no gravado'), 'el flete '+(v?'causa':'no causa')+' IVA'); }
+    guardar(); pinta(); return; }
+  if(b.dataset.igtfon){
+    const v = b.dataset.igtfon === 'si';
+    if(v !== igtfActivo()){ DB.fisc.igtfActivo = v;
+      bitacora('fisc','IGTF '+(v?'activado':'apagado'),
+        v ? fN(fisc().igtfPct,0)+' % sobre lo saldado en divisas' : 'no se percibe IGTF'); }
+    guardar(); pinta(); return; }
   if(b.dataset.igtfmet){
     const k = b.dataset.igtfmet, l = DB.fisc.igtfMet || (DB.fisc.igtfMet = []);
-    const i = l.indexOf(k); if(i >= 0) l.splice(i, 1); else l.push(k);
+    const i = l.indexOf(k); const met = (METODOS.find(x=>x.k===k)||{}).n || k;
+    if(i >= 0) l.splice(i, 1); else l.push(k);
+    bitacora('fisc','Vía que causa IGTF', met + ': ' + (i >= 0 ? 'deja de causarlo' : 'pasa a causarlo')
+      + ' · quedan ' + (l.length ? l.length + ' vías' : 'ninguna vía'));
     guardar(); pinta(); return;
   }
   if(b.id === 'iv_g'){
@@ -6586,14 +7045,20 @@ function hayClave(){ return !!(DB.cfg && DB.cfg.claveAdmin); }
 function claveOK(s){ return hayClave() && selloClave(s) === DB.cfg.claveAdmin; }
 
 /* ---------- devolver la existencia al inventario ---------- */
-function reponeLinea(l){
+function reponeLinea(l, entera){
   const p = DB.productos.find(x=>x.sku === l.sku); if(!p) return false;
+  /* 'desc' es lo que de verdad se descontó al vender. Una venta vieja pudo
+     pedir 15 unidades y sacar 3: reponer 15 le regalaría 12 al inventario. */
+  let n = +l.cant || 0;
+  if(entera && l.desc !== undefined) n = Math.max(0, +l.desc || 0);
+  else if(l.desc !== undefined && l.cant) n = Math.min(n, Math.max(0, +l.desc || 0));
+  if(n <= 0) return false;
   if(l.talla && p.tallas){
     const t = p.tallas.find(x=>x.t === l.talla);
-    if(t){ t.e += l.cant; return true; }
-    p.tallas.push({t:l.talla, e:l.cant}); return true;
+    if(t){ t.e += n; return true; }
+    p.tallas.push({t:l.talla, e:n}); return true;
   }
-  p.exi = (p.exi || 0) + l.cant;
+  p.exi = (p.exi || 0) + n;
   return true;
 }
 /* ---------- bajar los acumulados del cliente ---------- */
@@ -6612,17 +7077,22 @@ function puedeAnular(v){
   return '';
 }
 function anularVenta(num, cod, det, clave){
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  const _r = conTx('anular la venta ' + num, function(){ return anulaVentaCuerpo(num, cod, det, clave); });
+  if(_r){ VSEL = num; VACC = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = ''; pinta(); }
+}
+function anulaVentaCuerpo(num, cod, det, clave){
   const v = DB.ventas.find(x=>x.num === num);
-  if(!v) return aviso('No encontré esa venta.', true);
-  const no = puedeAnular(v); if(no) return aviso(no, true);
-  const vm = valMotivo('anul', cod, det); if(!vm.ok) return aviso(vm.msg, true);
+  if(!v) return aviso('No encontré esa venta.', true) || false;
+  const no = puedeAnular(v); if(no) return aviso(no, true) || false;
+  const vm = valMotivo('anul', cod, det); if(!vm.ok) return aviso(vm.msg, true) || false;
   const motivo = motTexto('anul', cod, det);
   if(!hayClave())
-    return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true);
-  if(!claveOK(clave)) return aviso('La clave de administrador no es correcta.', true);
+    return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true) || false;
+  if(!claveOK(clave)) return aviso('La clave de administrador no es correcta.', true) || false;
 
-  /* la mercancía vuelve al inventario */
-  v.lineas.forEach(l=>reponeLinea(l));
+  /* la mercancía vuelve al inventario: solo lo que de verdad salió */
+  v.lineas.forEach(l=>reponeLinea(l, true));
 
   /* el cliente deja de tener esa compra encima */
   ajustaCliente(v.cliId, -v.total, -1);
@@ -6663,8 +7133,7 @@ function anularVenta(num, cod, det, clave){
 
   aviso('Venta ' + v.num + ' anulada. Entréguele USD ' + fN(v.anulada.devuelto) + ' a la clienta.'
     + (cie ? ' El cierre del ' + fFecha(cie.fecha) + ' quedó marcado como afectado.' : ''));
-  VSEL = v.num; VACC = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = '';
-  pinta();
+  return true;
 }
 
 /* ==========================================================================
@@ -6677,19 +7146,43 @@ function totalDev(v){
   return Math.round(t * 100) / 100;
 }
 function registraDevolucion(num, cod, det){
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  let _pid = null;
+  const _r = conTx('registrar la devolución de ' + num, function(){
+    const x = devuelveCuerpo(num, cod, det);
+    if(x === false) return false;
+    _pid = x; return true;
+  });
+  if(!_r) return;
+  DEV = null; VACC = null; VMOT = ''; VMOTC = ''; VDET = '';
+  TAB = 'tes'; TSUB = 'vueltos'; PSEL = _pid;
+  pinta(); window.scrollTo(0, 0);
+}
+function devuelveCuerpo(num, cod, det){
   const v = DB.ventas.find(x=>x.num === num);
-  if(!v) return aviso('No encontré esa venta.', true);
-  if(anulada(v)) return aviso('Esa venta está anulada: no hay nada que devolver.', true);
+  if(!v) return aviso('No encontré esa venta.', true) || false;
+  if(anulada(v)) return aviso('Esa venta está anulada: no hay nada que devolver.', true) || false;
+  /* el tope no puede vivir solo en el botón: aquí se recorta lo que se pide a
+     lo que de verdad queda por devolver de cada línea */
+  let recortado = false;
+  v.lineas.forEach((l,i)=>{
+    const pedido = Math.max(0, Math.floor(+DEV[i] || 0));
+    const tope = Math.max(0, (+l.cant || 0) - devueltasDe(v, i));
+    const n = Math.min(pedido, tope);
+    if(n !== pedido) recortado = true;
+    DEV[i] = n;
+  });
   const usd = totalDev(v);
-  if(usd < 0.005) return aviso('Indique cuántas unidades regresan.', true);
-  const vm = valMotivo('dev', cod, det); if(!vm.ok) return aviso(vm.msg, true);
+  if(usd < 0.005)
+    return aviso(recortado ? 'Esas unidades ya fueron devueltas.' : 'Indique cuántas unidades regresan.', true) || false;
+  const vm = valMotivo('dev', cod, det); if(!vm.ok) return aviso(vm.msg, true) || false;
   const motivo = motTexto('dev', cod, det);
 
   const lineas = [];
   v.lineas.forEach((l,i)=>{
     const n = DEV[i] || 0; if(!n) return;
     lineas.push({i:i, sku:l.sku, nom:l.nom, talla:l.talla, cant:n, precio:l.precio, costo:l.costo||0});
-    reponeLinea({sku:l.sku, talla:l.talla, cant:n});
+    reponeLinea({sku:l.sku, talla:l.talla, cant:n, desc:(l.desc !== undefined ? l.desc : l.cant)});
   });
 
   const c = DB.clientes.find(x=>x.id === v.cliId) || {};
@@ -6719,9 +7212,7 @@ function registraDevolucion(num, cod, det){
     + ' · ' + cod + ' · ' + motivo);
 
   aviso('Devolución registrada por USD ' + fN(usd) + ' · entréguesela al cliente.');
-  DEV = null; VACC = null; VMOT = ''; VMOTC = ''; VDET = '';
-  TAB = 'tes'; TSUB = 'vueltos'; PSEL = pid;
-  pinta(); window.scrollTo(0, 0);
+  return pid;
 }
 
 /* ==========================================================================
@@ -8534,9 +9025,12 @@ document.addEventListener('click', e=>{
     return;
   }
   if(b.dataset.iaeon){
-    DB.fisc.iaeActivo = b.dataset.iaeon === 'si';
-    aviso(DB.fisc.iaeActivo ? 'El impuesto de actividades económicas se calcula.'
-                            : 'El impuesto de actividades económicas queda sin calcular.');
+    const v = b.dataset.iaeon === 'si';
+    if(v !== iaeActivo()){ DB.fisc.iaeActivo = v;
+      bitacora('trib','Actividades económicas '+(v?'activado':'apagado'),
+        v ? 'alícuota '+fN(iaeAlic(),2)+' %' : 'el municipal deja de calcularse'); }
+    aviso(v ? 'El impuesto de actividades económicas se calcula.'
+            : 'El impuesto de actividades económicas queda sin calcular.');
     guardar(); pinta(); return;
   }
   if(b.id === 'iae_g'){
