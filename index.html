@@ -933,6 +933,40 @@ select.selcta{width:100%;min-width:210px;font-size:12.5px}
 }
 .mets-cfg{margin-top:8px}
 .mets-cfg .met{cursor:pointer}
+
+/* ---------- v48 · la puerta de acceso y el semáforo del servidor -------- */
+.nubepuerta{position:fixed;inset:0;z-index:120;display:grid;place-items:center;
+  padding:24px;background:var(--page);overflow:auto}
+body.conpuerta{overflow:hidden}
+.npcaja{width:100%;max-width:390px;background:var(--panel);border:1px solid var(--linea);
+  border-radius:var(--r3);box-shadow:var(--sh3);padding:28px 26px;text-align:center}
+.nplogo{width:56px;height:56px;border-radius:14px;margin:0 auto 14px;
+  background:linear-gradient(140deg,var(--oro-cl),var(--oro-os));display:grid;place-items:center;
+  font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:28px;color:var(--oro-tx,#3a2c1c)}
+.npcaja h2{font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;margin:0}
+.npsub{color:var(--ink2);font-size:13.5px;margin:8px 0 20px}
+.npcaja form{text-align:left;display:grid;gap:5px}
+.npf{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);margin-top:10px}
+.npcaja input{width:100%}
+.npcaja #np_entrar{width:100%;margin-top:18px;padding:13px}
+.nperr{background:var(--mal-bg);color:var(--mal-ink);border-radius:var(--r1);
+  padding:10px 13px;font-size:13.5px;margin-top:12px}
+.npofl{margin-top:22px;padding-top:18px;border-top:1px solid var(--hair);text-align:center}
+.npofl p{font-size:13px;color:var(--ink2);margin:0 0 10px}
+.npofl .b{width:100%}
+.npmini{font-size:11.5px;color:var(--muted);margin:10px 0 0;line-height:1.55}
+
+.nubesem{display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}
+.nubesem i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.nubesem.ok{color:#8fd6ae}
+.nubesem.esp{color:rgba(255,255,255,.68)}
+.nubesem.esp i{animation:nubelat 1.4s ease-in-out infinite}
+.nubesem.avi{color:#f0c37a}
+.nubesem.mal{color:#f0a8a0}
+@keyframes nubelat{0%,100%{opacity:1}50%{opacity:.28}}
+@media (prefers-reduced-motion: reduce){.nubesem.esp i{animation:none}}
+.tranca.nube .trbox{border-top-color:var(--avi)}
 </style>
 </head>
 <body>
@@ -1686,6 +1720,22 @@ function vistaSetup(){
     + 'para recorrerlo sin miedo. No los use en la instalación real.</p>';
 
   return h + '</div></div>';
+}
+
+/* v48 · el semáforo del servidor va al final de la cinta, y se repinta con
+   ella. Si el módulo de la nube no cargó, no se muestra nada: no tiene
+   sentido decirle a nadie que falta algo que este archivo no controla. */
+function pintaNubeEnCinta(){
+  const c = $('#cinta');
+  if(!c || typeof NUBE === 'undefined') return;
+  if(!document.getElementById('nube_sem')){
+    const d = document.createElement('span');
+    d.id = 'nube_sem';
+    d.className = 'nubesem esp';
+    d.style.marginLeft = 'auto';
+    c.appendChild(d);
+  }
+  try{ NUBE.pinta(); }catch(e){}
 }
 
 function pintaMarca(){
@@ -4659,6 +4709,12 @@ document.addEventListener('click',e=>{
     if(k === 'resp'){ bajaRespaldo(); return; }
     if(k === 'recarga'){ location.reload(); return; }
     if(k === 'reint'){ destrancaCaja(); if(guardar()) aviso('Guardado.'); return; }
+    if(k === 'nubeal'){
+      /* Trae lo del servidor y descarta lo local sin subir. El respaldo ya se
+         bajó solo antes de llegar aquí, así que nada se pierde de verdad. */
+      if(typeof NUBE !== 'undefined'){ NUBE.alDia(); }
+      return;
+    }
     destrancaCaja(); return;
   }
 
@@ -4893,6 +4949,10 @@ const CLAVE_PISO = CLAVE + '.piso';  /* el número de factura más alto emitido 
 
 let TXREV = 0;          /* la revisión que esta pestaña tiene cargada */
 let TXAVISO = 0;        /* la revisión más alta que nos consta que alcanzó otro */
+/* Mientras se adopta lo que vino del servidor, guardar() no debe rebotarlo
+   hacia arriba: lo que se está escribiendo es justamente lo que acaba de
+   bajar. Sin esto, cada bajada provocaba una subida y una revisión de más. */
+let ADOPTANDO = false;
 /* El testigo distingue nuestras escrituras de las ajenas. localStorage se
    comparte entre procesos y una lectura puede llegar rezagada unos
    milisegundos: por eso no basta con mirar antes de escribir, hay que releer
@@ -5003,6 +5063,11 @@ function guardar(){
     ULT_ESCRITO = s;
     ERRGUARDA = false;
     if(TRANCA === 'lleno') destrancaCaja();
+    /* v48 · quedó firme en el navegador; ahora que suba al servidor. Si el
+       módulo no está o falla, no pasa nada: el dato ya está a salvo aquí. */
+    if(!ADOPTANDO && typeof NUBE !== 'undefined'){
+      try{ NUBE.marcaSucio(); }catch(e){}
+    }
     return true;
   }catch(e){
     ERRGUARDA = true;
@@ -6020,6 +6085,38 @@ function gerEnlaces(){
   h += '</div><div class="nota">Las direcciones se abren tal cual están escritas aquí. '
      + 'Si alguna deja de responder, es que el sitio no está publicado, no que el sistema falle.'
      + '</div></div>';
+
+  /* --- v48 · la sesión con el servidor --------------------------------- */
+  if(typeof NUBE !== 'undefined'){
+    const q = NUBE.quien(), es = NUBE.estado(), v = NUBE.version();
+    const DICE = {
+      'sin-modulo':'No se pudo cargar el conector del servidor. El sistema está trabajando '
+                 + 'solo contra este navegador, como antes.',
+      'sin-sesion':'Nadie inició sesión en este equipo. Lo que se registre queda aquí y sube '
+                 + 'cuando alguien entre con su clave.',
+      'al-dia':'Todo lo de este equipo está guardado en el servidor.',
+      'pendiente':'Hay cambios de este equipo que todavía no subieron.',
+      'sin-red':'Sin internet. Lo pendiente sube solo cuando vuelva la señal.',
+      'conflicto':'Otra computadora guardó después. Hay que ponerse al día antes de seguir.',
+      'sin-permiso':'El servidor no aceptó la escritura de este usuario.',
+      'bajando':'Poniéndose al día con el servidor…',
+      'subiendo':'Subiendo al servidor…'
+    };
+    h += '<div class="card"><h2>La sesión con el servidor</h2>'
+      + '<div class="lineas">'
+      + '<div class="lin"><div class="li"><b>' + (q ? esc(q) : 'Sin sesión iniciada') + '</b>'
+      + '<div class="mini">' + esc(DICE[es] || es) + '</div></div>'
+      + '<span class="chip ' + (es === 'al-dia' ? 'ok' : (es === 'pendiente' || es === 'sin-red' ? 'avi' : 'mal'))
+      + '">revisión ' + v + '</span></div>'
+      + '</div>'
+      + '<div class="acc">'
+      + '<button class="b gh" id="nube_sinc">Comprobar contra el servidor</button>'
+      + (q ? '<button class="b gh" id="nube_salir">Cerrar la sesión</button>' : '')
+      + '</div>'
+      + '<div class="nota">Los datos de la empresa viven en el servidor. Este navegador '
+      + 'guarda una copia de trabajo para poder vender sin internet, y la sube en cuanto '
+      + 'vuelve la señal.</div></div>';
+  }
 
   /* El logo se cambia en Configuración, no aquí. Se deja el atajo porque es
      el primer sitio donde uno lo busca. */
@@ -9200,6 +9297,17 @@ document.addEventListener('click', e=>{
     aviso('Alícuota guardada: ' + fN(r2(a),2) + ' %.');
     pinta(); return;
   }
+  if(b.id === 'nube_sinc'){
+    if(typeof NUBE === 'undefined') return aviso('El conector del servidor no está cargado.', true);
+    aviso('Comprobando contra el servidor…');
+    NUBE.sincroniza();
+    return;
+  }
+  if(b.id === 'nube_salir'){
+    if(typeof NUBE === 'undefined') return;
+    NUBE.salir();
+    return;
+  }
   if(b.dataset.abre){
     const v = b.dataset.abre === 'home' ? 'home' : 'vta';
     if(DB.cfg.abreEn === v) return;
@@ -9217,6 +9325,469 @@ document.addEventListener('click', e=>{
 document.addEventListener('change', e=>{
   if(e.target && e.target.id === 'ib_anio'){ IBANIO = e.target.value; pinta(); window.scrollTo(0,0); }
 });
+
+/* ==========================================================================
+   SICOM · LA NUBE
+   El estado de la empresa deja de vivir en una computadora.
+
+   CÓMO FUNCIONA, EN UNA FRASE
+   Cada máquina baja el documento de la empresa al abrir, lo trabaja en el
+   navegador como siempre —eso es lo que permite vender sin internet— y lo
+   sube al servidor cada vez que guarda.
+
+   LAS TRES REGLAS QUE NO SE ROMPEN
+
+   1 · Nunca se pierde trabajo en silencio. Si esta máquina tiene algo que el
+       servidor no tiene, y el servidor cambió por otro lado, NO se pisa nada:
+       se traba la caja, se baja un respaldo solo y se avisa.
+
+   2 · Sin internet se sigue vendiendo. La copia del navegador es la que
+       manda mientras no haya red; lo pendiente sube cuando vuelve la señal.
+
+   3 · El servidor no acepta escrituras a ciegas. Quien sube dice desde qué
+       revisión venía. Si el servidor ya está más adelante, rechaza y
+       devuelve lo que hay. Es la misma disciplina que ya se usa entre
+       pestañas, ahora entre computadoras.
+
+   SI ESTE MÓDULO NO CARGA —sin internet, CDN bloqueado, lo que sea— SICOM
+   funciona exactamente como antes, contra el navegador. Nada de esto puede
+   dejar a la tienda sin poder cobrar.
+   ========================================================================== */
+
+window.NUBE = (function(){
+
+  const URL_SRV = 'https://wqvvanakdbkgrfmlvvrh.supabase.co';
+  const LLAVE   = 'sb_publishable_Cw6SI_d2oz8ZY_X6kRCJuw_DTGyigak';
+
+  /* La revisión del servidor sobre la que está montado lo que hay en este
+     navegador. Vive aparte del documento: es de esta máquina, no de la
+     empresa, y no debe viajar dentro del respaldo. */
+  const CLAVE_NUBE = CLAVE + '.nube';
+
+  let sb = null;              /* el cliente, cuando cargue */
+  let sesion = null;
+  let canal = null;
+  let ESTADO = 'arrancando';  /* ver ROTULOS */
+  let subiendo = false;
+  let pendiente = false;      /* hay algo local que el servidor no tiene */
+  let reintento = null;
+  let ultimoError = '';
+
+  const ROTULOS = {
+    'arrancando':   ['Conectando…',          'esp'],
+    'sin-modulo':   ['Solo en este equipo',  'mal'],
+    'sin-sesion':   ['Sin sesión',           'mal'],
+    'bajando':      ['Poniéndose al día…',   'esp'],
+    'subiendo':     ['Guardando en el servidor…', 'esp'],
+    'al-dia':       ['Al día con el servidor',    'ok'],
+    'pendiente':    ['Por subir',            'avi'],
+    'sin-red':      ['Sin internet · se sube al volver', 'avi'],
+    'conflicto':    ['Otra computadora guardó',   'mal'],
+    'sin-permiso':  ['Sin permiso para guardar',  'mal']
+  };
+
+  /* ---------- la marca de revisión de esta máquina ---------- */
+  function verLocal(){
+    try{ return +(localStorage.getItem(CLAVE_NUBE) || 0) || 0; }catch(e){ return 0; }
+  }
+  function fijaVer(n){
+    try{ localStorage.setItem(CLAVE_NUBE, String(n)); }catch(e){}
+  }
+  function nombreEquipo(){
+    /* no identifica a nadie: es para poder decir «esto vino del equipo de la
+       tienda» cuando haya que revisar el rastro */
+    const n = navigator.platform || 'equipo';
+    const a = /Chrome/.test(navigator.userAgent) ? 'Chrome'
+            : /Firefox/.test(navigator.userAgent) ? 'Firefox'
+            : /Safari/.test(navigator.userAgent) ? 'Safari' : 'navegador';
+    return n + ' · ' + a;
+  }
+
+  /* ---------- el semáforo de la cinta ---------- */
+  function pon(e, err){
+    ESTADO = e;
+    ultimoError = err || '';
+    pintaSemaforo();
+  }
+  function pintaSemaforo(){
+    const c = document.getElementById('nube_sem');
+    if(!c) return;
+    const r = ROTULOS[ESTADO] || ['—','esp'];
+    c.className = 'nubesem ' + r[1];
+    c.title = ultimoError || r[0];
+    c.innerHTML = '<i></i><span>' + r[0] + '</span>';
+  }
+
+  /* ---------- carga del cliente ---------- */
+  async function arranca(){
+    let mod;
+    try{
+      mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    }catch(e){
+      /* Sin librería no hay servidor, y no pasa nada grave: el sistema queda
+         como estaba antes de todo esto. Lo que NO se hace es trancar la caja. */
+      pon('sin-modulo', 'No se pudo cargar el conector: ' + (e && e.message));
+      return;
+    }
+    sb = mod.createClient(URL_SRV, LLAVE, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    });
+
+    sb.auth.onAuthStateChange(function(evt, ses){
+      sesion = ses;
+      if(ses){ cierraPuerta(); sincroniza(); }
+      else   { pon('sin-sesion'); abrePuerta(); }
+    });
+
+    const r = await sb.auth.getSession();
+    sesion = r && r.data ? r.data.session : null;
+    if(!sesion){ pon('sin-sesion'); abrePuerta(); return; }
+    cierraPuerta();
+    await sincroniza();
+  }
+
+  /* ---------- la puerta de acceso ---------- */
+  function abrePuerta(){
+    if(document.getElementById('nube_puerta')) return;
+    const d = document.createElement('div');
+    d.id = 'nube_puerta';
+    d.className = 'nubepuerta';
+    d.innerHTML =
+      '<div class="npcaja">'
+      + '<div class="nplogo">' + escN(inicialMarca()) + '</div>'
+      + '<h2>' + escN(nombreMarca()) + '</h2>'
+      + '<p class="npsub">Entre con su correo y su clave para trabajar con los '
+      + 'datos de la empresa.</p>'
+      + '<form id="np_form" autocomplete="on">'
+      + '<label class="npf">Correo</label>'
+      + '<input id="np_mail" type="email" required autocomplete="username" '
+      +   'inputmode="email" autocapitalize="none" spellcheck="false">'
+      + '<label class="npf">Clave</label>'
+      + '<input id="np_clave" type="password" required autocomplete="current-password">'
+      + '<div class="nperr" id="np_err" hidden></div>'
+      + '<button class="b oro" id="np_entrar" type="submit">Entrar</button>'
+      + '</form>'
+      + '<div class="npofl">'
+      + '<p>¿Sin internet y necesita cobrar?</p>'
+      + '<button class="b gh" id="np_local" type="button">Trabajar solo en este equipo</button>'
+      + '<p class="npmini">Lo que registre queda en esta computadora y sube al '
+      + 'servidor cuando vuelva a entrar con su clave.</p>'
+      + '</div></div>';
+    document.body.appendChild(d);
+    document.body.classList.add('conpuerta');
+
+    document.getElementById('np_form').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const b = document.getElementById('np_entrar');
+      const er = document.getElementById('np_err');
+      er.hidden = true; b.disabled = true; b.textContent = 'Entrando…';
+      let res;
+      try{
+        res = await sb.auth.signInWithPassword({
+          email: document.getElementById('np_mail').value.trim(),
+          password: document.getElementById('np_clave').value
+        });
+      }catch(x){ res = { error: { message: String(x && x.message || x) } }; }
+      b.disabled = false; b.textContent = 'Entrar';
+      if(res && res.error){
+        er.textContent = /invalid/i.test(res.error.message)
+          ? 'Ese correo y esa clave no coinciden.'
+          : (/fetch|network/i.test(res.error.message)
+              ? 'No hay conexión con el servidor. Puede trabajar solo en este equipo.'
+              : 'No se pudo entrar: ' + res.error.message);
+        er.hidden = false;
+        document.getElementById('np_clave').value = '';
+      }
+    });
+
+    document.getElementById('np_local').addEventListener('click', function(){
+      /* Decisión explícita de la persona, no un silencio del sistema. Queda
+         en la bitácora para que después se sepa por qué esa sesión no subió. */
+      cierraPuerta();
+      pon('sin-sesion');
+      try{ bitacora('nube','Trabajo local sin sesión',
+        'alguien entró sin conectar con el servidor: lo registrado sube al volver a entrar'); }catch(e){}
+      try{ guardar(); pinta(); }catch(e){}
+    });
+  }
+  function cierraPuerta(){
+    const d = document.getElementById('nube_puerta');
+    if(d) d.remove();
+    document.body.classList.remove('conpuerta');
+  }
+  function escN(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g,
+      function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; });
+  }
+  function nombreMarca(){
+    try{ return marcaDe(); }catch(e){ return 'SICOM'; }
+  }
+  function inicialMarca(){
+    return (nombreMarca().trim()[0] || 'S').toUpperCase();
+  }
+
+  /* ---------- ponerse al día ---------- */
+  /* forzar = la persona ya decidió, en el cartel, quedarse con lo del
+     servidor. Sin eso, la comprobación de «aquí hay trabajo sin subir»
+     volvería a trabar la caja justo después de que pidió destrabarla. */
+  async function sincroniza(forzar){
+    if(!sb || !sesion) return;
+    pon('bajando');
+    let d;
+    try{
+      const r = await sb.rpc('baja_estado');
+      if(r.error) throw r.error;
+      d = r.data;
+    }catch(e){
+      pon(sinRed(e) ? 'sin-red' : 'sin-permiso', e && e.message);
+      escucha();
+      return;
+    }
+
+    const vServ = +(d && d.version) || 0;
+    const vMia  = verLocal();
+
+    if(vServ === 0){
+      /* El servidor está vacío: esta máquina es la primera. Lo que hay aquí
+         se convierte en el punto de partida de la empresa. */
+      await sube(0);
+      escucha();
+      return;
+    }
+
+    if(vServ === vMia){
+      pendiente = pendiente || false;
+      pon(pendiente ? 'pendiente' : 'al-dia');
+      if(pendiente) sube(vMia);
+      escucha();
+      return;
+    }
+
+    if(vServ > vMia){
+      /* Un documento VACÍO no pisa nunca a uno lleno. Pasa si alguien entra
+         primero desde una computadora recién instalada: esa máquina sembraría
+         el servidor con una empresa en blanco, y la que tiene el trabajo se
+         encontraría con la caja trabada sin motivo. Aquí se invierte: manda
+         la que tiene los datos. */
+      if(vacio(d.doc) && !vacio(DB)){
+        try{ bitacora('nube','El servidor estaba en blanco',
+          'una instalación vacía no reemplaza a esta, que sí tiene movimientos'); }catch(e){}
+        await sube(vServ);
+        escucha();
+        return;
+      }
+
+      /* El servidor tiene trabajo que esta máquina no vio. Si aquí no hay
+         nada pendiente, se adopta y listo. Si SÍ hay algo pendiente, no se
+         pisa: se baja un respaldo de lo local y se traba la caja. */
+      if(!forzar && (pendiente || tieneAlgoSinSubir(vMia))){
+        respaldoDeEmergencia();
+        pon('conflicto');
+        trancaNube(vServ, vMia);
+        escucha();
+        return;
+      }
+      adopta(d.doc, vServ, d.equipo, d.actualizado);
+      escucha();
+      return;
+    }
+
+    /* vMia > vServ no debería pasar: significaría que el servidor perdió
+       versiones. Se avisa y no se pisa nada. */
+    pon('conflicto', 'esta máquina dice ir en la revisión ' + vMia +
+        ' y el servidor está en la ' + vServ);
+    escucha();
+  }
+
+  /* Un documento sin una sola venta y sin puesta en marcha terminada es una
+     instalación en blanco: no representa el trabajo de nadie. */
+  function vacio(d){
+    if(!d) return true;
+    try{
+      return !((d.ventas || []).length) && !d.instalado;
+    }catch(e){ return false; }
+  }
+
+  function tieneAlgoSinSubir(vMia){
+    /* Una máquina que nunca subió nada pero tiene movimientos propios cuenta
+       como pendiente: adoptar el documento del servidor los borraría. */
+    if(vMia > 0) return false;
+    try{
+      return (DB.ventas || []).length > 0
+          || (DB.bitacora || []).length > 3
+          || (DB.productos || []).length > 0;
+    }catch(e){ return true; }
+  }
+
+  function adopta(doc, ver, equipo, cuando){
+    if(!doc){ pon('al-dia'); return; }
+    ADOPTANDO = true;
+    try{
+      DB = normaliza(JSON.parse(JSON.stringify(doc)));
+      fijaVer(ver);
+      /* el testigo de la bitácora se reajusta al documento que acaba de
+         llegar; si no, el verificador acusaría un faltante que nadie causó */
+      try{ fijaBit(((DB.bitacora || []).length) + ((DB.bitCorte || {}).n || 0)); }catch(e){}
+      guardar();
+      pendiente = false;
+      pon('al-dia');
+      try{
+        pinta();
+        aviso('Datos al día con el servidor · revisión ' + ver
+              + (equipo ? ' · desde ' + equipo : ''));
+      }catch(e){}
+    }catch(e){
+      pon('conflicto', 'no se pudo adoptar lo del servidor: ' + (e && e.message));
+    }finally{
+      ADOPTANDO = false;
+    }
+  }
+
+  /* ---------- subir ---------- */
+  function marcaSucio(){
+    /* Lo llama guardar() después de escribir bien en el navegador. */
+    pendiente = true;
+    if(ESTADO === 'al-dia') pon('pendiente');
+    sube(verLocal());
+  }
+
+  async function sube(base){
+    if(!sb || !sesion){ return; }
+    if(subiendo) return;
+    if(ESTADO === 'conflicto') return;
+    subiendo = true;
+    if(ESTADO !== 'bajando') pon('subiendo');
+    let doc;
+    try{ doc = JSON.parse(JSON.stringify(DB)); }
+    catch(e){ subiendo = false; pon('pendiente', 'no se pudo preparar el documento'); return; }
+
+    try{
+      const r = await sb.rpc('sube_estado', {
+        p_doc: doc, p_base: base, p_equipo: nombreEquipo()
+      });
+      if(r.error) throw r.error;
+      const d = r.data || {};
+      if(d.ok){
+        fijaVer(+d.version || 0);
+        pendiente = false;
+        pon('al-dia');
+      }else{
+        /* el servidor va adelante */
+        respaldoDeEmergencia();
+        pon('conflicto', d.motivo || '');
+        trancaNube(+d.version || 0, base);
+      }
+    }catch(e){
+      if(sinRed(e)){
+        pon('sin-red', e && e.message);
+        programaReintento();
+      }else{
+        pon('sin-permiso', e && e.message);
+      }
+    }finally{
+      subiendo = false;
+    }
+  }
+
+  function sinRed(e){
+    const m = String((e && (e.message || e.details)) || '');
+    return !navigator.onLine || /fetch|network|Failed to fetch|timeout|ECONN/i.test(m);
+  }
+
+  function programaReintento(){
+    if(reintento) return;
+    reintento = setTimeout(function(){
+      reintento = null;
+      if(pendiente) sube(verLocal());
+    }, 20000);
+  }
+  window.addEventListener('online', function(){
+    if(pendiente) sube(verLocal());
+    else if(sesion) sincroniza();
+  });
+
+  /* ---------- el aviso en el momento ---------- */
+  function escucha(){
+    if(canal || !sb || !sesion) return;
+    try{
+      canal = sb.channel('sicom-estado')
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'estado' },
+            function(m){
+              const v = m && m.new ? +m.new.version : 0;
+              if(!v || v <= verLocal()) return;   /* es nuestra propia subida */
+              if(pendiente || subiendo) return;   /* primero termina lo de aquí */
+              sincroniza();
+            })
+        .subscribe();
+    }catch(e){}
+  }
+
+  /* ---------- cuando no se puede seguir sin decidir ---------- */
+  function respaldoDeEmergencia(){
+    /* Antes de que nada pise nada, lo local queda en un archivo. Si algo se
+       hizo mal, esto es lo que permite volver. */
+    try{
+      const paq = { sistema:'SICOM', version:3, motivo:'respaldo automático por desencuentro',
+                    empresa: DB.empresa.nom, rif: DB.empresa.rif, datos: DB };
+      const b = new Blob([JSON.stringify(paq)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = 'sicom-antes-de-sincronizar-' +
+        new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    }catch(e){}
+  }
+
+  function trancaNube(vServ, vMia){
+    try{
+      trancaCaja('nube', 'Otra computadora guardó después',
+        '<p>El servidor va en la revisión <b>' + vServ + '</b> y esta computadora venía de la <b>'
+        + vMia + '</b>. Si esta máquina grabara encima, borraría ese trabajo.</p>'
+        + '<p>Ya se bajó un respaldo de lo que hay aquí, por si hiciera falta.</p>'
+        + '<p><b>Ponerse al día</b> trae lo del servidor y descarta lo que esta máquina '
+        + 'tenga sin subir. Lo descartado está en el respaldo que acaba de bajar.</p>',
+        [{k:'nubeal', t:'Ponerse al día', oro:true},
+         {k:'resp',   t:'Descargar el respaldo otra vez'}]);
+    }catch(e){}
+  }
+
+  /* ---------- lo que el sistema usa desde afuera ---------- */
+  return {
+    arranca: arranca,
+    marcaSucio: marcaSucio,
+    sincroniza: function(){ pendiente = false; return sincroniza(); },
+    alDia: async function(){
+      /* «Ponerse al día»: se descarta lo local y se trae lo del servidor. El
+         respaldo ya está bajado, así que no se pierde nada de verdad. */
+      pendiente = false;
+      ESTADO = 'bajando';
+      try{ destrancaCaja(); }catch(e){}
+      fijaVer(0);
+      await sincroniza(true);
+    },
+    salir: async function(){
+      if(canal && sb){ try{ sb.removeChannel(canal); }catch(e){} canal = null; }
+      if(sb) await sb.auth.signOut();
+    },
+    estado: function(){ return ESTADO; },
+    version: verLocal,
+    quien: function(){ return sesion && sesion.user ? sesion.user.email : ''; },
+    pinta: pintaSemaforo
+  };
+})();
+
+
+/* El semáforo se repinta con la cinta, y la nube arranca cuando el sistema
+   ya está en pantalla: primero que la tienda pueda trabajar, después la
+   conexión. */
+(function(){
+  const _pinta = pinta;
+  pinta = function(){ _pinta.apply(this, arguments); try{ pintaNubeEnCinta(); }catch(e){} };
+})();
+pintaNubeEnCinta();
+NUBE.arranca();
 
 document.addEventListener('change', e=>{
   if(e.target && e.target.id === 'lv_mes'){ LVMES = e.target.value; pinta(); window.scrollTo(0,0); }
