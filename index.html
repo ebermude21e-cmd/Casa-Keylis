@@ -957,6 +957,13 @@ body.conpuerta{overflow:hidden}
 .npofl .b{width:100%}
 .npmini{font-size:11.5px;color:var(--muted);margin:10px 0 0;line-height:1.55}
 
+/* ---------- v49 · la franja del ambiente de calidad ---------------------- */
+.calfranja{position:sticky;top:0;z-index:130;background:var(--avi);color:#fff;
+  font-size:11.5px;font-weight:800;letter-spacing:.1em;text-align:center;
+  padding:5px 12px;text-transform:uppercase}
+body.encalidad header.top{top:24px}
+body.encalidad .nubepuerta{padding-top:44px}
+
 .nubesem{display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}
 .nubesem i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 .nubesem.ok{color:#8fd6ae}
@@ -9359,6 +9366,19 @@ window.NUBE = (function(){
   const URL_SRV = 'https://wqvvanakdbkgrfmlvvrh.supabase.co';
   const LLAVE   = 'sb_publishable_Cw6SI_d2oz8ZY_X6kRCJuw_DTGyigak';
 
+  /* La empresa de verdad. Sirve de tope: la copia de calidad no la toca. */
+  const RIF_PRODUCCION = 'J-50863887-5';
+
+  /* El mismo archivo se publica en los dos sitios y se da cuenta de dónde
+     está. Un archivo por ambiente se separa solo con el tiempo; este no. */
+  const CALIDAD = (function(){
+    try{
+      const h = String(location.hostname || '').toLowerCase();
+      const p = String(location.pathname || '').toLowerCase();
+      return h.indexOf('pruebas.') === 0 || p.indexOf('/calidad/') === 0;
+    }catch(e){ return false; }
+  })();
+
   /* La revisión del servidor sobre la que está montado lo que hay en este
      navegador. Vive aparte del documento: es de esta máquina, no de la
      empresa, y no debe viajar dentro del respaldo. */
@@ -9383,7 +9403,8 @@ window.NUBE = (function(){
     'pendiente':    ['Por subir',            'avi'],
     'sin-red':      ['Sin internet · se sube al volver', 'avi'],
     'conflicto':    ['Otra computadora guardó',   'mal'],
-    'sin-permiso':  ['Sin permiso para guardar',  'mal']
+    'sin-permiso':  ['Sin permiso para guardar',  'mal'],
+    'calidad-tope': ['Calidad · no toca producción', 'avi']
   };
 
   /* ---------- la marca de revisión de esta máquina ---------- */
@@ -9544,6 +9565,18 @@ window.NUBE = (function(){
       return;
     }
 
+    /* --- v49 · el tope ---------------------------------------------------
+       Si esta copia es la de calidad y el servidor contesta con el RIF de la
+       empresa de verdad, aquí se termina: no se baja nada y no se sube nada.
+       Quien entró usó las credenciales de la tienda en el sitio equivocado, y
+       seguir significaría meter pruebas en los libros reales. */
+    if(CALIDAD && String(d && d.rif) === RIF_PRODUCCION){
+      pon('calidad-tope',
+          'esta es la copia de calidad y la sesión pertenece a la empresa de producción');
+      avisaTope();
+      return;
+    }
+
     const vServ = +(d && d.version) || 0;
     const vMia  = verLocal();
 
@@ -9655,6 +9688,8 @@ window.NUBE = (function(){
     if(!sb || !sesion){ return; }
     if(subiendo) return;
     if(ESTADO === 'conflicto') return;
+    /* v49 · con el tope puesto no se sube nunca, pase lo que pase arriba */
+    if(ESTADO === 'calidad-tope') return;
     subiendo = true;
     if(ESTADO !== 'bajando') pon('subiendo');
     let doc;
@@ -9723,6 +9758,21 @@ window.NUBE = (function(){
     }catch(e){}
   }
 
+  /* Se avisa una sola vez por sesión: repetirlo en cada guardado sería ruido,
+     y el semáforo ya lo dice de forma permanente. */
+  let TOPE_AVISADO = false;
+  function avisaTope(){
+    if(TOPE_AVISADO) return;
+    TOPE_AVISADO = true;
+    try{
+      aviso('Esta es la copia de calidad. La sesión es de la empresa de producción, '
+          + 'así que no se toca el servidor: lo que registre aquí queda solo en este equipo.', true);
+      bitacora('nube', 'Sincronización detenida en calidad',
+        'la sesión pertenece a ' + RIF_PRODUCCION + ' y esta copia no escribe sobre los libros reales');
+      guardar();
+    }catch(e){}
+  }
+
   /* ---------- cuando no se puede seguir sin decidir ---------- */
   function respaldoDeEmergencia(){
     /* Antes de que nada pise nada, lo local queda en un archivo. Si algo se
@@ -9754,8 +9804,22 @@ window.NUBE = (function(){
   }
 
   /* ---------- lo que el sistema usa desde afuera ---------- */
+  /* Una franja fija arriba: en calidad nadie debe creer que está en la
+     tienda. Se pone una sola vez, antes que nada, y no se quita. */
+  function franjaCalidad(){
+    if(!CALIDAD || document.getElementById('cal_franja')) return;
+    const d = document.createElement('div');
+    d.id = 'cal_franja';
+    d.className = 'calfranja';
+    d.textContent = 'AMBIENTE DE CALIDAD · datos de prueba · no es la tienda';
+    document.body.insertBefore(d, document.body.firstChild);
+    document.body.classList.add('encalidad');
+  }
+
   return {
     arranca: arranca,
+    esCalidad: function(){ return CALIDAD; },
+    franja: franjaCalidad,
     marcaSucio: marcaSucio,
     sincroniza: function(){ pendiente = false; return sincroniza(); },
     alDia: async function(){
@@ -9786,6 +9850,7 @@ window.NUBE = (function(){
   const _pinta = pinta;
   pinta = function(){ _pinta.apply(this, arguments); try{ pintaNubeEnCinta(); }catch(e){} };
 })();
+NUBE.franja();
 pintaNubeEnCinta();
 NUBE.arranca();
 
