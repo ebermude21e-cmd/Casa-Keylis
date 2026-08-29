@@ -973,7 +973,7 @@ function SEMILLA(){ return {
     condIVA:'ordinario', mail:'', op:'0412', tel:'', logo:'', mono:''},
   fisc:{ivaActivo:true, alic:16, delivGravado:true,
         igtfActivo:true, igtfPct:3, igtfMet:['efec_usd','zelle','usdt'], desde:isoLocal()},
-  tema:temaDesde(ORO_CK, null), paleta:PALETA_CK.slice(), bitacora:[],
+  tema:temaPorDefecto(), paleta:PALETA_CK.slice(), bitacora:[],
   planV:4, modelosV:3, marcaV:2,
   cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(), modelos:MODELOS_BASE(),
   categorias:[],
@@ -984,7 +984,8 @@ function SEMILLA(){ return {
     claveAdmin:'',
     motivos:MOTIVOS_BASE(), diasDev:15,
     canales:['Presencial','Instagram','TikTok','WhatsApp','Facebook','Referido'],
-    vendedores:[], repartidores:[], zonas:[], cajeras:[]
+    vendedores:[], repartidores:[], zonas:[], cajeras:[],
+    abreEn:'vta'
   },
   turno:'',
   clientes:[], productos:[], accionista:[], ventas:[], cierres:[],
@@ -1001,7 +1002,7 @@ function DEMO(){ return {
     logo:'', mono:''},
   fisc:{ivaActivo:true, alic:16, delivGravado:true,
         igtfActivo:true, igtfPct:3, igtfMet:['efec_usd','zelle','usdt'], desde:isoLocal()},
-  tema:temaDesde('#d0ac48', null), paleta:['#d0ac48','#c29a38','#e5c964','#aa7a1d','#22180f'], bitacora:[],
+  tema:temaPorDefecto(), paleta:['#d0ac48','#c29a38','#e5c964','#aa7a1d','#22180f'], bitacora:[],
   planV:4, modelosV:3, marcaV:2,
   cuentas:CUENTAS_BASE(), mapaCtas:MAPA_BASE(), modelos:MODELOS_BASE(),
   categorias:['Ropa de Dama','Lentes de Sol','Cartera Alta Gama','Carteras Eyes Theme','Bisutería Dama'],
@@ -1243,7 +1244,11 @@ function selBanco(id,val,extra,o){
 /* ==========================================================================
    Estado
    ========================================================================== */
-let TAB='home', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
+/* Dónde abre el sistema. Lo decide la empresa en Gerencial · Estado; de
+   fábrica abre directo en Ventas, que es donde se trabaja. El inicio queda
+   a un clic, en el logo de la barra. Se fija de verdad más abajo, cuando ya
+   está leída la configuración: aquí todavía no existe DB. */
+let TAB='vta', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
 let VTA=null;
 function nuevaVenta(){
   VTA={paso:'cliente',doc:'',cli:null,
@@ -4887,6 +4892,7 @@ const CLAVE_REV  = CLAVE + '.rev';   /* la revisión escrita en disco */
 const CLAVE_PISO = CLAVE + '.piso';  /* el número de factura más alto emitido */
 
 let TXREV = 0;          /* la revisión que esta pestaña tiene cargada */
+let TXAVISO = 0;        /* la revisión más alta que nos consta que alcanzó otro */
 /* El testigo distingue nuestras escrituras de las ajenas. localStorage se
    comparte entre procesos y una lectura puede llegar rezagada unos
    milisegundos: por eso no basta con mirar antes de escribir, hay que releer
@@ -4918,7 +4924,18 @@ function quienEscribio(){ return selloDisco().split(':')[1] || ''; }
    abierta leyó lo último aunque lo haya escrito otra. El testigo sirve para
    otra cosa —comprobar que nuestra propia escritura es la que quedó—, y
    confundir ambas cosas dejaba trancada a una pestaña que estaba al día. */
-function otraEscribio(){ return TXAJENA || revEnDisco() !== TXREV; }
+function otraEscribio(){
+  /* TXAJENA es una sospecha; la revisión es el hecho. Se levanta solo si a
+     esta copia no le consta que nadie haya llegado más lejos: ni por el aviso
+     (TXAVISO) ni por el disco. Sin esto, una tranca falsa no se caía nunca
+     aunque su motivo ya no existiera; con TXAVISO, una tranca legítima no se
+     cae aunque el disco tarde en verse desde este proceso. */
+  if(TXAJENA && TXAVISO <= TXREV && revEnDisco() === TXREV){
+    TXAJENA = false;
+    if(TRANCA === 'otra') destrancaCaja();
+  }
+  return TXAJENA || revEnDisco() !== TXREV;
+}
 
 /* ---------- la caja trancada ---------- */
 /* No es un aviso que se desvanece: mientras haya algo sin guardar, la pantalla
@@ -5050,6 +5067,18 @@ window.addEventListener('storage', function(e){
   if(e.key !== CLAVE_REV) return;
   const q = (String(e.newValue || '').split(':')[1]) || '';
   if(q === TXYO) return;              /* es nuestra propia escritura rebotando */
+  /* Un aviso solo importa si la revisión quedó ADELANTE de esta copia.
+     Recargar la página deja vivos un instante el documento viejo y el nuevo,
+     y el aviso del viejo le llegaba al nuevo cuando el nuevo ya había leído
+     esa misma revisión: la caja abría trancada sin que nadie hubiera escrito
+     nada. La revisión es el hecho; el testigo de autoría solo dice quién.
+     Se miran las dos fuentes y se cree la más alta: el aviso trae la revisión
+     recién escrita, y el disco puede tardar en verse desde otro proceso.
+     Quedarse con una sola dejaría escapar avisos ciertos. */
+  const rvAviso = +(String(e.newValue || '').split(':')[0]) || 0;
+  const rv = Math.max(rvAviso, revEnDisco());
+  if(rv <= TXREV) return;
+  TXAVISO = Math.max(TXAVISO, rv);    /* hasta dónde nos consta que alguien llegó */
   TXAJENA = true;                     /* alguien más escribió: esta copia quedó vieja */
   trancaOtra();
 });
@@ -5090,6 +5119,25 @@ function normaliza(b){
      empresa quedó sin RIF, se pregunta en la puesta en marcha; adivinarlo
      sería emitir facturas a nombre de quien no corresponde. */
   if(b.empresa.rif === 'J-50123456-7'){ b.empresa.rif = ''; b.instalado = false; }
+  /* --- v47 · devolver el diseño original a quien lo perdió sin pedirlo ---
+     Si el tema guardado es exactamente el que salía CALCULADO del oro de
+     fábrica, nadie eligió ese color: lo puso el sistema solo, y con él el
+     marrón de la barra se corrió a un oliva que no es el del diseño. Se
+     cambia por el original. Un color elegido a mano NO se toca: se reconoce
+     porque su base no es el oro de fábrica. */
+  if(b.tema && b.tema.oro && !b.temaV){
+    const calc = temaDesde(ORO_CK, null);
+    if(String(b.tema.base).toLowerCase() === String(ORO_CK).toLowerCase() &&
+       String(b.tema.marron).toLowerCase() === String(calc.marron).toLowerCase()){
+      const esc = b.tema.logoEsc, bar = b.tema.logoBarra;
+      b.tema = {};
+      Object.keys(TEMA_CK).forEach(k=>{ b.tema[k] = TEMA_CK[k]; });
+      if(esc !== undefined) b.tema.logoEsc = esc;
+      if(bar !== undefined) b.tema.logoBarra = bar;
+      b._migTema = calc.marron;
+    }
+  }
+  b.temaV = 1;
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
   /* el logo y la paleta del diseño 1 entran una sola vez: si la empresa ya
      subió otro logo o eligió otros colores, no se le pisan */
@@ -5356,12 +5404,38 @@ function temaDesde(base, logoBg){
    nunca a ojo.
    ========================================================================== */
 const ORO_CK = '#d0ac48';
+/* La paleta original del sistema, tal como se diseñó, escrita a mano.
+   NO se calcula. Calcularla a partir del oro fue justo lo que corrió el
+   marrón cálido de la barra (#4a3826) hacia un oliva (#362e1a): al derivar
+   todo de un solo tono, el marrón dejó de ser el que se eligió y pasó a ser
+   el que le tocaba al dorado. Estos son los valores del diseño, los mismos
+   que están en el bloque :root de la hoja de estilo. Si alguna vez hay que
+   cambiarlos, se cambian en los dos sitios. */
+const TEMA_CK = {
+  base:'#c8a24a', logoBg:null,
+  oro:'#c8a24a', oroCl:'#e0c37e', oroOs:'#9c7c2e', oroTx:'#33261a',
+  marron:'#4a3826', marron2:'#6b533a', marronOs:'#2f2318',
+  page:'#faf7f0', crema:'#f7f2e7', crema2:'#efe6d3',
+  sup:'#f5f0e4', sup2:'#ebe3d2',
+  linea:'#e2d8c4', hair:'#efe8db',
+  ink:'#2c2118', ink2:'#6b5c4c', muted:'#776e5a',
+  ring:'0 0 0 3px rgba(200,162,74,.28)'
+};
 const PALETA_CK = ['#d0ac48','#c29a38','#e5c964','#aa7a1d','#22180f'];
 /* El logo ya no viaja dentro del archivo. En la instalación que ya está en
    marcha vive guardado en su navegador junto con el resto de los datos; en
    una instalación nueva se sube en la puesta en marcha. Meterlo aquí haría
    que otra empresa abriera el sistema con el logo ajeno puesto. */
-function temaPorDefecto(){ return temaDesde(ORO_CK, null); }
+function temaPorDefecto(){
+  /* La escala del logo y la plaquita del fondo son de la empresa, no de la
+     paleta: sobreviven a volver al dorado de fábrica. */
+  const prev = (typeof DB !== 'undefined' && DB && DB.tema) ? DB.tema : {};
+  const t = {};
+  Object.keys(TEMA_CK).forEach(function(k){ t[k] = TEMA_CK[k]; });
+  if(prev.logoEsc    !== undefined) t.logoEsc    = prev.logoEsc;
+  if(prev.logoBarra  !== undefined) t.logoBarra  = prev.logoBarra;
+  return t;
+}
 
 function aplicaTema(){
   const t = (DB.tema && DB.tema.oro) ? DB.tema : temaPorDefecto();
@@ -5888,13 +5962,74 @@ function vistaGer(){
   let h = '<h1>Gerencial</h1>'
     + '<p class="sub">El estado del sistema, el rastro de todo lo que se hizo y el respaldo de la información.</p>'
     + '<div class="subtabs">'
-    + [['estado','Estado del sistema'],['seg','Seguridad'],['aud','Auditoría'],['resp','Datos y respaldo']]
+    + [['estado','Estado del sistema'],['seg','Seguridad'],['aud','Auditoría'],['resp','Datos y respaldo'],
+       ['enl','Panel y pruebas']]
       .map(s=>'<button data-gsub="'+s[0]+'" class="'+(GSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     + '</div>';
   if(GSUB==='seg')  return h + gerSeguridad();
   if(GSUB==='aud')  return h + gerAud();
   if(GSUB==='resp') return h + gerResp();
+  if(GSUB==='enl')  return h + gerEnlaces();
   return h + gerEstado();
+}
+
+/* --------------------------------------------------------------- ENLACES --
+   Lo que vive fuera de este archivo pero es parte del sistema: el panel que
+   mira el accionista desde su teléfono y el banco de pruebas. Se abren en
+   otra pestaña: nada de esto toca los datos de la tienda. */
+const ENL_SICOM = [
+  { id:'acc',
+    ico:'📈',
+    nom:'Panel del accionista',
+    dir:'https://pruebas.casakeylis.com/negocio.html',
+    des:'El movimiento del negocio en vivo, pensado para el teléfono. Entra con '
+       + 'correo y clave, y la venta nueva le aparece sola cuando la cajera cobra.',
+    pie:'Lee del servidor, no de esta computadora.' },
+  { id:'pru',
+    ico:'🧪',
+    nom:'Banco de pruebas',
+    dir:'https://pruebas.casakeylis.com/pruebas.html',
+    des:'Las baterías que se corren enteras sobre un navegador de verdad cada vez '
+       + 'que se toca el sistema, con el resultado de cada una.',
+    pie:'Incluye la huella del archivo probado, para comprobar que es este mismo.' },
+  { id:'cal',
+    ico:'🏷️',
+    nom:'Ambiente de calidad',
+    dir:'https://casakeylis.com/calidad/',
+    des:'La copia del sistema con datos de mentira, donde se prueba todo antes de '
+       + 'que llegue a la tienda.',
+    pie:'Vive en otro dominio: nada de lo que se haga allá puede tocar estos datos.' }
+];
+
+function gerEnlaces(){
+  let h = '<div class="card"><h2>Fuera de esta pantalla</h2>'
+    + '<p class="cap">Partes del sistema que viven en su propia dirección. Se abren en otra '
+    + 'pestaña y ninguna escribe en los datos de esta computadora.</p><div class="lineas">';
+
+  ENL_SICOM.forEach(function(e){
+    h += '<div class="lin"><div class="li">'
+       + '<b>' + e.ico + ' ' + esc(e.nom) + '</b>'
+       + '<div class="mini">' + esc(e.des) + '</div>'
+       + '<div class="mini" style="opacity:.75">' + esc(e.pie) + '</div>'
+       + '</div>'
+       + '<a class="b sm oro" href="' + esc(e.dir) + '" target="_blank" rel="noopener noreferrer"'
+       + ' style="text-decoration:none;display:inline-block">Abrir</a>'
+       + '</div>';
+  });
+
+  h += '</div><div class="nota">Las direcciones se abren tal cual están escritas aquí. '
+     + 'Si alguna deja de responder, es que el sitio no está publicado, no que el sistema falle.'
+     + '</div></div>';
+
+  /* El logo se cambia en Configuración, no aquí. Se deja el atajo porque es
+     el primer sitio donde uno lo busca. */
+  h += '<div class="card"><h2>El logo y los colores</h2>'
+    + '<p class="cap">No se administran en Gerencial: están en Configuración, en la pestaña '
+    + '«Logo y colores». Ahí se cambia el logo, se quita, y se vuelve al dorado de fábrica.</p>'
+    + '<div class="acc"><button class="b oro" data-goto="cfg|marca">Ir a Logo y colores</button></div>'
+    + '</div>';
+
+  return h;
 }
 
 function gerEstado(){
@@ -5911,6 +6046,20 @@ function gerEstado(){
       + '</div>';
   });
   h += '</div></div>';
+
+  /* --- v47 · con qué pantalla abre el sistema ------------------------- */
+  const ab = (DB.cfg.abreEn === 'home') ? 'home' : 'vta';
+  h += '<div class="card"><h2>Con qué pantalla abre el sistema</h2>'
+    + '<p class="cap">Lo que ve quien entra. El inicio siempre queda a un clic, '
+    + 'en el logo de la barra.</p>'
+    + '<div class="acc">'
+    + '<button class="b' + (ab === 'vta'  ? ' oro' : ' gh') + '" data-abre="vta">Directo en Ventas</button>'
+    + '<button class="b' + (ab === 'home' ? ' oro' : ' gh') + '" data-abre="home">En la pantalla de inicio</button>'
+    + '</div>'
+    + '<div class="nota">' + (ab === 'vta'
+        ? 'Abre en Ventas: la cajera empieza a cobrar sin dar un paso de más.'
+        : 'Abre en el inicio: se ven primero los avisos de cada módulo y se entra desde ahí.')
+    + '</div></div>';
 
   const t = tasaEn(hoy), np = pendAbiertos();
   h += '<div class="card"><h2>Cómo va el negocio hoy</h2><div class="hero">'
@@ -6249,7 +6398,7 @@ document.addEventListener('click', e=>{
   }
   if(b.id === 'mk_reset'){
     DB.tema = temaPorDefecto();
-    bitacora('marca','Colores restablecidos','dorado de fábrica ' + ORO_CK);
+    bitacora('marca','Colores restablecidos','dorado de fábrica ' + TEMA_CK.oro);
     aviso('Volvimos al dorado de fábrica.'); pinta(); return;
   }
 
@@ -8878,11 +9027,18 @@ if(DB._migPlan){ const vj = DB._planViejo || 0; delete DB._migPlan; delete DB._p
     'tres niveles: cuenta madre, cuenta título y cuenta detalle · '
     + DB.cuentas.length + ' cuentas'
     + (vj ? ' · el plan anterior tenía ' + vj : '')); }
+if(DB._migTema){ const _mt = DB._migTema; delete DB._migTema;
+  bitacora('marca','Diseño original restituido',
+    'el marrón calculado ' + _mt + ' volvió al del diseño ' + TEMA_CK.marron); }
 if(DB._migMarca){ delete DB._migMarca;
-  bitacora('marca','Paleta de fábrica aplicada', 'oro '+ORO_CK); }
+  bitacora('marca','Paleta de fábrica aplicada', 'oro '+TEMA_CK.oro); }
 if(DB._migMod){ delete DB._migMod;
   bitacora('contab','Modelos de asiento sin cuentas',
     'la estructura queda; las cuentas las asigna la empresa · '+lineasPorAsignar()+' líneas por asignar'); }
+/* v47 · la pantalla con la que abre el sistema. La puesta en marcha manda
+   sobre esto: una instalación sin configurar tiene que ver el asistente. */
+if(DB.cfg.abreEn !== 'home' && DB.cfg.abreEn !== 'vta') DB.cfg.abreEn = 'vta';
+if(DB.instalado) TAB = DB.cfg.abreEn;
 if(!DB.cfg.cajeras.some(k=>k.id===DB.turno)){ const a=DB.cfg.cajeras.find(k=>k.activo); DB.turno = a ? a.id : ''; }
 nuevaVenta();
 nuevaRV();
@@ -9042,6 +9198,17 @@ document.addEventListener('click', e=>{
     bitacora('trib','Alícuota de actividades económicas',
       fN(r2(a),2) + ' %' + (m > 0 ? ' · mínimo USD ' + fN(r2(m)) : ''));
     aviso('Alícuota guardada: ' + fN(r2(a),2) + ' %.');
+    pinta(); return;
+  }
+  if(b.dataset.abre){
+    const v = b.dataset.abre === 'home' ? 'home' : 'vta';
+    if(DB.cfg.abreEn === v) return;
+    conTx('pantalla inicial', function(){
+      DB.cfg.abreEn = v;
+      bitacora('cfg', 'Pantalla de arranque',
+        v === 'vta' ? 'el sistema abre directo en Ventas' : 'el sistema abre en el inicio');
+    });
+    aviso(v === 'vta' ? 'El sistema va a abrir en Ventas.' : 'El sistema va a abrir en el inicio.');
     pinta(); return;
   }
   if(b.dataset.irtrib){ TAB='trib'; BSUB=b.dataset.irtrib; pinta(); window.scrollTo(0,0); return; }
