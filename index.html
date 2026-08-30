@@ -967,9 +967,62 @@ body.conpuerta{overflow:hidden}
 @keyframes nubelat{0%,100%{opacity:1}50%{opacity:.28}}
 @media (prefers-reduced-motion: reduce){.nubesem.esp i{animation:none}}
 .tranca.nube .trbox{border-top-color:var(--avi)}
+
+/* La puerta ya está en el HTML y tapa desde el primer pixel. Si esta
+   computadora ya tiene sesión guardada, el script del encabezado marca la
+   raíz y ni se llega a ver: la tienda no debe parpadear cada mañana. */
+html[data-sesion="si"] .nubepuerta{display:none}
+html[data-sesion="si"] body.conpuerta{overflow:auto}
 </style>
+<script>
+/* Antes de dibujar nada: ¿esta computadora ya entró alguna vez? La sesión
+   del conector queda guardada con un nombre conocido y se puede leer sin
+   la librería. Es lo único que corre aquí arriba, y a propósito: cualquier
+   otra cosa retrasaría el primer pixel. */
+(function(){
+  try{
+    for(var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i);
+      if(k && k.indexOf('sb-') === 0 && k.indexOf('auth-token') >= 0){
+        var v = localStorage.getItem(k);
+        if(v && v.length > 40){
+          document.documentElement.setAttribute('data-sesion', 'si');
+          return;
+        }
+      }
+    }
+  }catch(e){}
+})();
+</script>
 </head>
-<body>
+<body class="conpuerta">
+
+<!-- ====================================================================
+     LA PUERTA
+     Está aquí, en el HTML, y no la crea nadie: ya está tapando la pantalla
+     cuando el navegador dibuja el primer pixel. El conector solo la QUITA,
+     y solo cuando comprobó que hay sesión. Antes se creaba con JavaScript
+     después de descargar el conector, y en ese hueco el sistema quedaba a
+     la vista. Un candado que se pone tarde no es un candado.
+     ==================================================================== -->
+<div class="nubepuerta" id="nube_puerta">
+  <div class="npcaja">
+    <div class="nplogo" id="np_ini">S</div>
+    <h2 id="np_marca">SICOM</h2>
+    <p class="npsub">Entre con su correo y su clave para trabajar con los datos de la empresa.</p>
+    <form id="np_form" autocomplete="on">
+      <label class="npf" for="np_mail">Correo</label>
+      <input id="np_mail" type="email" required autocomplete="username"
+             inputmode="email" autocapitalize="none" spellcheck="false">
+      <label class="npf" for="np_clave">Clave</label>
+      <input id="np_clave" type="password" required autocomplete="current-password">
+      <div class="nperr" id="np_err" hidden></div>
+      <button class="b oro" id="np_entrar" type="submit" disabled>Conectando…</button>
+    </form>
+    <p class="npmini" id="np_pie">Si no tiene clave, pídasela al administrador.</p>
+  </div>
+</div>
+
 <header class="top">
   <div class="topin">
     <div id="marcabox" style="display:flex;align-items:center;gap:13px"></div>
@@ -9489,7 +9542,11 @@ window.NUBE = (function(){
          entró se queda en la puerta, y la puerta lo explica. */
       SIN_CONECTOR = true;
       pon('sin-modulo', 'No se pudo cargar el conector: ' + (e && e.message));
-      if(!haySesionGuardada()) abrePuerta();
+      /* Sin librería no se comprueba ninguna clave. La máquina que ya entró
+         sigue trabajando; la que nunca entró se queda donde está, que ahora
+         es detrás de la puerta, no delante. */
+      if(haySesionGuardada()) cierraPuerta();
+      else abrePuerta();
       return;
     }
     sb = mod.createClient(URL_SRV, LLAVE, {
@@ -9504,40 +9561,49 @@ window.NUBE = (function(){
 
     const r = await sb.auth.getSession();
     sesion = r && r.data ? r.data.session : null;
-    if(!sesion){ pon('sin-sesion'); abrePuerta(); return; }
+    if(!sesion){
+      /* la marca del encabezado pudo haber quedado de una sesión vencida:
+         si el servidor dice que no hay sesión, manda el servidor */
+      pon('sin-sesion'); abrePuerta(); return;
+    }
     cierraPuerta();
     await sincroniza();
   }
 
-  /* ---------- la puerta de acceso ---------- */
+  /* ---------- la puerta de acceso ----------
+     Ya está en el HTML desde antes de que corriera una línea de esto. Aquí
+     solo se le pone el nombre de la empresa, se habilita el botón y se
+     conecta el formulario. */
+  let PUERTA_LISTA = false;
   function abrePuerta(){
-    if(document.getElementById('nube_puerta')) return;
-    const d = document.createElement('div');
-    d.id = 'nube_puerta';
-    d.className = 'nubepuerta';
-    d.innerHTML =
-      '<div class="npcaja">'
-      + '<div class="nplogo">' + escN(inicialMarca()) + '</div>'
-      + '<h2>' + escN(nombreMarca()) + '</h2>'
-      + '<p class="npsub">Entre con su correo y su clave para trabajar con los '
-      + 'datos de la empresa.</p>'
-      + '<form id="np_form" autocomplete="on">'
-      + '<label class="npf">Correo</label>'
-      + '<input id="np_mail" type="email" required autocomplete="username" '
-      +   'inputmode="email" autocapitalize="none" spellcheck="false">'
-      + '<label class="npf">Clave</label>'
-      + '<input id="np_clave" type="password" required autocomplete="current-password">'
-      + '<div class="nperr" id="np_err" hidden></div>'
-      + '<button class="b oro" id="np_entrar" type="submit">Entrar</button>'
-      + '</form>'
-      + (SIN_CONECTOR
-          ? '<div class="npofl"><p class="npmini">No hay conexión con el servidor, así que '
-          + 'la clave no se puede verificar. Cuando vuelva la señal, esta pantalla '
-          + 'la va a aceptar.</p></div>'
-          : '<p class="npmini" style="margin-top:18px">Si no tiene clave, pídasela al administrador.</p>')
-      + '</div>';
-    document.body.appendChild(d);
+    const d = document.getElementById('nube_puerta');
+    if(!d) return;
+    document.documentElement.removeAttribute('data-sesion');
     document.body.classList.add('conpuerta');
+
+    /* la puerta se viste con la marca de la empresa, si ya se sabe cuál es */
+    try{
+      const nom = nombreMarca();
+      if(nom && nom !== 'SICOM'){
+        document.getElementById('np_marca').textContent = nom;
+        document.getElementById('np_ini').textContent = inicialMarca();
+      }
+    }catch(e){}
+
+    const b = document.getElementById('np_entrar');
+    if(SIN_CONECTOR){
+      b.disabled = true;
+      b.textContent = 'Sin conexión';
+      document.getElementById('np_pie').textContent =
+        'No hay conexión con el servidor, así que la clave no se puede verificar. '
+      + 'Cuando vuelva la señal, esta pantalla la va a aceptar.';
+    }else{
+      b.disabled = false;
+      b.textContent = 'Entrar';
+    }
+
+    if(PUERTA_LISTA) return;
+    PUERTA_LISTA = true;
 
     document.getElementById('np_form').addEventListener('submit', async function(e){
       e.preventDefault();
@@ -9577,6 +9643,7 @@ window.NUBE = (function(){
     const d = document.getElementById('nube_puerta');
     if(d) d.remove();
     document.body.classList.remove('conpuerta');
+    document.documentElement.setAttribute('data-sesion', 'si');
   }
   function escN(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g,
@@ -9888,6 +9955,16 @@ window.NUBE = (function(){
 NUBE.franja();
 pintaNubeEnCinta();
 NUBE.arranca();
+/* Si el conector tarda demasiado, la puerta lo dice en vez de quedarse en
+   «Conectando…» para siempre. No la quita: solo deja de mentir. */
+setTimeout(function(){
+  const b = document.getElementById('np_entrar');
+  if(b && b.disabled && b.textContent === 'Conectando…'){
+    b.textContent = 'Reintentar conexión';
+    b.disabled = false;
+    b.addEventListener('click', function(ev){ ev.preventDefault(); location.reload(); });
+  }
+}, 12000);
 
 document.addEventListener('change', e=>{
   if(e.target && e.target.id === 'lv_mes'){ LVMES = e.target.value; pinta(); window.scrollTo(0,0); }
