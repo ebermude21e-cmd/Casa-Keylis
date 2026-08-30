@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238E2E52'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='600' fill='%23fff' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E">
+<title>Banco de pruebas de SICOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --tinta:#241C28; --tinta2:#5A4F5E; --tenue:#8C8190;
+  --fondo:#F8F5F3; --papel:#FFFFFF; --linea:#E6DFE2;
+  --vino:#8E2E52; --vinoS:#F6E9EE; --sobreVino:#FFFFFF;
+  --verde:#1D7355; --verdeS:#E7F3EE; --rojo:#A32A2A; --rojoS:#FAEAEA;
+  --sombra:0 1px 2px rgba(36,28,40,.05), 0 8px 24px -14px rgba(36,28,40,.2);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --tinta:#F3EEF1; --tinta2:#BFB3C2; --tenue:#8E8194;
+    --fondo:#171219; --papel:#1F1922; --linea:#332B37;
+    --vino:#E4809F; --vinoS:#2C1D25; --sobreVino:#1A1016;
+    --verde:#5FCFA4; --verdeS:#16281F; --rojo:#E88585; --rojoS:#2E1A1A;
+    --sombra:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --tinta:#F3EEF1; --tinta2:#BFB3C2; --tenue:#8E8194;
+  --fondo:#171219; --papel:#1F1922; --linea:#332B37;
+  --vino:#E4809F; --vinoS:#2C1D25; --sobreVino:#1A1016;
+  --verde:#5FCFA4; --verdeS:#16281F; --rojo:#E88585; --rojoS:#2E1A1A;
+  --sombra:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);
+  font:400 16px/1.55 "Public Sans",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.env{max-width:860px;margin:0 auto;padding:0 20px}
+.num{font-variant-numeric:tabular-nums}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;color:var(--tenue)}
+
+header.tope{padding:44px 0 26px;border-bottom:1px solid var(--linea);margin-bottom:26px}
+.ojo{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--vino);font-weight:600}
+h1{font-family:"Fraunces",Georgia,serif;font-weight:600;font-size:clamp(28px,6vw,40px);
+  line-height:1.12;letter-spacing:-.02em;margin:10px 0 0;text-wrap:balance}
+.bajada{margin:12px 0 0;color:var(--tinta2);max-width:62ch}
+
+.marcador{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:26px 0 34px}
+.m{background:var(--papel);border:1px solid var(--linea);border-radius:14px;padding:16px 17px;box-shadow:var(--sombra)}
+.m .e{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue)}
+.m .v{font-family:"Fraunces",serif;font-size:32px;font-weight:600;line-height:1.1;margin-top:6px;letter-spacing:-.02em}
+.m .v.bueno{color:var(--verde)} .m .v.malo{color:var(--rojo)}
+.m .n{font-size:12.5px;color:var(--tenue);margin-top:4px}
+
+h2{font-family:"Fraunces",serif;font-weight:600;font-size:21px;margin:34px 0 4px;letter-spacing:-.01em}
+h2+p.sub{margin:0 0 16px;color:var(--tenue);font-size:14px}
+
+.suites{display:grid;gap:12px}
+.suite{background:var(--papel);border:1px solid var(--linea);border-left:3px solid var(--verde);
+  border-radius:12px;padding:16px 18px;box-shadow:var(--sombra)}
+.suite.mal{border-left-color:var(--rojo)}
+.suite header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.suite h3{font-family:"Public Sans",sans-serif;font-size:16px;font-weight:600;margin:0;flex:1;min-width:200px}
+.marca{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;background:var(--verdeS);color:var(--verde)}
+.suite.mal .marca{background:var(--rojoS);color:var(--rojo)}
+.cif{margin:7px 0 0;font-size:13.5px;color:var(--tinta2)}
+.cif b{color:var(--tinta)}
+ul.que{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+ul.que li{font-size:12.5px;color:var(--tinta2);background:var(--fondo);
+  border:1px solid var(--linea);border-radius:7px;padding:4px 9px}
+ul.fall{margin:12px 0 0;padding:0 0 0 18px;color:var(--rojo);font-size:13.5px}
+
+.nota{background:var(--vinoS);border:1px solid var(--linea);border-radius:12px;
+  padding:16px 18px;margin:26px 0;font-size:14.5px;color:var(--tinta2);line-height:1.65}
+.nota b{color:var(--tinta)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+.tabenv{overflow-x:auto;border:1px solid var(--linea);border-radius:12px;background:var(--papel);box-shadow:var(--sombra)}
+th,td{text-align:left;padding:11px 14px;border-top:1px solid var(--linea);white-space:nowrap}
+th{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);font-weight:600;border-top:0}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+footer{margin:44px 0 40px;padding-top:20px;border-top:1px solid var(--linea);
+  color:var(--tenue);font-size:13px;line-height:1.7}
+</style>
+
+/* ---------- la puerta de acceso, igual que en el sistema ---------------- */
+.npfondo{position:fixed;inset:0;z-index:120;display:grid;place-items:center;
+  padding:24px;background:var(--fondo);overflow:auto}
+body.conpuerta{overflow:hidden}
+.npcaja{width:100%;max-width:380px;background:var(--papel);border:1px solid var(--linea);
+  border-radius:14px;box-shadow:var(--sombra);padding:28px 26px;text-align:center}
+.nplogo{width:56px;height:56px;border-radius:14px;margin:0 auto 14px;
+  background:linear-gradient(140deg,#e0c37e,#9c7c2e);display:grid;place-items:center;
+  font-family:Georgia,serif;font-weight:800;font-size:28px;color:#33261a}
+.npcaja h2{font-family:Georgia,serif;font-size:22px;font-weight:600;margin:0}
+.npsub{color:var(--tinta2);font-size:13.5px;margin:8px 0 20px}
+.npcaja form{text-align:left;display:grid;gap:5px}
+.npf{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--tenue);margin-top:10px}
+.npcaja input{width:100%;padding:11px 13px;border:1px solid var(--linea);border-radius:9px;
+  font:inherit;background:var(--fondo);color:var(--tinta)}
+.npcaja input:focus{outline:0;border-color:var(--vino);box-shadow:0 0 0 3px rgba(142,46,82,.2)}
+.npbtn{width:100%;margin-top:18px;padding:13px;border:0;border-radius:9px;cursor:pointer;
+  background:var(--vino);color:var(--sobreVino);font:600 15px/1 "Public Sans",sans-serif}
+.npbtn:disabled{opacity:.55;cursor:default}
+.nperr{background:var(--rojoS);color:var(--rojo);border-radius:9px;padding:10px 13px;
+  font-size:13.5px;margin-top:12px}
+.npmini{font-size:11.5px;color:var(--tenue);margin:16px 0 0;line-height:1.55}
+</style>
+</head>
+<body>
+
+<div class="npfondo" id="np_fondo">
+  <div class="npcaja">
+    <div class="nplogo">K</div>
+    <h2>Casa Keylis</h2>
+    <p class="npsub">Entre con su correo y su clave para ver el banco de pruebas.</p>
+    <form id="np_form" autocomplete="on">
+      <label class="npf">Correo</label>
+      <input id="np_mail" type="email" required autocomplete="username"
+             inputmode="email" autocapitalize="none" spellcheck="false">
+      <label class="npf">Clave</label>
+      <input id="np_clave" type="password" required autocomplete="current-password">
+      <div class="nperr" id="np_err" hidden></div>
+      <button class="npbtn" id="np_entrar" type="submit">Entrar</button>
+    </form>
+    <p class="npmini">Si no tiene clave, pídasela al administrador.</p>
+  </div>
+</div>
+
+
+<div id="cuerpo" hidden>
+<header class="tope"><div class="env">
+  <div class="ojo">Casa Keylis · Ambiente de calidad</div>
+  <h1>Banco de pruebas de SICOM</h1>
+  <p class="bajada">Cada vez que se toca el sistema, estas 21 baterías vuelven a correr
+  enteras sobre un navegador de verdad, con datos de verdad. Si algo se rompió, sale aquí.
+  Esta corrida es de <b>30/08/2026 a las 00:19</b>.</p>
+</div></header>
+
+<div class="env">
+  <div class="marcador">
+    <div class="m"><div class="e">Comprobaciones</div>
+      <div class="v num">1512</div><div class="n">pasaron</div></div>
+    <div class="m"><div class="e">Fallas</div>
+      <div class="v num bueno">0</div>
+      <div class="n">ninguna</div></div>
+    <div class="m"><div class="e">Baterías</div>
+      <div class="v num">21<span style="font-size:.55em;color:var(--tenue)">/21</span></div>
+      <div class="n">en verde</div></div>
+    <div class="m"><div class="e">Duración</div>
+      <div class="v num">5.3<span style="font-size:.45em;color:var(--tenue)"> min</span></div>
+      <div class="n">la corrida completa</div></div>
+  </div>
+
+  <div class="nota">
+    <b>Sobre qué se probó.</b> El archivo es <code>sicom_v50.html</code>,
+    558,016 bytes, huella <code>5afa984126f300b1c15f52289bc7e2c9</code>.
+    Es exactamente el mismo archivo que está publicado. La huella permite
+    comprobarlo: si cambia una sola letra del sistema, cambia la huella.
+  </div>
+
+  <h2>Batería por batería</h2>
+  <p class="sub">Cada tarjeta es un archivo de pruebas. Las etiquetas dicen qué mira por dentro.</p>
+  <div class="suites">
+      <article class="suite ok">
+        <header>
+          <h3>Diseño, arranque y tranca falsa</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">46</b> comprobaciones ·
+           <span class="num">8.3</span> s ·
+           <code>prueba_v47.js</code></p>
+        <ul class="que"><li>TEMA · la paleta de fábrica es la del diseño, no una calculada</li><li>TEMA · un color elegido a mano NO se toca</li><li>TEMA · volver al dorado de fábrica devuelve el original</li><li>TEMA · la escala del logo sobrevive al restablecer</li><li>ARRANQUE · abre en Ventas de fábrica</li><li>ARRANQUE · una base ya instalada abre donde diga la configuración</li><li>ARRANQUE · una instalación SIN configurar ve la puesta en marcha</li><li>ARRANQUE · el interruptor cambia y se guarda</li><li>ARRANQUE · vuelve a Ventas</li><li>TRANCA · un aviso que no adelanta la revisión no tranca la caja</li><li>TRANCA · un aviso que SÍ adelanta la revisión sigue trancando</li><li>TRANCA · de verdad no deja escribir cuando otra pestaña adelantó</li><li>TRANCA · una tranca falsa se levanta sola al comprobar</li><li>GERENCIAL · la pestaña de panel y pruebas</li><li>GERENCIAL · el atajo lleva a Configuración · Logo y colores</li><li>el logo se cambia y se quita desde Configuración</li><li>nada se rompió</li></ul>
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Caja, cobros y vuelto</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">188</b> comprobaciones ·
+           <span class="num">74.7</span> s ·
+           <code>prueba3_a.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Cierre de caja y arqueo</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">119</b> comprobaciones ·
+           <span class="num">19.9</span> s ·
+           <code>prueba3_b.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Cuentas por cobrar</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">51</b> comprobaciones ·
+           <span class="num">13.2</span> s ·
+           <code>prueba4_c.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Segunda empresa y separación de datos</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">66</b> comprobaciones ·
+           <span class="num">8.7</span> s ·
+           <code>prueba_emp2.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Migración entre versiones</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">42</b> comprobaciones ·
+           <span class="num">5.2</span> s ·
+           <code>prueba_mig.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Operación real de un día</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">52</b> comprobaciones ·
+           <span class="num">7.0</span> s ·
+           <code>prueba_real.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Tasa del BCV</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">30</b> comprobaciones ·
+           <span class="num">7.7</span> s ·
+           <code>prueba_v5.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Devoluciones</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">41</b> comprobaciones ·
+           <span class="num">22.5</span> s ·
+           <code>prueba_v6.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Contabilidad y asientos</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">81</b> comprobaciones ·
+           <span class="num">30.7</span> s ·
+           <code>prueba_v7.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Plan de cuentas</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">48</b> comprobaciones ·
+           <span class="num">7.5</span> s ·
+           <code>prueba_v8.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Libros de venta y fiscales</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">78</b> comprobaciones ·
+           <span class="num">13.4</span> s ·
+           <code>prueba_v10.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Personal, comisiones y anticipos</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">78</b> comprobaciones ·
+           <span class="num">13.7</span> s ·
+           <code>prueba_v17.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Inventario y existencias</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">137</b> comprobaciones ·
+           <span class="num">20.4</span> s ·
+           <code>prueba_v18.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Respaldos y restauración</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">66</b> comprobaciones ·
+           <span class="num">16.3</span> s ·
+           <code>prueba_v21.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Multiempresa</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">24</b> comprobaciones ·
+           <span class="num">6.4</span> s ·
+           <code>prueba_v22.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Recorrido completo del sistema</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">177</b> comprobaciones ·
+           <span class="num">25.8</span> s ·
+           <code>prueba_v25.js</code></p>
+        
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Inicio, avisos y cuentas por persona</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">36</b> comprobaciones ·
+           <span class="num">4.9</span> s ·
+           <code>prueba_v44.js</code></p>
+        <ul class="que"><li>la pantalla de inicio</li><li>la cuenta de cada persona</li><li>dar de alta desde la pantalla</li><li>abrirle la cuenta a quien ya estaba</li><li>repartidores</li><li>el respaldo aguanta</li></ul>
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Transacciones y concurrencia</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">36</b> comprobaciones ·
+           <span class="num">5.7</span> s ·
+           <code>prueba_v45.js</code></p>
+        <ul class="que"><li>TR-02 · el correlativo no retrocede</li><li>TR-01 / TR-03 · guardar antes de dar por hecho</li><li>TR-01 · dos pestañas</li><li>TR-05 · no se devuelve más de lo vendido</li><li>TR-06 · no se vende lo que no hay</li><li>TR-04 · no se anula ni se devuelve dos veces</li><li>PN-01 · el fondo de caja</li><li>nada se rompió</li></ul>
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>Rastro de bitácora e integridad</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">33</b> comprobaciones ·
+           <span class="num">7.9</span> s ·
+           <code>prueba_v46.js</code></p>
+        <ul class="que"><li>TZ-01 · el dinero que sale al cliente deja constancia</li><li>TZ-05 · cortar la bitácora ya no pasa desapercibido</li><li>TZ-02 · el turno</li><li>TZ-03 · los interruptores fiscales</li><li>TZ-09 · tasas, canales, comisiones</li><li>AR-02 · el respaldo sabe de quién es</li><li>el respaldo al día</li><li>nada se rompió</li></ul>
+      </article>
+      <article class="suite ok">
+        <header>
+          <h3>La nube: acceso, sincronización y conflictos</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">83</b> comprobaciones ·
+           <span class="num">0.0</span> s ·
+           <code>prueba_v48.js</code></p>
+        <ul class="que"><li>LA PUERTA · sin sesión no se entra</li><li>LA PUERTA · una clave mala no abre</li><li>LA PRIMERA MÁQUINA · siembra el servidor</li><li>GUARDAR · cada cambio sube solo</li><li>SIN INTERNET · se sigue vendiendo y queda pendiente</li><li>VUELVE EL INTERNET · lo pendiente sube solo</li><li>OTRA COMPUTADORA GUARDÓ · no se pisa nada</li><li>OTRA COMPUTADORA GUARDÓ · con la caja trabada no se sube nada más</li><li>PONERSE AL DÍA · trae lo del servidor y destraba</li><li>EL AVISO EN EL MOMENTO · otra máquina guarda y esta se entera</li><li>LA SEGUNDA COMPUTADORA · abre y encuentra todo</li><li>LA MÁQUINA CON TRABAJO PROPIO · no se le borra nada</li><li>UNA INSTALACIÓN EN BLANCO NO PISA A UNA CON DATOS</li><li>SIN PERMISO PARA OPERAR · lo dice, no lo esconde</li><li>LA PUERTA NO TIENE ATAJOS</li><li>SIN FRANJA DE AMBIENTE</li><li>/calidad GUARDA CON OTRA LLAVE, EN EL MISMO DOMINIO</li><li>SIN CONECTOR · el sistema funciona como antes</li><li>CALIDAD · con credenciales de producción NO toca el servidor</li><li>PRODUCCIÓN · el mismo archivo sí sincroniza</li><li>SIN CONECTOR PERO YA ENTRÓ ANTES · la tienda no se cierra</li><li>nada se rompió</li></ul>
+      </article>
+  </div>
+
+  <h2>El detalle en números</h2>
+  <p class="sub">Lo mismo, para llevárselo o pegarlo en un informe.</p>
+  <div class="tabenv"><table>
+    <thead><tr><th>Batería</th><th>Archivo</th><th class="n">Bien</th><th class="n">Mal</th><th class="n">Segundos</th></tr></thead>
+    <tbody>
+    <tr><td>Diseño, arranque y tranca falsa</td><td><code>prueba_v47.js</code></td><td class="n">46</td><td class="n">0</td><td class="n">8.3</td></tr><tr><td>Caja, cobros y vuelto</td><td><code>prueba3_a.js</code></td><td class="n">188</td><td class="n">0</td><td class="n">74.7</td></tr><tr><td>Cierre de caja y arqueo</td><td><code>prueba3_b.js</code></td><td class="n">119</td><td class="n">0</td><td class="n">19.9</td></tr><tr><td>Cuentas por cobrar</td><td><code>prueba4_c.js</code></td><td class="n">51</td><td class="n">0</td><td class="n">13.2</td></tr><tr><td>Segunda empresa y separación de datos</td><td><code>prueba_emp2.js</code></td><td class="n">66</td><td class="n">0</td><td class="n">8.7</td></tr><tr><td>Migración entre versiones</td><td><code>prueba_mig.js</code></td><td class="n">42</td><td class="n">0</td><td class="n">5.2</td></tr><tr><td>Operación real de un día</td><td><code>prueba_real.js</code></td><td class="n">52</td><td class="n">0</td><td class="n">7.0</td></tr><tr><td>Tasa del BCV</td><td><code>prueba_v5.js</code></td><td class="n">30</td><td class="n">0</td><td class="n">7.7</td></tr><tr><td>Devoluciones</td><td><code>prueba_v6.js</code></td><td class="n">41</td><td class="n">0</td><td class="n">22.5</td></tr><tr><td>Contabilidad y asientos</td><td><code>prueba_v7.js</code></td><td class="n">81</td><td class="n">0</td><td class="n">30.7</td></tr><tr><td>Plan de cuentas</td><td><code>prueba_v8.js</code></td><td class="n">48</td><td class="n">0</td><td class="n">7.5</td></tr><tr><td>Libros de venta y fiscales</td><td><code>prueba_v10.js</code></td><td class="n">78</td><td class="n">0</td><td class="n">13.4</td></tr><tr><td>Personal, comisiones y anticipos</td><td><code>prueba_v17.js</code></td><td class="n">78</td><td class="n">0</td><td class="n">13.7</td></tr><tr><td>Inventario y existencias</td><td><code>prueba_v18.js</code></td><td class="n">137</td><td class="n">0</td><td class="n">20.4</td></tr><tr><td>Respaldos y restauración</td><td><code>prueba_v21.js</code></td><td class="n">66</td><td class="n">0</td><td class="n">16.3</td></tr><tr><td>Multiempresa</td><td><code>prueba_v22.js</code></td><td class="n">24</td><td class="n">0</td><td class="n">6.4</td></tr><tr><td>Recorrido completo del sistema</td><td><code>prueba_v25.js</code></td><td class="n">177</td><td class="n">0</td><td class="n">25.8</td></tr><tr><td>Inicio, avisos y cuentas por persona</td><td><code>prueba_v44.js</code></td><td class="n">36</td><td class="n">0</td><td class="n">4.9</td></tr><tr><td>Transacciones y concurrencia</td><td><code>prueba_v45.js</code></td><td class="n">36</td><td class="n">0</td><td class="n">5.7</td></tr><tr><td>Rastro de bitácora e integridad</td><td><code>prueba_v46.js</code></td><td class="n">33</td><td class="n">0</td><td class="n">7.9</td></tr><tr><td>La nube: acceso, sincronización y conflictos</td><td><code>prueba_v48.js</code></td><td class="n">83</td><td class="n">0</td><td class="n">0.0</td></tr>
+    </tbody>
+  </table></div>
+
+  <footer>
+    Ambiente de calidad de Casa Keylis Boutique Femine, C.A. · RIF J-50863887-5.<br>
+    Lo que hay aquí es una copia de trabajo con datos de mentira. Los datos reales
+    de la empresa no pasan por este dominio.
+  </footer>
+</div>
+</div>
+
+<script type="module">
+/* La misma puerta que el sistema, contra el mismo servidor. Sin sesión no se
+   ve nada; con sesión, la página completa. */
+const URL_SRV = 'https://wqvvanakdbkgrfmlvvrh.supabase.co';
+const LLAVE   = 'sb_publishable_Cw6SI_d2oz8ZY_X6kRCJuw_DTGyigak';
+const $ = i => document.getElementById(i);
+let sb = null;
+
+function abre(hay){
+  $('np_fondo').hidden = hay;
+  $('cuerpo').hidden   = !hay;
+  document.body.classList.toggle('conpuerta', !hay);
+}
+
+try{
+  const m = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  sb = m.createClient(URL_SRV, LLAVE, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:false } });
+  sb.auth.onAuthStateChange((e, s) => abre(!!s));
+  const r = await sb.auth.getSession();
+  abre(!!(r && r.data && r.data.session));
+}catch(e){
+  abre(false);
+  $('np_err').textContent = 'No hay conexión con el servidor para verificar la clave.';
+  $('np_err').hidden = false;
+}
+
+$('np_form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const b = $('np_entrar'), er = $('np_err');
+  er.hidden = true;
+  if(!sb){ er.textContent = 'No hay conexión con el servidor para verificar la clave.';
+            er.hidden = false; return; }
+  b.disabled = true; b.textContent = 'Entrando…';
+  const { error } = await sb.auth.signInWithPassword({
+    email: $('np_mail').value.trim(), password: $('np_clave').value });
+  b.disabled = false; b.textContent = 'Entrar';
+  if(error){
+    er.textContent = /invalid/i.test(error.message)
+      ? 'Ese correo y esa clave no coinciden.'
+      : 'No se pudo entrar: ' + error.message;
+    er.hidden = false; $('np_clave').value = '';
+  }
+});
+</script>
+</body>
+</html>

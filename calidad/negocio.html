@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4a3826">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234a3826'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='700' fill='%23c8a24a' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E">
+<title>Casa Keylis · Negocio</title>
+<style>
+/* Mismas variables, mismas tarjetas y mismos colores que SICOM.
+   Nada de fuentes de internet: las mismas del sistema, como en la aplicación. */
+:root{
+  --oro:#c8a24a; --oro-cl:#e0c37e; --oro-os:#9c7c2e;
+  --crema:#f7f2e7; --crema-2:#efe6d3; --marron:#4a3826; --marron-2:#6b533a;
+  --page:#faf7f0; --panel:#ffffff; --sup:#f5f0e4; --sup2:#ebe3d2;
+  --ink:#2c2118; --ink2:#6b5c4c; --muted:#776e5a;
+  --linea:#e2d8c4; --hair:#efe8db;
+  --ok:#2f8f5b; --ok-bg:#e6f4ec; --ok-ink:#1f6b42;
+  --mal:#c1442f; --mal-bg:#fbeae6; --mal-ink:#9e3524;
+  --avi:#b7791f; --avi-bg:#fdf3e0; --avi-ink:#96610f;
+  --acc:#5b6ea8; --acc-bg:#eef1f9; --acc-ink:#3d4d80;
+  --r1:9px; --r2:14px; --r3:20px;
+  --sh1:0 1px 2px rgba(74,56,38,.06);
+  --sh2:0 4px 14px rgba(74,56,38,.10);
+  --sh3:0 14px 40px rgba(74,56,38,.16);
+  --ring:0 0 0 3px rgba(200,162,74,.28);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);
+  font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom)}
+.num{font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+
+.b{border:0;background:var(--marron);color:#fff;padding:11px 20px;border-radius:var(--r1);font-weight:650;
+  font-size:14px;cursor:pointer;box-shadow:var(--sh1);transition:.14s;font-family:inherit}
+.b:hover:not(:disabled){background:#33261a;box-shadow:var(--sh2)}
+.b:disabled{opacity:.55;cursor:default}
+.b.oro{background:var(--oro);color:#33261a}
+.b.oro:hover:not(:disabled){background:var(--oro-os);color:#fff}
+.b.gh{background:transparent;color:var(--marron);border:1px solid var(--linea);box-shadow:none}
+.b.mini{padding:5px 12px;font-size:12px}
+.b:focus-visible{outline:0;box-shadow:var(--ring)}
+input{width:100%;padding:11px 13px;border:1px solid var(--linea);border-radius:var(--r1);
+  font:inherit;background:var(--panel);color:var(--ink);transition:.14s}
+input:focus{outline:0;border-color:var(--oro);box-shadow:var(--ring)}
+.card{background:var(--panel);border:1px solid var(--linea);border-radius:var(--r3);padding:22px;box-shadow:var(--sh1)}
+.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;
+  background:var(--sup2);color:var(--ink2)}
+.chip.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.chip.mal{background:var(--mal-bg);color:var(--mal-ink)}
+.chip.avi{background:var(--avi-bg);color:var(--avi-ink)}
+.nota{background:var(--sup);border-left:3px solid var(--oro);border-radius:0 var(--r1) var(--r1) 0;
+  padding:13px 16px;font-size:13.5px;color:var(--ink2);margin:16px 0 0}
+.vacio{text-align:center;padding:34px 18px;color:var(--muted)}
+
+/* ── entrada ───────────────────────────────────────────────────────────── */
+#entrada{min-height:100dvh;display:grid;place-items:center;padding:26px 20px}
+.mailbd{width:100%;max-width:380px;text-align:center}
+.mailbd .logo{width:56px;height:56px;border-radius:14px;
+  background:linear-gradient(140deg,var(--oro-cl),var(--oro-os));
+  display:grid;place-items:center;font-weight:800;font-size:28px;color:#3a2c1c;margin:0 auto 12px;
+  font-family:Georgia,'Times New Roman',serif}
+.mailbd h1{font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;margin:0;letter-spacing:-.01em}
+.mailbd .sub{color:var(--ink2);margin:6px 0 20px;font-size:13.5px}
+form.acceso{text-align:left;display:grid;gap:13px}
+label{display:grid;gap:5px;font-size:12px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--muted)}
+.err{background:var(--mal-bg);color:var(--mal-ink);border-radius:var(--r1);padding:10px 13px;font-size:13.5px}
+.pieent{margin-top:18px;font-size:12.5px;color:var(--muted);line-height:1.65}
+
+/* ── panel ─────────────────────────────────────────────────────────────── */
+header.top{background:linear-gradient(135deg,var(--marron) 0%,#2f2318 100%);color:#fff;
+  position:sticky;top:0;z-index:20}
+.topin{max-width:1240px;margin:0 auto;padding:13px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.marca{display:flex;align-items:center;gap:11px;min-width:0}
+.marca .ic{width:34px;height:34px;border-radius:9px;flex:none;
+  background:linear-gradient(140deg,var(--oro-cl),var(--oro-os));display:grid;place-items:center;
+  font-family:Georgia,serif;font-weight:800;font-size:18px;color:#3a2c1c}
+.marca b{display:block;font-size:15px;line-height:1.2}
+.marca span{display:block;font-size:11.5px;color:rgba(255,255,255,.66)}
+.topin .der{margin-left:auto;display:flex;align-items:center;gap:9px}
+.salir{border:1px solid rgba(255,255,255,.24);background:transparent;color:rgba(255,255,255,.85);
+  padding:6px 13px;border-radius:999px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.salir:hover{background:rgba(255,255,255,.1)}
+.cinta{background:rgba(0,0,0,.22);border-top:1px solid rgba(255,255,255,.07)}
+.cintain{max-width:1240px;margin:0 auto;padding:8px 20px;display:flex;gap:16px;flex-wrap:wrap;
+  align-items:center;font-size:12.5px;color:rgba(255,255,255,.78)}
+.pulso{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.pulso i{width:7px;height:7px;border-radius:50%;background:#63d39b;animation:latir 2.4s ease-in-out infinite}
+.pulso.frio{color:rgba(255,255,255,.55)} .pulso.frio i{background:rgba(255,255,255,.45);animation:none}
+@keyframes latir{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.75)}}
+@media (prefers-reduced-motion: reduce){.pulso i{animation:none}}
+
+.wrap{max-width:1240px;margin:0 auto;padding:22px 20px 70px}
+h2{font-family:Georgia,'Times New Roman',serif;font-size:19px;font-weight:700;margin:26px 0 3px;letter-spacing:-.01em}
+p.sub{color:var(--ink2);margin:0 0 14px;font-size:13.5px}
+
+.tabs{display:flex;gap:4px;background:var(--sup2);padding:4px;border-radius:999px;
+  flex-wrap:wrap;margin-bottom:18px;width:fit-content;max-width:100%}
+.tabs button{border:0;background:transparent;color:var(--ink2);padding:7px 15px;border-radius:999px;
+  font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap}
+.tabs button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:var(--sh1)}
+
+.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:2px;background:var(--linea);
+  border:1px solid var(--linea);border-radius:var(--r3);overflow:hidden}
+.hero .h{background:var(--panel);padding:20px 22px}
+.hero .h.dest{background:linear-gradient(150deg,#fffdf7,var(--crema))}
+.hero .k{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.hero .v{display:block;font-size:30px;font-weight:800;letter-spacing:-.025em;
+  font-variant-numeric:tabular-nums;margin-top:5px;line-height:1.1;white-space:nowrap}
+.hero .v small{font-size:15px;font-weight:700;color:var(--muted);letter-spacing:0}
+.hero .v.bien{color:var(--ok-ink)} .hero .v.ojo{color:var(--avi-ink)} .hero .v.mal{color:var(--mal-ink)}
+.hero .s{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+
+.tabenv{background:var(--panel);border:1px solid var(--linea);border-radius:var(--r3);
+  overflow:hidden;box-shadow:var(--sh1)}
+.scr{overflow-x:auto}
+table.dat{width:100%;border-collapse:collapse;font-size:14px}
+table.dat th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;padding:9px 12px;border-bottom:1px solid var(--linea);background:var(--sup);white-space:nowrap}
+table.dat td{padding:11px 12px;border-bottom:1px solid var(--hair);vertical-align:middle}
+table.dat tr:last-child td{border-bottom:0}
+table.dat td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+table.dat td.cli{font-weight:650;width:99%;min-width:150px;max-width:340px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.dat td.doc{color:var(--muted);font-size:12.5px;white-space:nowrap}
+table.dat tr.anu td{color:var(--muted)}
+table.dat tr.anu td.n{text-decoration:line-through}
+table.dat tr.nueva{animation:llega 1.8s ease-out}
+@keyframes llega{0%{background:var(--crema)}100%{background:transparent}}
+@media (prefers-reduced-motion: reduce){table.dat tr.nueva{animation:none;background:var(--crema)}}
+
+.pie{margin-top:26px;font-size:12px;color:var(--muted);line-height:1.7}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+
+@media (max-width:560px){
+  .hero .v{font-size:25px}
+  .wrap{padding:18px 14px 60px}
+  .topin{padding:11px 14px} .cintain{padding:7px 14px;gap:12px}
+
+  /* En el teléfono la tabla no rueda de lado: cada venta pasa a ser un
+     bloque de dos renglones. A la izquierda quién compró y con qué documento;
+     a la derecha el monto y el estado, que es lo que se viene a mirar. */
+  .scr{overflow-x:visible}
+  table.dat thead{display:none}
+  table.dat, table.dat tbody, table.dat tr, table.dat td{display:block}
+  table.dat tr{display:grid;grid-template-columns:minmax(0,1fr) auto;
+    column-gap:12px;row-gap:2px;padding:12px 14px;border-bottom:1px solid var(--hair)}
+  table.dat tr:last-child{border-bottom:0}
+  table.dat td{padding:0;border:0}
+  table.dat td.cli{grid-column:1;grid-row:1;max-width:none;min-width:0;font-size:14.5px}
+  table.dat td:nth-child(2){grid-column:1;grid-row:2}
+  table.dat td:nth-child(3){display:none}          /* la cajera se ve en escritorio */
+  table.dat td.n{grid-column:2;grid-row:1;text-align:right;font-size:15.5px}
+  table.dat td:nth-child(5){grid-column:2;grid-row:2;text-align:right}
+  table.dat td[colspan]{grid-column:1 / -1}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ ENTRADA ══════════════════ -->
+<section id="entrada">
+  <div class="mailbd">
+    <div class="logo">K</div>
+    <h1>Casa Keylis</h1>
+    <p class="sub">Boutique Femine, C.A. · Movimiento del negocio</p>
+
+    <div class="card" style="padding:20px">
+      <form class="acceso" id="fAcceso" autocomplete="on">
+        <label>Correo
+          <input type="email" id="correo" required autocomplete="username"
+                 inputmode="email" autocapitalize="none" spellcheck="false">
+        </label>
+        <label>Clave
+          <input type="password" id="clave" required autocomplete="current-password">
+        </label>
+        <div class="err" id="errAcceso" hidden></div>
+        <button type="submit" class="b oro" id="btnEntrar" style="width:100%;padding:13px">Entrar</button>
+      </form>
+    </div>
+
+    <p class="pieent">
+      Lo que se ve aquí viene del servidor de la empresa,<br>
+      no de ninguna computadora de la tienda.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════ PANEL ══════════════════ -->
+<div id="panel" hidden>
+  <header class="top">
+    <div class="topin">
+      <div class="marca">
+        <div class="ic">K</div>
+        <div><b>Casa Keylis</b><span id="quien">—</span></div>
+      </div>
+      <div class="der">
+        <button class="salir" id="btnSalir">Salir</button>
+      </div>
+    </div>
+    <div class="cinta"><div class="cintain">
+      <span class="pulso frio" id="pulso"><i></i><span>conectando…</span></span>
+      <span id="cRif"></span>
+      <span id="cHora"></span>
+    </div></div>
+  </header>
+
+  <div class="wrap">
+    <div class="tabs" id="tabs" role="group" aria-label="período">
+      <button data-r="hoy"  aria-pressed="true">Hoy</button>
+      <button data-r="ayer" aria-pressed="false">Ayer</button>
+      <button data-r="7"    aria-pressed="false">7 días</button>
+      <button data-r="mes"  aria-pressed="false">Este mes</button>
+    </div>
+
+    <div class="hero">
+      <div class="h dest">
+        <span class="k" id="etCifra">Vendido hoy</span>
+        <span class="v"><span id="vendido">—</span> <small>USD</small></span>
+        <span class="s" id="enBs"></span>
+      </div>
+      <div class="h">
+        <span class="k">Ventas</span>
+        <span class="v num" id="nVentas">—</span>
+        <span class="s" id="sAnul"></span>
+      </div>
+      <div class="h">
+        <span class="k">IVA cobrado</span>
+        <span class="v num" id="iva">—</span>
+        <span class="s" id="sIgtf"></span>
+      </div>
+      <div class="h">
+        <span class="k">Por cobrar</span>
+        <span class="v num" id="pend">—</span>
+        <span class="s">saldos abiertos</span>
+      </div>
+      <div class="h">
+        <span class="k">Inventario</span>
+        <span class="v num" id="inv">—</span>
+        <span class="s">valorado al costo</span>
+      </div>
+      <div class="h">
+        <span class="k" id="etAcc">Cuenta del accionista</span>
+        <span class="v num" id="acc">—</span>
+        <span class="s" id="sAcc"></span>
+      </div>
+    </div>
+
+    <h2>Movimiento del día</h2>
+    <p class="sub" id="subMov">Las últimas quince. Cuando la cajera cobra, la línea aparece sola.</p>
+
+    <div class="tabenv"><div class="scr">
+      <table class="dat">
+        <thead><tr>
+          <th>Cliente</th><th>Documento</th><th>Cajera</th>
+          <th style="text-align:right">Total USD</th><th>Estado</th>
+        </tr></thead>
+        <tbody id="cuerpoMov">
+          <tr><td colspan="5"><div class="vacio">Cargando…</div></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+
+    <div class="nota" id="notaTasa" hidden></div>
+
+    <p class="pie">
+      Casa Keylis Boutique Femine, C.A. · <code id="rifSrv"></code><br>
+      Los importes son los que están registrados en el servidor en este momento.
+    </p>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const URL_SRV = 'https://wqvvanakdbkgrfmlvvrh.supabase.co';
+const LLAVE   = 'sb_publishable_Cw6SI_d2oz8ZY_X6kRCJuw_DTGyigak';
+
+const sb = createClient(URL_SRV, LLAVE, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+});
+
+const $ = id => document.getElementById(id);
+const fN  = (n, d = 2) => Number(n || 0).toLocaleString('es-VE',
+  { minimumFractionDigits: d, maximumFractionDigits: d });
+const fE  = n => Number(n || 0).toLocaleString('es-VE');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function iso(desp = 0){
+  const d = new Date(); d.setDate(d.getDate() + desp);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function rango(c){
+  if(c === 'ayer') return [iso(-1), iso(-1)];
+  if(c === '7')    return [iso(-6), iso(0)];
+  if(c === 'mes'){ const d = new Date();
+    return [d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01', iso(0)]; }
+  return [iso(0), iso(0)];
+}
+const ROTULO = { hoy:'Vendido hoy', ayer:'Vendido ayer', '7':'Vendido en 7 días', mes:'Vendido este mes' };
+const TITULO = { hoy:'Movimiento del día', ayer:'Movimiento de ayer',
+                 '7':'Movimiento de la semana', mes:'Movimiento del mes' };
+
+let cual = 'hoy', canal = null, vistos = new Set(), primera = true;
+
+/* ── entrar y salir ────────────────────────────────────────────────────── */
+$('fAcceso').addEventListener('submit', async e => {
+  e.preventDefault();
+  const b = $('btnEntrar'), err = $('errAcceso');
+  err.hidden = true; b.disabled = true; b.textContent = 'Entrando…';
+  const { error } = await sb.auth.signInWithPassword({
+    email: $('correo').value.trim(), password: $('clave').value
+  });
+  b.disabled = false; b.textContent = 'Entrar';
+  if(error){
+    err.textContent = /invalid/i.test(error.message)
+      ? 'Ese correo y esa clave no coinciden.'
+      : 'No se pudo entrar: ' + error.message;
+    err.hidden = false; $('clave').value = ''; $('clave').focus();
+  }
+});
+$('btnSalir').addEventListener('click', async () => {
+  if(canal){ sb.removeChannel(canal); canal = null; }
+  await sb.auth.signOut();
+});
+
+/* ── período ───────────────────────────────────────────────────────────── */
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  cual = b.dataset.r;
+  [...$('tabs').querySelectorAll('button')].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  $('etCifra').textContent = ROTULO[cual];
+  document.querySelector('h2').textContent = TITULO[cual];
+  primera = true; vistos = new Set();
+  pinta();
+});
+
+/* ── el tablero ────────────────────────────────────────────────────────── */
+async function pinta(){
+  const [d, h] = rango(cual);
+  const { data, error } = await sb.rpc('tablero', { p_desde: d, p_hasta: h });
+  if(error){
+    marca(false);
+    $('cuerpoMov').innerHTML = '<tr><td colspan="5"><div class="vacio">' +
+      'El servidor no respondió.<br><small>' + esc(error.message) + '</small></div></td></tr>';
+    return;
+  }
+  marca(true);
+
+  const t = data.tasa && data.tasa.bcv ? Number(data.tasa.bcv) : 0;
+  $('vendido').textContent = fN(data.vendido);
+  $('enBs').textContent    = t ? 'Bs ' + fN(Number(data.vendido) * t) + ' · tasa ' + fN(t) : 'sin tasa cargada';
+  $('nVentas').textContent = fE(data.ventas);
+  $('sAnul').textContent   = Number(data.anuladas) > 0
+      ? fE(data.anuladas) + (Number(data.anuladas) === 1 ? ' anulada' : ' anuladas') : 'ninguna anulada';
+  $('iva').textContent     = fN(data.iva);
+  $('sIgtf').textContent   = 'IGTF ' + fN(data.igtf);
+  $('pend').textContent    = fN(data.pendientes);
+  $('inv').textContent     = fN(data.inventario);
+
+  const a = Number(data.accionista || 0);
+  $('etAcc').textContent = a >= 0 ? 'Por reintegrar al accionista' : 'El accionista debe a la empresa';
+  $('acc').textContent   = fN(Math.abs(a));
+  $('sAcc').textContent  = t ? 'Bs ' + fN(Math.abs(a) * t) : 'saldo acumulado';
+
+  $('pend').className = 'v num' + (Number(data.pendientes) > 0 ? ' ojo' : ' bien');
+  $('nVentas').className = 'v num' + (Number(data.anuladas) > 0 ? ' mal' : '');
+
+  $('cRif').textContent  = data.rif ? 'RIF ' + data.rif : '';
+  $('rifSrv').textContent = data.rif || '';
+  if(data.hora_servidor){
+    $('cHora').textContent = 'Servidor: ' +
+      new Date(data.hora_servidor).toLocaleString('es-VE', { dateStyle:'medium', timeStyle:'short' });
+  }
+
+  const nt = $('notaTasa');
+  if(!t){ nt.hidden = false;
+    nt.innerHTML = 'No hay tasa del BCV cargada para esta empresa, así que los equivalentes en ' +
+                   'bolívares no se pueden calcular. Se carga desde SICOM, en Tesorería.'; }
+  else nt.hidden = true;
+
+  const lista = Array.isArray(data.ultimas) ? data.ultimas : [];
+  const cuerpo = $('cuerpoMov');
+  if(!lista.length){
+    cuerpo.innerHTML = '<tr><td colspan="5"><div class="vacio">' +
+      'Todavía no hay ventas registradas en el servidor.<br>' +
+      'En cuanto la cajera cobre la primera, aparece aquí sola.</div></td></tr>';
+  } else {
+    cuerpo.innerHTML = lista.map(v => {
+      const anu   = v.estado === 'anulada';
+      const nueva = !primera && !vistos.has(String(v.num));
+      return '<tr class="' + (anu ? 'anu ' : '') + (nueva ? 'nueva' : '') + '">' +
+        '<td class="cli">' + esc(v.cliente || 'Contado') + '</td>' +
+        '<td class="doc">' + esc(v.num) + (v.hora ? ' · ' + esc(v.hora) : '') + '</td>' +
+        '<td class="doc">' + esc(v.cajera || '—') + '</td>' +
+        '<td class="n">' + fN(v.total) + '</td>' +
+        '<td>' + (anu ? '<span class="chip mal">Anulada</span>'
+                      : '<span class="chip ok">Registrada</span>') + '</td></tr>';
+    }).join('');
+  }
+  lista.forEach(v => vistos.add(String(v.num)));
+  primera = false;
+}
+
+function marca(vivo){
+  const p = $('pulso');
+  p.className = 'pulso' + (vivo ? '' : ' frio');
+  p.querySelector('span').textContent = vivo ? 'En vivo' : 'Sin señal';
+}
+
+/* ── tiempo real ───────────────────────────────────────────────────────── */
+function escucha(){
+  if(canal) return;
+  canal = sb.channel('sicom-negocio');
+  ['ventas','pendientes','tasas','productos','accionista_mov'].forEach(t =>
+    canal.on('postgres_changes', { event:'*', schema:'public', table:t }, pinta));
+  canal.subscribe(e => marca(e === 'SUBSCRIBED'));
+}
+
+/* Si el enlace se cae sin avisar: refresca al volver a mirar y cada dos minutos. */
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden && !$('panel').hidden) pinta();
+});
+setInterval(() => { if(!$('panel').hidden && !document.hidden) pinta(); }, 120000);
+
+/* ── sesión ────────────────────────────────────────────────────────────── */
+sb.auth.onAuthStateChange((evt, ses) => {
+  if(ses){
+    $('entrada').hidden = true; $('panel').hidden = false;
+    $('quien').textContent = ses.user.email;
+    $('clave').value = '';
+    primera = true; vistos = new Set();
+    pinta(); escucha();
+  } else {
+    $('panel').hidden = true; $('entrada').hidden = false;
+    if(canal){ sb.removeChannel(canal); canal = null; }
+  }
+});
+</script>
+</body>
+</html>
