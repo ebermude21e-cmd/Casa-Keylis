@@ -957,13 +957,6 @@ body.conpuerta{overflow:hidden}
 .npofl .b{width:100%}
 .npmini{font-size:11.5px;color:var(--muted);margin:10px 0 0;line-height:1.55}
 
-/* ---------- v49 · la franja del ambiente de calidad ---------------------- */
-.calfranja{position:sticky;top:0;z-index:130;background:var(--avi);color:#fff;
-  font-size:11.5px;font-weight:800;letter-spacing:.1em;text-align:center;
-  padding:5px 12px;text-transform:uppercase}
-body.encalidad header.top{top:24px}
-body.encalidad .nubepuerta{padding-top:44px}
-
 .nubesem{display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}
 .nubesem i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 .nubesem.ok{color:#8fd6ae}
@@ -4922,7 +4915,17 @@ document.addEventListener('keydown',e=>{
    y toma los colores del sistema del logo de la tienda.
    ========================================================================== */
 
-const CLAVE = 'sicom.casakeylis.v2';
+/* La llave con la que este sistema guarda en el navegador.
+   Bajo casakeylis.com/calidad se usa OTRA a propósito: ese camino comparte
+   dominio con la tienda, y el navegador guarda por dominio. Sin esto, una
+   venta de prueba entraría en los libros reales. En pruebas.casakeylis.com
+   no se cambia: allá el dominio ya separa los dos mundos, y cambiarla
+   dejaría huérfano lo que ya esté guardado. */
+const EN_CALIDAD = (function(){
+  try{ return String(location.pathname || '').toLowerCase().indexOf('/calidad/') === 0; }
+  catch(e){ return false; }
+})();
+const CLAVE = 'sicom.casakeylis.v2' + (EN_CALIDAD ? '.cal' : '');
 
 /* una fecha de hace n días, sin que el huso horario la corra */
 function dHoy(n){ const d = new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate() - (n||0)); return isoLocal(d); }
@@ -6049,28 +6052,42 @@ function vistaGer(){
    Lo que vive fuera de este archivo pero es parte del sistema: el panel que
    mira el accionista desde su teléfono y el banco de pruebas. Se abren en
    otra pestaña: nada de esto toca los datos de la tienda. */
+/* La base del ambiente de calidad, vista desde donde uno esté:
+     · en la tienda            → /calidad/
+     · dentro de /calidad      → aquí mismo
+     · en pruebas.casakeylis   → la raíz de ese dominio
+   Así los enlaces nunca cruzan de un almacén de datos a otro sin avisar. */
+function baseCalidad(){
+  try{
+    const h = String(location.hostname || '').toLowerCase();
+    if(h.indexOf('pruebas.') === 0) return '/';
+    if(String(location.pathname || '').toLowerCase().indexOf('/calidad/') === 0) return '/calidad/';
+    return '/calidad/';
+  }catch(e){ return '/calidad/'; }
+}
+
 const ENL_SICOM = [
   { id:'acc',
     ico:'📈',
     nom:'Panel del accionista',
-    dir:'https://pruebas.casakeylis.com/negocio.html',
+    dir: baseCalidad() + 'negocio.html',
     des:'El movimiento del negocio en vivo, pensado para el teléfono. Entra con '
        + 'correo y clave, y la venta nueva le aparece sola cuando la cajera cobra.',
     pie:'Lee del servidor, no de esta computadora.' },
   { id:'pru',
     ico:'🧪',
     nom:'Banco de pruebas',
-    dir:'https://pruebas.casakeylis.com/pruebas.html',
+    dir: baseCalidad() + 'pruebas.html',
     des:'Las baterías que se corren enteras sobre un navegador de verdad cada vez '
        + 'que se toca el sistema, con el resultado de cada una.',
     pie:'Incluye la huella del archivo probado, para comprobar que es este mismo.' },
   { id:'cal',
     ico:'🏷️',
-    nom:'Ambiente de calidad',
-    dir:'https://casakeylis.com/calidad/',
-    des:'La copia del sistema con datos de mentira, donde se prueba todo antes de '
-       + 'que llegue a la tienda.',
-    pie:'Vive en otro dominio: nada de lo que se haga allá puede tocar estos datos.' }
+    nom:'SICOM · copia de calidad',
+    dir: baseCalidad(),
+    des:'El sistema completo con datos de mentira, para probar todo antes de que '
+       + 'llegue a la tienda.',
+    pie:'Guarda aparte: nada de lo que se haga allá puede tocar los datos de la tienda.' }
 ];
 
 function gerEnlaces(){
@@ -9392,10 +9409,30 @@ window.NUBE = (function(){
   let pendiente = false;      /* hay algo local que el servidor no tiene */
   let reintento = null;
   let ultimoError = '';
+  let SIN_CONECTOR = false;
+
+  /* La sesión que guarda el conector queda en el navegador con un nombre
+     conocido. Se puede leer SIN la librería, y es lo que permite distinguir
+     «esta máquina ya entró alguna vez» de «esta máquina nunca entró». Sin
+     esa distinción habría que elegir entre dejar el sistema abierto o
+     cerrarle la caja a la tienda cada vez que se cae internet. */
+  function haySesionGuardada(){
+    try{
+      const ref = URL_SRV.replace(/^https?:\/\//,'').split('.')[0];
+      for(let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(k && k.indexOf('sb-') === 0 && k.indexOf(ref) >= 0 && k.indexOf('auth-token') >= 0){
+          const v = localStorage.getItem(k);
+          if(v && v.length > 40) return true;
+        }
+      }
+    }catch(e){}
+    return false;
+  }
 
   const ROTULOS = {
     'arrancando':   ['Conectando…',          'esp'],
-    'sin-modulo':   ['Solo en este equipo',  'mal'],
+    'sin-modulo':   ['Sin conexión con el servidor', 'avi'],
     'sin-sesion':   ['Sin sesión',           'mal'],
     'bajando':      ['Poniéndose al día…',   'esp'],
     'subiendo':     ['Guardando en el servidor…', 'esp'],
@@ -9445,9 +9482,14 @@ window.NUBE = (function(){
     try{
       mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
     }catch(e){
-      /* Sin librería no hay servidor, y no pasa nada grave: el sistema queda
-         como estaba antes de todo esto. Lo que NO se hace es trancar la caja. */
+      /* Sin librería no se puede comprobar ninguna clave. Antes esto abría el
+         sistema de par en par; ahora no. Se entra solo si esta computadora ya
+         entró alguna vez —tiene su sesión guardada—, que es el caso de la
+         tienda cuando se le cae internet a media tarde. Una máquina que nunca
+         entró se queda en la puerta, y la puerta lo explica. */
+      SIN_CONECTOR = true;
       pon('sin-modulo', 'No se pudo cargar el conector: ' + (e && e.message));
+      if(!haySesionGuardada()) abrePuerta();
       return;
     }
     sb = mod.createClient(URL_SRV, LLAVE, {
@@ -9488,12 +9530,12 @@ window.NUBE = (function(){
       + '<div class="nperr" id="np_err" hidden></div>'
       + '<button class="b oro" id="np_entrar" type="submit">Entrar</button>'
       + '</form>'
-      + '<div class="npofl">'
-      + '<p>¿Sin internet y necesita cobrar?</p>'
-      + '<button class="b gh" id="np_local" type="button">Trabajar solo en este equipo</button>'
-      + '<p class="npmini">Lo que registre queda en esta computadora y sube al '
-      + 'servidor cuando vuelva a entrar con su clave.</p>'
-      + '</div></div>';
+      + (SIN_CONECTOR
+          ? '<div class="npofl"><p class="npmini">No hay conexión con el servidor, así que '
+          + 'la clave no se puede verificar. Cuando vuelva la señal, esta pantalla '
+          + 'la va a aceptar.</p></div>'
+          : '<p class="npmini" style="margin-top:18px">Si no tiene clave, pídasela al administrador.</p>')
+      + '</div>';
     document.body.appendChild(d);
     document.body.classList.add('conpuerta');
 
@@ -9501,7 +9543,16 @@ window.NUBE = (function(){
       e.preventDefault();
       const b = document.getElementById('np_entrar');
       const er = document.getElementById('np_err');
-      er.hidden = true; b.disabled = true; b.textContent = 'Entrando…';
+      er.hidden = true;
+      if(!sb){
+        /* la librería no cargó: no hay forma de comprobar la clave, y
+           inventarse una comprobación local sería peor que no tener puerta */
+        er.textContent = 'No hay conexión con el servidor para verificar la clave. '
+                       + 'Revise la conexión y vuelva a intentar.';
+        er.hidden = false;
+        return;
+      }
+      b.disabled = true; b.textContent = 'Entrando…';
       let res;
       try{
         res = await sb.auth.signInWithPassword({
@@ -9521,15 +9572,6 @@ window.NUBE = (function(){
       }
     });
 
-    document.getElementById('np_local').addEventListener('click', function(){
-      /* Decisión explícita de la persona, no un silencio del sistema. Queda
-         en la bitácora para que después se sepa por qué esa sesión no subió. */
-      cierraPuerta();
-      pon('sin-sesion');
-      try{ bitacora('nube','Trabajo local sin sesión',
-        'alguien entró sin conectar con el servidor: lo registrado sube al volver a entrar'); }catch(e){}
-      try{ guardar(); pinta(); }catch(e){}
-    });
   }
   function cierraPuerta(){
     const d = document.getElementById('nube_puerta');
@@ -9804,17 +9846,10 @@ window.NUBE = (function(){
   }
 
   /* ---------- lo que el sistema usa desde afuera ---------- */
-  /* Una franja fija arriba: en calidad nadie debe creer que está en la
-     tienda. Se pone una sola vez, antes que nada, y no se quita. */
-  function franjaCalidad(){
-    if(!CALIDAD || document.getElementById('cal_franja')) return;
-    const d = document.createElement('div');
-    d.id = 'cal_franja';
-    d.className = 'calfranja';
-    d.textContent = 'AMBIENTE DE CALIDAD · datos de prueba · no es la tienda';
-    document.body.insertBefore(d, document.body.firstChild);
-    document.body.classList.add('encalidad');
-  }
+  /* La franja del ambiente se quitó: la dirección ya dice dónde está uno.
+     El tope de más arriba —que calidad no toque producción— sigue puesto:
+     eso no era decoración. */
+  function franjaCalidad(){ /* sin franja */ }
 
   return {
     arranca: arranca,
