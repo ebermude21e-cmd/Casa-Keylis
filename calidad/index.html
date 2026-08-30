@@ -983,22 +983,23 @@ html[data-sesion="si"] .nubepuerta{display:none}
 html[data-sesion="si"] body.conpuerta{overflow:auto}
 </style>
 <script>
-/* Antes de dibujar nada: ¿esta computadora ya entró alguna vez? La sesión
-   del conector queda guardada con un nombre conocido y se puede leer sin
-   la librería. Es lo único que corre aquí arriba, y a propósito: cualquier
-   otra cosa retrasaría el primer pixel. */
+/* Antes de dibujar nada: ¿esta computadora ya entró alguna vez EN ESTE
+   AMBIENTE? La sesión del conector queda guardada en el navegador y se
+   puede leer sin la librería.
+
+   La llave lleva el ambiente en el nombre, y eso es lo importante:
+   casakeylis.com y casakeylis.com/calidad son el mismo dominio, y el
+   navegador guarda por dominio. Con una sola llave, haber entrado en la
+   tienda abría calidad de par en par. Con dos, cada puerta pide la suya.
+
+   Es lo único que corre aquí arriba, a propósito: cualquier otra cosa
+   retrasaría el primer pixel. */
+window.SICOM_LLAVE_SESION = 'sicom-auth'
+  + ((String(location.pathname || '').toLowerCase().indexOf('/calidad/') === 0) ? '-calidad' : '');
 (function(){
   try{
-    for(var i = 0; i < localStorage.length; i++){
-      var k = localStorage.key(i);
-      if(k && k.indexOf('sb-') === 0 && k.indexOf('auth-token') >= 0){
-        var v = localStorage.getItem(k);
-        if(v && v.length > 40){
-          document.documentElement.setAttribute('data-sesion', 'si');
-          return;
-        }
-      }
-    }
+    var v = localStorage.getItem(window.SICOM_LLAVE_SESION);
+    if(v && v.length > 40) document.documentElement.setAttribute('data-sesion', 'si');
   }catch(e){}
 })();
 </script>
@@ -9482,16 +9483,9 @@ window.NUBE = (function(){
      cerrarle la caja a la tienda cada vez que se cae internet. */
   function haySesionGuardada(){
     try{
-      const ref = URL_SRV.replace(/^https?:\/\//,'').split('.')[0];
-      for(let i = 0; i < localStorage.length; i++){
-        const k = localStorage.key(i);
-        if(k && k.indexOf('sb-') === 0 && k.indexOf(ref) >= 0 && k.indexOf('auth-token') >= 0){
-          const v = localStorage.getItem(k);
-          if(v && v.length > 40) return true;
-        }
-      }
-    }catch(e){}
-    return false;
+      const v = localStorage.getItem(window.SICOM_LLAVE_SESION || 'sicom-auth');
+      return !!(v && v.length > 40);
+    }catch(e){ return false; }
   }
 
   const ROTULOS = {
@@ -9540,6 +9534,21 @@ window.NUBE = (function(){
     c.innerHTML = '<i></i><span>' + r[0] + '</span>';
   }
 
+  /* Las sesiones que quedaron guardadas con el nombre viejo —uno solo para
+     los dos ambientes— se borran al arrancar. Si no, la sesión de ayer
+     seguiría abriendo calidad sin pedir nada, que es justo lo que se está
+     corrigiendo. Borrarlas no pierde nada: se vuelve a entrar con la clave. */
+  (function limpiaSesionesViejas(){
+    try{
+      const fuera = [];
+      for(let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(k && k.indexOf('sb-') === 0 && k.indexOf('auth-token') >= 0) fuera.push(k);
+      }
+      fuera.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+    }catch(e){}
+  })();
+
   /* ---------- carga del cliente ---------- */
   async function arranca(){
     let mod;
@@ -9561,7 +9570,13 @@ window.NUBE = (function(){
       return;
     }
     sb = mod.createClient(URL_SRV, LLAVE, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      auth: {
+        persistSession: true, autoRefreshToken: true, detectSessionInUrl: false,
+        /* La sesión se guarda con el nombre del ambiente. Sin esto, la tienda y
+           calidad compartían una sola sesión —mismo dominio— y entrar en una
+           abría la otra sin pedir clave. */
+        storageKey: window.SICOM_LLAVE_SESION || 'sicom-auth'
+      }
     });
 
     sb.auth.onAuthStateChange(function(evt, ses){

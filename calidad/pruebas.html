@@ -133,20 +133,20 @@ body.conpuerta{overflow:hidden}
 <header class="tope"><div class="env">
   <div class="ojo">Casa Keylis · Ambiente de calidad</div>
   <h1>Banco de pruebas de SICOM</h1>
-  <p class="bajada">Cada vez que se toca el sistema, estas 22 baterías vuelven a correr
+  <p class="bajada">Cada vez que se toca el sistema, estas 23 baterías vuelven a correr
   enteras sobre un navegador de verdad, con datos de verdad. Si algo se rompió, sale aquí.
-  Esta corrida es de <b>30/08/2026 a las 00:35</b>.</p>
+  Esta corrida es de <b>30/08/2026 a las 01:20</b>.</p>
 </div></header>
 
 <div class="env">
   <div class="marcador">
     <div class="m"><div class="e">Comprobaciones</div>
-      <div class="v num">1526</div><div class="n">pasaron</div></div>
+      <div class="v num">1541</div><div class="n">pasaron</div></div>
     <div class="m"><div class="e">Fallas</div>
       <div class="v num bueno">0</div>
       <div class="n">ninguna</div></div>
     <div class="m"><div class="e">Baterías</div>
-      <div class="v num">22<span style="font-size:.55em;color:var(--tenue)">/22</span></div>
+      <div class="v num">23<span style="font-size:.55em;color:var(--tenue)">/23</span></div>
       <div class="n">en verde</div></div>
     <div class="m"><div class="e">Duración</div>
       <div class="v num">5.3<span style="font-size:.45em;color:var(--tenue)"> min</span></div>
@@ -154,8 +154,8 @@ body.conpuerta{overflow:hidden}
   </div>
 
   <div class="nota">
-    <b>Sobre qué se probó.</b> El archivo es <code>sicom_v51.html</code>,
-    561,130 bytes, huella <code>4748f49511ca96dd1de7b14c91d65a28</code>.
+    <b>Sobre qué se probó.</b> El archivo es <code>sicom_v53.html</code>,
+    564,571 bytes, huella <code>b73166cb03900706db961e102f49d615</code>.
     Es exactamente el mismo archivo que está publicado. La huella permite
     comprobarlo: si cambia una sola letra del sistema, cambia la huella.
   </div>
@@ -383,6 +383,16 @@ body.conpuerta{overflow:hidden}
            <code>prueba_v51.js</code></p>
         <ul class="que"><li>EL CONECTOR TARDA 6 SEGUNDOS · el sistema NO se ve mientras tanto</li><li>CON LA CLAVE BUENA · entra al sistema</li><li>LA MÁQUINA QUE YA ENTRÓ · no ve la puerta ni un parpadeo</li><li>SIN CONECTOR Y SIN HABER ENTRADO NUNCA · se queda afuera</li></ul>
       </article>
+      <article class="suite ok">
+        <header>
+          <h3>Dos ambientes, dos sesiones separadas</h3>
+          <span class="marca">todo bien</span>
+        </header>
+        <p class="cif"><b class="num">15</b> comprobaciones ·
+           <span class="num">0.0</span> s ·
+           <code>prueba_v53.js</code></p>
+        <ul class="que"><li>LAS DOS PUERTAS PIDEN CLAVE</li><li>ENTRAR EN LA TIENDA · calidad NO se abre</li><li>ENTRAR EN CALIDAD · la tienda conserva la suya</li><li>LA TIENDA SIGUE ABIERTA, SIN PARPADEO</li><li>SALIR DE CALIDAD NO SACA DE LA TIENDA</li><li>nada se rompió</li></ul>
+      </article>
   </div>
 
   <h2>El detalle en números</h2>
@@ -390,7 +400,7 @@ body.conpuerta{overflow:hidden}
   <div class="tabenv"><table>
     <thead><tr><th>Batería</th><th>Archivo</th><th class="n">Bien</th><th class="n">Mal</th><th class="n">Segundos</th></tr></thead>
     <tbody>
-    <tr><td>Diseño, arranque y tranca falsa</td><td><code>prueba_v47.js</code></td><td class="n">46</td><td class="n">0</td><td class="n">8.3</td></tr><tr><td>Caja, cobros y vuelto</td><td><code>prueba3_a.js</code></td><td class="n">188</td><td class="n">0</td><td class="n">74.7</td></tr><tr><td>Cierre de caja y arqueo</td><td><code>prueba3_b.js</code></td><td class="n">119</td><td class="n">0</td><td class="n">19.9</td></tr><tr><td>Cuentas por cobrar</td><td><code>prueba4_c.js</code></td><td class="n">51</td><td class="n">0</td><td class="n">13.2</td></tr><tr><td>Segunda empresa y separación de datos</td><td><code>prueba_emp2.js</code></td><td class="n">66</td><td class="n">0</td><td class="n">8.7</td></tr><tr><td>Migración entre versiones</td><td><code>prueba_mig.js</code></td><td class="n">42</td><td class="n">0</td><td class="n">5.2</td></tr><tr><td>Operación real de un día</td><td><code>prueba_real.js</code></td><td class="n">52</td><td class="n">0</td><td class="n">7.0</td></tr><tr><td>Tasa del BCV</td><td><code>prueba_v5.js</code></td><td class="n">30</td><td class="n">0</td><td class="n">7.7</td></tr><tr><td>Devoluciones</td><td><code>prueba_v6.js</code></td><td class="n">41</td><td class="n">0</td><td class="n">22.5</td></tr><tr><td>Contabilidad y asientos</td><td><code>prueba_v7.js</code></td><td class="n">81</td><td class="n">0</td><td class="n">30.7</td></tr><tr><td>Plan de cuentas</td><td><code>prueba_v8.js</code></td><td class="n">48</td><td class="n">0</td><td class="n">7.5</td></tr><tr><td>Libros de venta y fiscales</td><td><code>prueba_v10.js</code></td><td class="n">78</td><td class="n">0</td><td class="n">13.4</td></tr><tr><td>Personal, comisiones y anticipos</td><td><code>prueba_v17.js</code></td><td class="n">78</td><td class="n">0</td><td class="n">13.7</td></tr><tr><td>Inventario y existencias</td><td><code>prueba_v18.js</code></td><td class="n">137</td><td class="n">0</td><td class="n">20.4</td></tr><tr><td>Respaldos y restauración</td><td><code>prueba_v21.js</code></td><td class="n">66</td><td class="n">0</td><td class="n">16.3</td></tr><tr><td>Multiempresa</td><td><code>prueba_v22.js</code></td><td class="n">24</td><td class="n">0</td><td class="n">6.4</td></tr><tr><td>Recorrido completo del sistema</td><td><code>prueba_v25.js</code></td><td class="n">177</td><td class="n">0</td><td class="n">25.8</td></tr><tr><td>Inicio, avisos y cuentas por persona</td><td><code>prueba_v44.js</code></td><td class="n">36</td><td class="n">0</td><td class="n">4.9</td></tr><tr><td>Transacciones y concurrencia</td><td><code>prueba_v45.js</code></td><td class="n">36</td><td class="n">0</td><td class="n">5.7</td></tr><tr><td>Rastro de bitácora e integridad</td><td><code>prueba_v46.js</code></td><td class="n">33</td><td class="n">0</td><td class="n">7.9</td></tr><tr><td>La nube: acceso, sincronización y conflictos</td><td><code>prueba_v48.js</code></td><td class="n">87</td><td class="n">0</td><td class="n">0.0</td></tr><tr><td>La puerta puesta desde el primer pixel</td><td><code>prueba_v51.js</code></td><td class="n">10</td><td class="n">0</td><td class="n">0.0</td></tr>
+    <tr><td>Diseño, arranque y tranca falsa</td><td><code>prueba_v47.js</code></td><td class="n">46</td><td class="n">0</td><td class="n">8.3</td></tr><tr><td>Caja, cobros y vuelto</td><td><code>prueba3_a.js</code></td><td class="n">188</td><td class="n">0</td><td class="n">74.7</td></tr><tr><td>Cierre de caja y arqueo</td><td><code>prueba3_b.js</code></td><td class="n">119</td><td class="n">0</td><td class="n">19.9</td></tr><tr><td>Cuentas por cobrar</td><td><code>prueba4_c.js</code></td><td class="n">51</td><td class="n">0</td><td class="n">13.2</td></tr><tr><td>Segunda empresa y separación de datos</td><td><code>prueba_emp2.js</code></td><td class="n">66</td><td class="n">0</td><td class="n">8.7</td></tr><tr><td>Migración entre versiones</td><td><code>prueba_mig.js</code></td><td class="n">42</td><td class="n">0</td><td class="n">5.2</td></tr><tr><td>Operación real de un día</td><td><code>prueba_real.js</code></td><td class="n">52</td><td class="n">0</td><td class="n">7.0</td></tr><tr><td>Tasa del BCV</td><td><code>prueba_v5.js</code></td><td class="n">30</td><td class="n">0</td><td class="n">7.7</td></tr><tr><td>Devoluciones</td><td><code>prueba_v6.js</code></td><td class="n">41</td><td class="n">0</td><td class="n">22.5</td></tr><tr><td>Contabilidad y asientos</td><td><code>prueba_v7.js</code></td><td class="n">81</td><td class="n">0</td><td class="n">30.7</td></tr><tr><td>Plan de cuentas</td><td><code>prueba_v8.js</code></td><td class="n">48</td><td class="n">0</td><td class="n">7.5</td></tr><tr><td>Libros de venta y fiscales</td><td><code>prueba_v10.js</code></td><td class="n">78</td><td class="n">0</td><td class="n">13.4</td></tr><tr><td>Personal, comisiones y anticipos</td><td><code>prueba_v17.js</code></td><td class="n">78</td><td class="n">0</td><td class="n">13.7</td></tr><tr><td>Inventario y existencias</td><td><code>prueba_v18.js</code></td><td class="n">137</td><td class="n">0</td><td class="n">20.4</td></tr><tr><td>Respaldos y restauración</td><td><code>prueba_v21.js</code></td><td class="n">66</td><td class="n">0</td><td class="n">16.3</td></tr><tr><td>Multiempresa</td><td><code>prueba_v22.js</code></td><td class="n">24</td><td class="n">0</td><td class="n">6.4</td></tr><tr><td>Recorrido completo del sistema</td><td><code>prueba_v25.js</code></td><td class="n">177</td><td class="n">0</td><td class="n">25.8</td></tr><tr><td>Inicio, avisos y cuentas por persona</td><td><code>prueba_v44.js</code></td><td class="n">36</td><td class="n">0</td><td class="n">4.9</td></tr><tr><td>Transacciones y concurrencia</td><td><code>prueba_v45.js</code></td><td class="n">36</td><td class="n">0</td><td class="n">5.7</td></tr><tr><td>Rastro de bitácora e integridad</td><td><code>prueba_v46.js</code></td><td class="n">33</td><td class="n">0</td><td class="n">7.9</td></tr><tr><td>La nube: acceso, sincronización y conflictos</td><td><code>prueba_v48.js</code></td><td class="n">87</td><td class="n">0</td><td class="n">0.0</td></tr><tr><td>La puerta puesta desde el primer pixel</td><td><code>prueba_v51.js</code></td><td class="n">10</td><td class="n">0</td><td class="n">0.0</td></tr><tr><td>Dos ambientes, dos sesiones separadas</td><td><code>prueba_v53.js</code></td><td class="n">15</td><td class="n">0</td><td class="n">0.0</td></tr>
     </tbody>
   </table></div>
 
