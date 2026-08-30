@@ -940,9 +940,17 @@ select.selcta{width:100%;min-width:210px;font-size:12.5px}
 body.conpuerta{overflow:hidden}
 .npcaja{width:100%;max-width:390px;background:var(--panel);border:1px solid var(--linea);
   border-radius:var(--r3);box-shadow:var(--sh3);padding:28px 26px;text-align:center}
-.nplogo{width:56px;height:56px;border-radius:14px;margin:0 auto 14px;
+.npmarca{margin:0 0 16px}
+.nplogo{width:76px;height:76px;border-radius:20px;margin:0 auto;
   background:linear-gradient(140deg,var(--oro-cl),var(--oro-os));display:grid;place-items:center;
-  font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:28px;color:var(--oro-tx,#3a2c1c)}
+  font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:38px;color:var(--oro-tx,#3a2c1c);
+  box-shadow:0 10px 26px rgba(74,56,38,.18)}
+/* Cuando la empresa tiene logo, manda el logo: nada de una letra inventada. */
+.nplogo.conimg{width:auto;height:auto;max-width:100%;background:none;box-shadow:none;
+  border-radius:0;padding:0}
+.nplogo.conimg img{max-width:min(240px,72vw);max-height:112px;object-fit:contain;display:block;
+  margin:0 auto;filter:drop-shadow(0 12px 22px rgba(34,24,15,.16))}
+.npsub2{margin-top:14px;padding-top:14px;border-top:1px solid var(--hair)}
 .npcaja h2{font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;margin:0}
 .npsub{color:var(--ink2);font-size:13.5px;margin:8px 0 20px}
 .npcaja form{text-align:left;display:grid;gap:5px}
@@ -1007,9 +1015,12 @@ html[data-sesion="si"] body.conpuerta{overflow:auto}
      ==================================================================== -->
 <div class="nubepuerta" id="nube_puerta">
   <div class="npcaja">
-    <div class="nplogo" id="np_ini">S</div>
+    <div class="npmarca" id="np_marca_box">
+      <div class="nplogo" id="np_ini">S</div>
+    </div>
     <h2 id="np_marca">SICOM</h2>
-    <p class="npsub">Entre con su correo y su clave para trabajar con los datos de la empresa.</p>
+    <p class="npsub" id="np_lema">Sistema comercial y contable</p>
+    <p class="npsub npsub2">Entre con su correo y su clave para trabajar con los datos de la empresa.</p>
     <form id="np_form" autocomplete="on">
       <label class="npf" for="np_mail">Correo</label>
       <input id="np_mail" type="email" required autocomplete="username"
@@ -9581,14 +9592,47 @@ window.NUBE = (function(){
     document.documentElement.removeAttribute('data-sesion');
     document.body.classList.add('conpuerta');
 
-    /* la puerta se viste con la marca de la empresa, si ya se sabe cuál es */
+    /* La puerta se viste con la empresa. Tres casos, en este orden:
+         1 · hay logo cargado  → se muestra el logo, en grande
+         2 · hay nombre        → el monograma con su inicial y el nombre
+         3 · no hay nada       → SICOM presentándose como lo que es
+       Lo que NUNCA se muestra es «Su tienda»: es el relleno interno del
+       sistema para cuando todavía no sabe de qué empresa se trata, y no es
+       el nombre de nadie. */
     try{
-      const nom = nombreMarca();
-      if(nom && nom !== 'SICOM'){
-        document.getElementById('np_marca').textContent = nom;
-        document.getElementById('np_ini').textContent = inicialMarca();
+      const cajaLogo = document.getElementById('np_ini');
+      const tit      = document.getElementById('np_marca');
+      const lema     = document.getElementById('np_lema');
+      const e        = (typeof DB !== 'undefined' && DB) ? DB.empresa : null;
+      const nom      = nombreEmpresaReal();
+
+      if(e && e.logo){
+        cajaLogo.className = 'nplogo conimg';
+        cajaLogo.innerHTML = '';
+        const im = document.createElement('img');
+        im.src = e.logo;
+        im.alt = nom || 'SICOM';
+        cajaLogo.appendChild(im);
+      }else{
+        cajaLogo.className = 'nplogo';
+        cajaLogo.textContent = nom ? nom.trim()[0].toUpperCase() : 'S';
       }
-    }catch(e){}
+
+      /* Si el logo ya trae escrito el nombre —que es lo normal en un logo de
+         tienda— repetirlo debajo sobra. Se deja el RIF, que el logo no dice. */
+      if(e && e.logo){
+        tit.hidden = true;
+        lema.textContent = e.rif ? ('RIF ' + e.rif) : (nom || 'Sistema comercial y contable');
+      }else if(nom){
+        tit.hidden = false;
+        tit.textContent = nom;
+        lema.textContent = (e && e.rif) ? ('RIF ' + e.rif) : 'Sistema comercial y contable';
+      }else{
+        tit.hidden = false;
+        tit.textContent = 'SICOM';
+        lema.textContent = 'Sistema comercial y contable';
+      }
+    }catch(err){}
 
     const b = document.getElementById('np_entrar');
     if(SIN_CONECTOR){
@@ -9651,6 +9695,15 @@ window.NUBE = (function(){
   }
   function nombreMarca(){
     try{ return marcaDe(); }catch(e){ return 'SICOM'; }
+  }
+  /* El nombre de la empresa SOLO si de verdad hay uno. `marcaDe()` devuelve
+     «Su tienda» cuando no lo hay, y ese relleno no puede salir en pantalla. */
+  function nombreEmpresaReal(){
+    try{
+      const e = DB.empresa;
+      const n = ((e.marca || '').trim() || (e.nom || '').trim());
+      return n && n !== 'Su tienda' ? n : '';
+    }catch(e){ return ''; }
   }
   function inicialMarca(){
     return (nombreMarca().trim()[0] || 'S').toUpperCase();
