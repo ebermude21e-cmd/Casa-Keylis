@@ -362,6 +362,47 @@ input[type=password]::placeholder{letter-spacing:normal;
 .prev span{flex:1}
 .prev .tx{flex:0 0 auto;display:grid;place-items:center;padding:0 16px;font-size:13px;font-weight:700}
 
+/* ---- v58 · la foto y la rejilla de variantes ---- */
+/* la foto llena el cuadro del artículo en la caja */
+.foto.confoto{padding:0;overflow:hidden;background:var(--sup2)}
+.foto.confoto img{width:100%;height:100%;object-fit:cover;display:block}
+/* el rótulo del color, encima de sus tallas */
+.colrot{flex:1 0 100%;margin-top:8px;font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);font-weight:700}
+/* el cargador de la foto en el formulario */
+.fotoed{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-top:4px}
+.fotoprev{width:96px;height:96px;flex:0 0 auto;border:1px dashed var(--linea);border-radius:var(--r2);
+  background:var(--sup);display:grid;place-items:center;overflow:hidden;text-align:center;padding:6px}
+.fotoprev.llena{border-style:solid;padding:0}
+.fotoprev img{width:100%;height:100%;object-fit:cover;display:block}
+.fotoprev span{font-size:11.5px;color:var(--muted);font-weight:700;line-height:1.35}
+.fotoprev span b{display:block;font-size:10.5px;font-weight:600;margin-top:3px}
+.fotoacc{flex:1 1 220px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fotoacc .ayuda{flex:1 0 100%;margin-top:0}
+/* agregar un color o una talla */
+.colnuevo{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+.colnuevo input{flex:1 1 200px;max-width:280px}
+/* la rejilla talla × color */
+.rejilla{overflow-x:auto;border:1px solid var(--linea);border-radius:var(--r2);background:var(--panel)}
+table.vartab{width:100%;border-collapse:collapse}
+table.vartab th,table.vartab td{border-bottom:1px solid var(--linea);padding:8px 10px;text-align:left}
+table.vartab thead th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:700;background:var(--sup);white-space:nowrap}
+table.vartab th.n,table.vartab td.n{text-align:center}
+table.vartab tbody tr:last-child th,table.vartab tbody tr:last-child td{border-bottom:0}
+table.vartab th.colnom{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;background:var(--sup)}
+table.vartab td input{width:74px;text-align:center;padding:7px 6px;font-weight:700;
+  font-variant-numeric:tabular-nums}
+table.vartab .x{border:0;background:transparent;color:var(--muted);cursor:pointer;
+  font-size:14px;line-height:1;padding:2px 4px;border-radius:6px}
+table.vartab .x:hover{background:var(--mal-bg);color:var(--mal)}
+/* la foto en la tabla del catálogo */
+td.tdfoto{width:52px}
+.minifoto{width:40px;height:40px;border-radius:9px;object-fit:cover;display:block;
+  border:1px solid var(--linea)}
+.sinfoto{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;
+  background:var(--sup2);font-size:19px}
+
 /* existencia por talla en el catálogo */
 .tall-ed{gap:10px}
 .tall-ed .tal{display:flex;flex-direction:column;gap:5px;align-items:center;
@@ -1054,6 +1095,24 @@ window.SICOM_LLAVE_LOGO   = 'sicom.casakeylis.v2'
      hay salto porque no hay cambio. */
   try{
     var lg = localStorage.getItem(window.SICOM_LLAVE_LOGO);
+    if(!lg){
+      /* v57 · la PRIMERA vez que esta computadora abre una versión nueva, la
+         llave del logo todavía no existe: la escribe el sistema al arrancar,
+         y eso ocurre después de aquí. Sin esto se veía la letra esa primera
+         vez, y quedaba la impresión de que no se había corregido nada.
+
+         Así que se busca dentro del documento. NO se interpreta: sobre el
+         texto crudo, una expresión regular encuentra el logo en menos de un
+         milisegundo, y aquí arriba cada milisegundo se ve. */
+      try{
+        var crudo = localStorage.getItem(
+          'sicom.casakeylis.v2' + (window.SICOM_EN_CALIDAD ? '.cal' : ''));
+        if(crudo){
+          var m = crudo.match(/"logo"\s*:\s*"(data:image\/[^"]{32,})"/);
+          if(m) lg = m[1].replace(/\\\//g, '/');
+        }
+      }catch(_){}
+    }
     if(lg && lg.length > 32){
       document.documentElement.style.setProperty('--np-logo', 'url("' + lg + '")');
       document.documentElement.setAttribute('data-logo', 'si');
@@ -1418,7 +1477,58 @@ function condIVA(){ return COND_IVA[(DB.empresa||{}).condIVA] || COND_IVA.ordina
 function tasaEn(f){const c=DB.tasas.filter(t=>t.estado==='confirmada'&&t.fecha<=f).sort((a,b)=>b.fecha.localeCompare(a.fecha));return c[0]||null;}
 function tasaVigente(){return tasaEn(hoy);}
 function tasaDeHoyCargada(){return DB.tasas.some(t=>t.fecha===hoy&&t.estado==='confirmada');}
-function exi(p){return p.tallas?p.tallas.reduce((a,x)=>a+x.e,0):p.exi;}
+/* ==========================================================================
+   LAS VARIANTES · talla × color
+
+   Una variante es una combinación concreta de talla y color con su propia
+   existencia. La talla vacía quiere decir «este artículo no se maneja por
+   tallas»; el color vacío, lo mismo. Con eso, los cuatro casos posibles son
+   el mismo modelo y no hace falta una rama de código por cada uno.
+   ========================================================================== */
+function vars(p){
+  if(!p) return [];
+  if(!Array.isArray(p.var)) migraVar(p);
+  return p.var;
+}
+/* Lo que había antes se convierte una sola vez, sin perder una unidad. */
+function migraVar(p){
+  if(!p) return;
+  if(Array.isArray(p.var)) return;
+  if(Array.isArray(p.tallas) && p.tallas.length){
+    p.var = p.tallas.map(x=>({t:String(x.t||''), c:'', e:Math.max(0, +x.e||0)}));
+  }else{
+    p.var = [{t:'', c:'', e:Math.max(0, +p.exi||0)}];
+  }
+  delete p.tallas; delete p.exi;
+}
+function esVarVacia(v){ return !(v.t||'') && !(v.c||''); }
+function claveVar(t, c){ return (t||'') + '\u00a7' + (c||''); }
+function varDe(p, t, c){
+  return vars(p).find(x=>(x.t||'') === (t||'') && (x.c||'') === (c||'')) || null;
+}
+/* las tallas y los colores que este artículo maneja, en el orden en que se
+   cargaron y sin repetir */
+function tallasDe(p){
+  const o = [];
+  vars(p).forEach(v=>{ const t = v.t||''; if(t && o.indexOf(t) < 0) o.push(t); });
+  return o;
+}
+function coloresDe(p){
+  const o = [];
+  vars(p).forEach(v=>{ const c = v.c||''; if(c && o.indexOf(c) < 0) o.push(c); });
+  return o;
+}
+function porTallas(p){ return tallasDe(p).length > 0; }
+function porColores(p){ return coloresDe(p).length > 0; }
+/* cómo se nombra una variante en pantalla */
+function nombreVar(t, c){
+  const a = [];
+  if(t) a.push(t);
+  if(c) a.push(c);
+  return a.join(' \u00b7 ');
+}
+function exi(p){ return vars(p).reduce((a,x)=>a + Math.max(0, +x.e||0), 0); }
+function faltaFoto(p){ return !(p && p.foto); }
 function saldoAcc(){return Math.round(DB.accionista.reduce((a,m)=>a+m.usd,0)*100)/100;}
 function pendAbiertos(){return DB.vpend.filter(v=>v.saldo>0.005&&!v.anulado);}
 function cajeraNom(id){const k=DB.cfg.cajeras.find(x=>x.id===id);return k?nomComp(k):'—';}
@@ -2234,21 +2344,41 @@ function pasoArts(){
     +'<div class="cats">'+cats().map(c=>'<button data-cat="'+esc(c)+'" class="'+(VTA.cat===c?'on':'')+'">'+esc(c)+'</button>').join('')+'</div>';
   if(!lista.length) h+='<div class="vacio"><div class="vi">⌕</div>Ningún artículo coincide.</div>';
   lista.forEach(p=>{const ex=exi(p);
-    h+='<div class="prod"><div class="foto">'+p.ico+'</div>'
+    /* v58 · manda la foto; si no la hay, el ícono. La cajera reconoce la
+       pieza sin leer el código. */
+    h+='<div class="prod"><div class="foto'+(p.foto?' confoto':'')+'">'
+      +(p.foto?'<img src="'+p.foto+'" alt="'+esc(p.nom)+'">':(p.ico||'📦'))+'</div>'
       +'<div class="pi"><b>'+esc(p.nom)+'</b><div class="mini">'+esc(p.sku)+' · '+esc(p.cat)+' · existencia '+ex+(ex<=0?' · <b style="color:var(--mal)">agotado</b>':'')+'</div></div>'
       +'<div class="pp"><b>USD '+fN(p.precio)+'</b>'+(t?'<div class="mini">Bs '+fN(p.precio*t.bcv)+'</div>':'')+'</div>';
-    if(p.tallas) h+='<div class="tallas">'+p.tallas.map(x=>{const en=VTA.lineas.find(l=>l.k===p.id+'|'+x.t);
-      return '<button data-add="'+p.id+'" data-t="'+esc(x.t)+'"'+(x.e<=0?' disabled':'')+' class="'+(en?'on':'')+'">'
-        +esc(x.t)+'<i>'+x.e+'</i>'+(en?'<u>'+en.cant+'</u>':'')+'</button>';}).join('')+'</div>';
-    else{const en=VTA.lineas.find(l=>l.k===p.id+'|');
-      h+='<div style="flex:1 0 100%"><button class="b sm '+(en?'oro':'gh')+'" data-add="'+p.id+'" data-t=""'+(ex<=0?' disabled':'')+'>'
+
+    /* v58 · un botón por variante. Con tallas Y colores se agrupa por color,
+       para que se lea «Negro: S M L» y no una lista revuelta. */
+    const vs = vars(p).filter(v=>!esVarVacia(v));
+    if(vs.length){
+      const cols = porColores(p) ? coloresDe(p) : [''];
+      cols.forEach(c=>{
+        const dely = vs.filter(v=>(v.c||'') === c);
+        if(!dely.length) return;
+        if(c) h+='<div class="colrot">'+esc(c)+'</div>';
+        h+='<div class="tallas">'+dely.map(v=>{
+          const k = p.id+'|'+(v.t||'')+'|'+(v.c||'');
+          const en = VTA.lineas.find(l=>l.k===k);
+          const rot = v.t || (v.c || 'Único');
+          return '<button data-add="'+p.id+'" data-t="'+esc(v.t||'')+'" data-c="'+esc(v.c||'')+'"'
+            +(v.e<=0?' disabled':'')+' class="'+(en?'on':'')+'">'
+            +esc(rot)+'<i>'+v.e+'</i>'+(en?'<u>'+en.cant+'</u>':'')+'</button>';}).join('')+'</div>';
+      });
+    }else{
+      const en=VTA.lineas.find(l=>l.k===p.id+'||');
+      h+='<div style="flex:1 0 100%"><button class="b sm '+(en?'oro':'gh')+'" data-add="'+p.id+'" data-t="" data-c=""'+(ex<=0?' disabled':'')+'>'
         +(en?'Agregado · '+en.cant:'Agregar')+'</button></div>';}
     h+='</div>';});
   h+='</div><div class="card peg"><h2>Esta venta</h2>';
   if(!VTA.lineas.length) h+='<div class="vacio"><div class="vi">🛍️</div>Todavía no ha agregado nada.</div>';
   else{
     h+='<div class="lineas">';
-    VTA.lineas.forEach(l=>{h+='<div class="lin"><div class="li"><b>'+esc(l.nom)+(l.talla?' · '+esc(l.talla):'')+'</b>'
+    VTA.lineas.forEach(l=>{const _nv=nombreVar(l.talla, l.color);
+      h+='<div class="lin"><div class="li"><b>'+esc(l.nom)+(_nv?' · '+esc(_nv):'')+'</b>'
       +'<div class="mini">USD '+fN(l.precio)+' c/u · quedan '+(l.disp-l.cant)+'</div></div>'
       +'<button class="b sm gh" data-qm="'+esc(l.k)+'">−</button><b style="min-width:20px;text-align:center">'+l.cant+'</b>'
       +'<button class="b sm gh" data-qp="'+esc(l.k)+'">+</button><span class="lm">'+fN(l.precio*l.cant)+'</span>'
@@ -2488,8 +2618,8 @@ function registraVenta(){
     DB.clientes.push(nc); VTA.cli=nc; c=nc;
   }
   VTA.lineas.forEach(l=>{const p=DB.productos.find(x=>x.id===l.id); if(!p)return;
-    if(l.talla&&p.tallas){const tt=p.tallas.find(x=>x.t===l.talla); if(tt)tt.e=Math.max(0,tt.e-l.cant);}
-    else p.exi=Math.max(0,p.exi-l.cant);});
+    const v=varDe(p, l.talla||'', l.color||'');
+    if(v) v.e = Math.max(0, (+v.e||0) - l.cant);});
   const num='V-'+String(++DB.corr.venta).padStart(5,'0');
   subePiso(DB.corr.venta);
   c.compras=(c.compras||0)+1; c.monto=Math.round(((c.monto||0)+totalVenta())*100)/100; c.ultima=hoy;
@@ -2518,7 +2648,11 @@ function registraVenta(){
          no gravado generaba una nota de crédito con base y débito fiscal
          negativos que nunca se causaron, porque al devolver se volvía a
          preguntar por una condición que la línea guardada no traía. */
-      return {sku:l.sku,nom:l.nom,talla:l.talla,cant:l.cant,desc:l.cant,precio:l.precio,
+      /* v58 · se guarda también el identificador del artículo y el color. El
+         identificador, porque reponer buscando por código fallaba en silencio
+         cuando alguien corregía el código después de vender. */
+      return {id:l.id,sku:l.sku,nom:l.nom,talla:l.talla,color:l.color||'',
+              cant:l.cant,desc:l.cant,precio:l.precio,
               cat:p.cat||'',costo:p.costo||0,exento:l.exento===true};}),
     op:'vta',
     cobros:VTA.cobros.map(x=>Object.assign({},x,{op:'cob_'+x.met})),
@@ -4805,12 +4939,14 @@ document.addEventListener('click',e=>{
   /* artículos */
   if(b.dataset.cat){VTA.cat=b.dataset.cat;pinta();return;}
   if(b.dataset.add!==undefined&&b.dataset.add!==''){
-    const p=DB.productos.find(x=>x.id===b.dataset.add),ta=b.dataset.t||'';
-    const disp=p.tallas?(p.tallas.find(x=>x.t===ta)||{e:0}).e:p.exi;
-    const k=p.id+'|'+ta,ya=VTA.lineas.find(l=>l.k===k);
+    const p=DB.productos.find(x=>x.id===b.dataset.add); if(!p) return;
+    const ta=b.dataset.t||'', co=b.dataset.c||'';
+    const v=varDe(p, ta, co);
+    const disp=v?Math.max(0,+v.e||0):0;
+    const k=p.id+'|'+ta+'|'+co, ya=VTA.lineas.find(l=>l.k===k);
     if(ya){if(ya.cant<disp)ya.cant++;else aviso('No hay más existencia.',true);}
-    else VTA.lineas.push({k,id:p.id,sku:p.sku,nom:p.nom,talla:ta,precio:p.precio,cant:1,disp,
-                          exento:p.exento===true});
+    else VTA.lineas.push({k,id:p.id,sku:p.sku,nom:p.nom,talla:ta,color:co,
+                          precio:p.precio,cant:1,disp,exento:p.exento===true});
     pinta();return;}
   if(b.dataset.qp){const l=VTA.lineas.find(x=>x.k===b.dataset.qp);if(l.cant<l.disp)l.cant++;else aviso('No hay más existencia.',true);pinta();return;}
   if(b.dataset.qm){const l=VTA.lineas.find(x=>x.k===b.dataset.qm);l.cant--;if(l.cant<=0)VTA.lineas=VTA.lineas.filter(x=>x.k!==l.k);pinta();return;}
@@ -5103,6 +5239,16 @@ document.addEventListener('change',e=>{
     r.onerror=()=>aviso('No se pudo leer el archivo.',true);
     r.readAsText(f,'UTF-8'); return;
   }
+  if(id==='np_foto'){
+    const f=e.target.files&&e.target.files[0];
+    e.target.value='';
+    if(!f) return;
+    /* lo tecleado se guarda ANTES de leer la imagen: leerla tarda, y al
+       terminar se repinta la pantalla entera. */
+    try{ pbufLee(); }catch(_){}
+    leeFoto(f, src=>{ PFOTO = src; aviso('Foto cargada.'); pinta(); });
+    return;
+  }
   if(id==='c_print'||id==='v_print'||id==='p_print'||id==='a_print'){
     const f=e.target.files&&e.target.files[0]; if(!f)return;
     leeComprobante(f, src=>{ const d={nom:f.name,src:src};
@@ -5383,21 +5529,25 @@ function conTx(etq, fn){
 }
 
 /* ---------- lo que de verdad hay en el estante ---------- */
-function existenciaDe(id, talla){
+function existenciaDe(id, talla, color){
   const p = DB.productos.find(x=>x.id === id); if(!p) return 0;
-  if(talla && p.tallas){ const t = p.tallas.find(x=>x.t === talla); return t ? t.e : 0; }
-  return Math.max(0, +p.exi || 0);
+  const v = varDe(p, talla || '', color || '');
+  return v ? Math.max(0, +v.e || 0) : 0;
 }
 /* la venta no puede sacar del estante lo que no está */
 function faltaExistencia(){
   const pide = {};
-  VTA.lineas.forEach(l=>{ const k = l.id + '|' + (l.talla || ''); pide[k] = (pide[k] || 0) + l.cant; });
+  VTA.lineas.forEach(l=>{
+    const k = l.id + '|' + (l.talla || '') + '|' + (l.color || '');
+    pide[k] = (pide[k] || 0) + l.cant;
+  });
   for(const k in pide){
-    const [id, ta] = k.split('|');
-    const hay = existenciaDe(id, ta);
+    const par = k.split('|'), id = par[0], ta = par[1] || '', co = par[2] || '';
+    const hay = existenciaDe(id, ta, co);
     if(pide[k] > hay){
-      const l = VTA.lineas.find(x=>x.id === id && (x.talla || '') === ta) || {};
-      return (l.nom || 'Ese artículo') + (ta ? ' talla ' + ta : '') + ': pide ' + pide[k]
+      const l = VTA.lineas.find(x=>x.id === id && (x.talla||'') === ta && (x.color||'') === co) || {};
+      const que = nombreVar(ta, co);
+      return (l.nom || 'Ese artículo') + (que ? ' \u00b7 ' + que : '') + ': pide ' + pide[k]
         + ' y quedan ' + hay + '.';
     }
   }
@@ -5521,7 +5671,11 @@ function normaliza(b){
     }
   }
   b.temaV = 1;
-  b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true; });
+  b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true;
+    /* v58 · la existencia pasa a vivir en `var`, una sola vez y sin perder
+       una unidad: cada talla se vuelve una variante sin color, y el `exi`
+       suelto una variante sin talla ni color. */
+    migraVar(p); });
   /* el logo y la paleta del diseño 1 entran una sola vez: si la empresa ya
      subió otro logo o eligió otros colores, no se le pisan */
   if(eraMarca !== 2){
@@ -5927,6 +6081,36 @@ function leeComprobante(file, cb){
   r.readAsDataURL(file);
 }
 
+/* v58 · la foto del artículo se guarda MUCHO más liviana que un comprobante:
+   se ve en una casilla del catálogo y en un cuadrito de la caja, así que 320
+   píxeles sobran. El catálogo entero vive en el navegador; una foto pesada
+   por artículo lo llenaría en cien artículos. */
+function leeFoto(file, cb){
+  if(!file) return;
+  if(!/^image\//.test(file.type)){ aviso('Eso no es una imagen.', true); return; }
+  if(file.size > 1024*1024*12){ aviso('La imagen pesa más de 12 MB. Use una más liviana.', true); return; }
+  const r = new FileReader();
+  r.onload = function(){
+    const img = new Image();
+    img.onload = function(){
+      const MAX = 320;
+      const k = Math.min(1, MAX/img.width, MAX/img.height);
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.width*k));
+      cv.height = Math.max(1, Math.round(img.height*k));
+      const cx = cv.getContext('2d');
+      cx.fillStyle = '#ffffff'; cx.fillRect(0,0,cv.width,cv.height);
+      cx.imageSmoothingQuality = 'high';
+      cx.drawImage(img, 0, 0, cv.width, cv.height);
+      cb(cv.toDataURL('image/jpeg', 0.78));
+    };
+    img.onerror = function(){ aviso('No se pudo leer esa imagen.', true); };
+    img.src = r.result;
+  };
+  r.onerror = function(){ aviso('No se pudo leer ese archivo.', true); };
+  r.readAsDataURL(file);
+}
+
 /* ---------- puesta en marcha ---------- */
 function pasos(){
   const t = tasaEn(hoy);
@@ -5963,6 +6147,9 @@ let GSUB = 'estado', CLIED = null, PRED = null, PEXE = 'si', PBUF = null;
    se le devuelve: nada de volver a teclear el nombre por tocar una talla. */
 function pbufLee(){
   if(!$('#np_nom')) { PBUF = null; return; }
+  /* v58 · lo escrito en la rejilla de existencia se guarda con el resto del
+     formulario. Si no, cambiar de talla a color borraba lo tecleado. */
+  try{ pvarLee(); }catch(e){}
   PBUF = {sku:$('#np_sku').value, nom:$('#np_nom').value, cat:$('#np_cat').value,
           ico:$('#np_ico').value, costo:$('#np_costo').value, precio:$('#np_precio').value,
           exi: ($('#np_exi')||{}).value};
@@ -6259,7 +6446,24 @@ function cfgProd(){
     + '<div><label class="f">Categoría</label>'+selCat('np_cat', pbufVal('cat', ed?ed.cat:''))+'</div>'
     + '<div style="flex:0 0 110px"><label class="f">Ícono</label>'
     + '<input id="np_ico" value="'+esc(pbufVal('ico', ed?ed.ico:''))+'" placeholder="👜" maxlength="4" style="text-align:center;font-size:19px"></div>'
-    + '</div><div class="fila" style="margin-top:14px">'
+    + '</div>'
+    /* v58 · LA FOTO. Se puede registrar el artículo sin ella —la tienda no
+       puede esperar al fotógrafo— y queda marcado en el catálogo. */
+    + '<div class="fila" style="margin-top:14px"><div style="flex:1 1 100%">'
+    + '<label class="f">Foto del artículo</label>'
+    + '<div class="fotoed">'
+    + '<div class="fotoprev'+(PFOTO?' llena':'')+'">'
+    + (PFOTO ? '<img src="'+PFOTO+'" alt="">'
+             : '<span>Sin foto<b>se puede cargar después</b></span>')
+    + '</div>'
+    + '<div class="fotoacc">'
+    + '<label class="b sm gh" for="np_foto">'+(PFOTO?'Cambiar la foto':'Cargar una foto')+'</label>'
+    + '<input type="file" id="np_foto" accept="image/*" hidden>'
+    + (PFOTO ? ' <button class="b sm gh" id="np_fotox">Quitarla</button>' : '')
+    + '<div class="ayuda">La foto se reduce sola a 320 px. Se ve en el catálogo y en la '
+    + 'caja, para reconocer la pieza sin leer el código.</div>'
+    + '</div></div></div></div>'
+    + '<div class="fila" style="margin-top:14px">'
     + '<div><label class="f">Costo en dólares</label><input id="np_costo" inputmode="decimal" '
     + 'value="'+esc(pbufVal('costo', ed&&ed.costo?fN(ed.costo):''))+'" placeholder="Escriba el costo" maxlength="10"></div>'
     + '<div><label class="f">Precio de venta en dólares</label><input id="np_precio" inputmode="decimal" '
@@ -6275,24 +6479,61 @@ function cfgProd(){
     + '</div><div class="fila" style="margin-top:14px">'
     + '<div style="flex:1 1 100%"><label class="f">¿Se maneja por tallas?</label><div class="segm">'
     + [['no','Una sola existencia'],['si','Existencia por talla']].map(o=>{
-        const on = (ed ? (ed.tallas?'si':'no') : PTAL) === o[0];
+        /* v58 · el estado lo lleva el formulario, no el artículo: así probar
+           un cambio y arrepentirse no toca el inventario. */
+        const on = PTAL === o[0];
         return '<button class="sg'+(on?' on':'')+'" data-ptal="'+o[0]+'">'
           + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
     + '</div><div class="ayuda">La ropa se lleva por talla; los lentes, las carteras y la bisutería, por unidades.</div></div>'
+    /* v58 · COLORES. La misma pieza puede venir en varios colores, y cada
+       color lleva su propia existencia en cada talla. */
+    + '<div style="flex:1 1 100%;margin-top:14px"><label class="f">¿Se maneja por colores?</label><div class="segm">'
+    + [['no','Un solo color'],['si','Existencia por color']].map(o=>{
+        const on = PCOL === o[0];
+        return '<button class="sg'+(on?' on':'')+'" data-pcol="'+o[0]+'">'
+          + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div><div class="ayuda">Si la misma blusa viene en negro y en rojo, cada color lleva '
+    + 'su propia existencia por talla.</div></div>'
     + '</div>';
 
-  const conTallas = ed ? !!ed.tallas : (PTAL === 'si');
-  if(conTallas){
-    const tl = (ed && ed.tallas) ? ed.tallas : TALLAS_NUEVAS;
-    h += '<div class="fila" style="margin-top:14px"><div style="flex:1 1 100%">'
-       + '<label class="f">Existencia por talla</label><div class="tallas tall-ed">'
-       + tl.map(x=>'<label class="tal"><span>'+esc(x.t)+'</span>'
-         + '<input data-ptalla="'+esc(x.t)+'" value="'+x.e+'" inputmode="numeric" maxlength="4"></label>').join('')
-       + '</div><div class="ayuda">Deje una talla en cero si no la tiene: aparece agotada, no desaparece.</div></div></div>';
-  }else{
-    h += '<div class="fila" style="margin-top:14px"><div><label class="f">Existencia</label>'
-       + '<input id="np_exi" inputmode="numeric" value="'+esc(pbufVal('exi', ed?exi(ed):''))+'" placeholder="Escriba las unidades" maxlength="5"></div></div>';
-  }
+  /* --- v58 · la rejilla de existencia: tallas × colores ------------------ */
+  pvarCompleta();
+  const tallasF = ptallasF(), colsF = pcolsF();
+
+  h += '<div class="fila" style="margin-top:14px"><div style="flex:1 1 100%">'
+     + '<label class="f">Existencia'
+     + (PTAL==='si' && PCOL==='si' ? ' por talla y color'
+        : PTAL==='si' ? ' por talla' : PCOL==='si' ? ' por color' : '')
+     + '</label>';
+
+  if(PCOL === 'si')
+    h += '<div class="colnuevo">'
+       + '<input id="np_colnom" placeholder="Escriba un color y agréguelo" maxlength="24" autocomplete="off">'
+       + '<button class="b sm gh" id="np_coladd">Agregar color</button></div>';
+  if(PTAL === 'si')
+    h += '<div class="colnuevo">'
+       + '<input id="np_talnom" placeholder="Escriba una talla y agréguela" maxlength="10" autocomplete="off">'
+       + '<button class="b sm gh" id="np_taladd">Agregar talla</button></div>';
+
+  h += '<div class="rejilla"><table class="vartab"><thead><tr><th class="esq"></th>'
+     + tallasF.map(t=>'<th class="n">' + (t
+         ? esc(t) + ' <button class="x" data-ptalx="'+esc(t)+'" title="Quitar esta talla">×</button>'
+         : 'Unidades') + '</th>').join('')
+     + '</tr></thead><tbody>';
+  colsF.forEach(c=>{
+    h += '<tr><th class="colnom">' + (c
+         ? esc(c) + ' <button class="x" data-pcolx="'+esc(c)+'" title="Quitar este color">×</button>'
+         : '<span class="mini">único</span>') + '</th>';
+    tallasF.forEach(t=>{
+      const v = PVAR[claveVar(t, c)];
+      h += '<td class="n"><input data-pvar="'+esc(claveVar(t, c))+'" inputmode="numeric" maxlength="5" '
+         + 'value="'+(v === undefined ? 0 : v)+'"></td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>'
+     + '<div class="ayuda">Deje una casilla en cero si no tiene esa combinación: aparece agotada, '
+     + 'no desaparece del catálogo.</div></div></div>';
 
   h += '<div class="acc">'
     + '<button class="b oro" id="np_g">'+(ed?'Guardar los cambios':'Agregar el artículo')+'</button>'
@@ -6312,15 +6553,26 @@ function cfgProd(){
        + '<div class="h"><span class="k">Inventario a precio de venta</span><span class="v">'+fN(val)+' <small>USD</small></span>'
        + '<span class="s">costó '+fN(cst)+'</span></div>'
        + '<div class="h"><span class="k">Margen del inventario</span><span class="v">'
-       + (val>0?fN((val-cst)/val*100,1):'—')+' <small>%</small></span><span class="s">sobre el precio de venta</span></div></div>';
+       + (val>0?fN((val-cst)/val*100,1):'—')+' <small>%</small></span><span class="s">sobre el precio de venta</span></div>'
+       /* v58 · cuántos artículos están esperando su foto */
+       + (function(){ const sf = act.filter(faltaFoto).length;
+           return '<div class="h"><span class="k">Sin foto</span><span class="v">'+sf+'</span>'
+             + '<span class="s">'+(sf ? 'se venden igual, pero conviene cargarlas' : 'todos tienen su foto')+'</span></div>'; })()
+       + '</div>';
     h += '<table class="dat" style="margin-top:16px"><thead><tr><th></th><th>Artículo</th><th>Categoría</th>'
        + '<th class="n">Costo</th><th class="n">Precio</th><th class="n">Margen</th><th class="n">Existencia</th>'
        + '<th>Estado</th><th></th></tr></thead><tbody>';
     DB.productos.forEach(p=>{
       const ex = exi(p), mg = margen(p);
-      h += '<tr><td style="font-size:20px">'+(p.ico||'📦')+'</td>'
-        + '<td><b>'+esc(p.nom)+'</b><div class="mini">'+esc(p.sku)
-        + (p.tallas?' · '+p.tallas.map(x=>x.t+' ('+x.e+')').join(' · '):'')+'</div></td>'
+      const vsp = vars(p).filter(v=>!esVarVacia(v));
+      h += '<tr><td class="tdfoto">' + (p.foto
+             ? '<img class="minifoto" src="'+p.foto+'" alt="'+esc(p.nom)+'">'
+             : '<span class="sinfoto">'+(p.ico||'📦')+'</span>') + '</td>'
+        + '<td><b>'+esc(p.nom)+'</b>'
+        + (faltaFoto(p) ? ' <span class="chip avi">falta foto</span>' : '')
+        + '<div class="mini">'+esc(p.sku)
+        + (vsp.length ? ' · ' + vsp.map(v=>esc(nombreVar(v.t, v.c))+' ('+v.e+')').join(' · ') : '')
+        + '</div></td>'
         + '<td class="mini">'+esc(p.cat)+'</td>'
         + '<td class="n">'+(p.costo?fN(p.costo):'—')+'</td>'
         + '<td class="n"><b>'+fN(p.precio)+'</b></td>'
@@ -6670,7 +6922,58 @@ function vaciaMovimientos(){
    SICOM v2 · eventos de las pantallas nuevas
    ========================================================================== */
 let PTAL = 'no';
+/* v58 · el formulario trabaja sobre una copia: las tallas, los colores, la
+   existencia de cada combinación y la foto. Sólo al guardar se vuelca al
+   artículo. Así agregar un color y arrepentirse no toca el inventario. */
+let PCOL = 'no';
+let PTALLAS = [];
+let PCOLORES = [];
+let PVAR = {};
+let PFOTO = '';
 const TALLAS_NUEVAS = [{t:'S',e:0},{t:'M',e:0},{t:'L',e:0},{t:'XL',e:0}];
+
+/* Las columnas y las filas de la rejilla. Si se pidió manejar por colores
+   pero todavía no se cargó ninguno, se muestra la fila «único»: el artículo
+   nunca queda sin dónde anotar la existencia. */
+function ptallasF(){ return (PTAL === 'si' && PTALLAS.length) ? PTALLAS.slice() : ['']; }
+function pcolsF(){  return (PCOL === 'si' && PCOLORES.length) ? PCOLORES.slice() : ['']; }
+
+/* Arma el estado del formulario desde un artículo, o desde cero. */
+function pvarDesde(p){
+  PTALLAS  = p ? tallasDe(p) : [];
+  PCOLORES = p ? coloresDe(p) : [];
+  PTAL = PTALLAS.length ? 'si' : 'no';
+  PCOL = PCOLORES.length ? 'si' : 'no';
+  PFOTO = (p && p.foto) || '';
+  PVAR = {};
+  if(p) vars(p).forEach(v=>{ PVAR[claveVar(v.t||'', v.c||'')] = Math.max(0, +v.e||0); });
+  else PVAR[claveVar('','')] = 0;
+}
+/* Rellena con cero las combinaciones que falten, para que la rejilla no tenga
+   huecos. Nunca borra una existencia que ya estaba. */
+function pvarCompleta(){
+  if(PTAL === 'si' && !PTALLAS.length) PTALLAS = ['S','M','L','XL'];
+  ptallasF().forEach(t=>pcolsF().forEach(c=>{
+    const k = claveVar(t, c);
+    if(PVAR[k] === undefined) PVAR[k] = 0;
+  }));
+}
+/* Lee de la pantalla lo que la persona escribió en la rejilla. */
+function pvarLee(){
+  try{
+    $$('[data-pvar]').forEach(i=>{
+      PVAR[i.dataset.pvar] = Math.max(0, Math.round(pila(i.value) || 0));
+    });
+  }catch(e){}
+}
+/* Y lo convierte en la lista de variantes del artículo. */
+function pvarAVariantes(){
+  const out = [];
+  ptallasF().forEach(t=>pcolsF().forEach(c=>{
+    out.push({t:t, c:c, e:Math.max(0, +PVAR[claveVar(t, c)] || 0)});
+  }));
+  return out.length ? out : [{t:'', c:'', e:0}];
+}
 
 function irAcfg(tab, sub){
   /* los destinos viejos siguen funcionando: se traducen al menú nuevo */
@@ -6860,16 +7163,63 @@ document.addEventListener('click', e=>{
   /* ---------------- artículos ---------------- */
   if(b.dataset.pexe){ pbufLee(); PEXE = b.dataset.pexe; pinta(); return; }
   if(b.dataset.ptal){ pbufLee(); PTAL = b.dataset.ptal;
-    if(PRED){ const p = DB.productos.find(x=>x.id===PRED);
-      if(p){ if(PTAL==='si' && !p.tallas){ p.tallas = TALLAS_NUEVAS.map(x=>({t:x.t, e:0})); p.exi = 0; }
-             else if(PTAL==='no' && p.tallas){ p.exi = exi(p); p.tallas = null; } } }
-    pinta(); return; }
+    pvarCompleta(); pinta(); return; }
+  if(b.dataset.pcol){ pbufLee(); PCOL = b.dataset.pcol;
+    pvarCompleta(); pinta(); return; }
+
+  /* v58 · agregar un color. El PRIMER color hereda lo que ya estaba anotado
+     sin color: si el artículo tenía 5 unidades y ahora se dice que son
+     negras, siguen siendo 5 y no aparecen de la nada ni se pierden. */
+  if(b.id === 'np_coladd'){
+    const nom = (($('#np_colnom')||{}).value || '').trim();
+    if(!nom) return aviso('Escriba el color antes de agregarlo.', true);
+    if(PCOLORES.some(c=>c.toLowerCase() === nom.toLowerCase()))
+      return aviso('Ese color ya está en la lista.', true);
+    pbufLee();
+    if(!PCOLORES.length) ptallasF().forEach(t=>{
+      const v = PVAR[claveVar(t, '')];
+      if(v !== undefined){ PVAR[claveVar(t, nom)] = v; delete PVAR[claveVar(t, '')]; }
+    });
+    PCOLORES.push(nom); PCOL = 'si';
+    pvarCompleta(); pinta(); return;
+  }
+  if(b.id === 'np_taladd'){
+    const nom = (($('#np_talnom')||{}).value || '').trim();
+    if(!nom) return aviso('Escriba la talla antes de agregarla.', true);
+    if(PTALLAS.some(t=>t.toLowerCase() === nom.toLowerCase()))
+      return aviso('Esa talla ya está en la lista.', true);
+    pbufLee();
+    if(!PTALLAS.length) pcolsF().forEach(c=>{
+      const v = PVAR[claveVar('', c)];
+      if(v !== undefined){ PVAR[claveVar(nom, c)] = v; delete PVAR[claveVar('', c)]; }
+    });
+    PTALLAS.push(nom); PTAL = 'si';
+    pvarCompleta(); pinta(); return;
+  }
+  if(b.dataset.pcolx){
+    pbufLee();
+    const c = b.dataset.pcolx;
+    PCOLORES = PCOLORES.filter(x=>x !== c);
+    Object.keys(PVAR).forEach(k=>{ if(k.split('\u00a7')[1] === c) delete PVAR[k]; });
+    if(!PCOLORES.length) PCOL = 'no';
+    pvarCompleta(); pinta(); return;
+  }
+  if(b.dataset.ptalx){
+    pbufLee();
+    const t = b.dataset.ptalx;
+    PTALLAS = PTALLAS.filter(x=>x !== t);
+    Object.keys(PVAR).forEach(k=>{ if(k.split('\u00a7')[0] === t) delete PVAR[k]; });
+    if(!PTALLAS.length) PTAL = 'no';
+    pvarCompleta(); pinta(); return;
+  }
+  if(b.id === 'np_fotox'){ pbufLee(); PFOTO = ''; pinta(); return; }
+
   if(b.dataset.pedit){ pbufOlvida(); PRED = b.dataset.pedit;
     const p = DB.productos.find(x=>x.id===PRED);
-    PTAL = (p && p.tallas) ? 'si' : 'no';
+    pvarDesde(p || null);
     PEXE = (p && p.exento) ? 'no' : 'si';
     aviso('Modificando «'+(p?p.nom:'')+'».'); pinta(); window.scrollTo(0,0); return; }
-  if(b.id === 'np_cancel'){ pbufOlvida(); PRED = null; PTAL = 'no'; PEXE = 'si'; pinta(); return; }
+  if(b.id === 'np_cancel'){ pbufOlvida(); PRED = null; pvarDesde(null); PEXE = 'si'; pinta(); return; }
   if(b.dataset.ptog){
     const p = DB.productos.find(x=>x.id===b.dataset.ptog); if(!p) return;
     p.activo = p.activo === false;
@@ -6893,14 +7243,11 @@ document.addEventListener('click', e=>{
     const rep = DB.productos.find(p=>p.sku===sku && p.id!==PRED);
     if(rep) return aviso('Ya hay un artículo con el código '+sku+': «'+rep.nom+'».', true);
 
-    const conTallas = PRED ? PTAL==='si' : PTAL==='si';
-    let tallas = null, uni = 0;
-    if(conTallas){
-      tallas = $$('[data-ptalla]').map(i=>({t:i.dataset.ptalla, e:Math.max(0, Math.round(pila(i.value)))}));
-      if(!tallas.length) tallas = TALLAS_NUEVAS.map(x=>({t:x.t, e:0}));
-    }else{
-      uni = Math.max(0, Math.round(pila(($('#np_exi')||{}).value)));
-    }
+    /* v58 · la existencia sale de la rejilla: una casilla por cada
+       combinación de talla y color. */
+    pvarLee();
+    const nvar = pvarAVariantes();
+    const totVar = nvar.reduce((a,x)=>a + Math.max(0, +x.e||0), 0);
 
     if(PRED){
       const p = DB.productos.find(x=>x.id===PRED); if(!p) return;
@@ -6908,22 +7255,28 @@ document.addEventListener('click', e=>{
       if(p.precio !== precio) cam.push('precio '+fN(p.precio)+' → '+fN(precio));
       if((p.costo||0) !== costo) cam.push('costo '+fN(p.costo||0)+' → '+fN(costo));
       if(p.cat !== cat) cam.push('categoría '+p.cat+' → '+cat);
-      if(exi(p) !== (conTallas ? tallas.reduce((a,x)=>a+x.e,0) : uni))
-        cam.push('existencia '+exi(p)+' → '+(conTallas ? tallas.reduce((a,x)=>a+x.e,0) : uni));
+      if(exi(p) !== totVar) cam.push('existencia '+exi(p)+' → '+totVar);
       if(!!p.exento !== (PEXE === 'no')) cam.push(PEXE === 'no' ? 'pasa a no gravado' : 'pasa a gravado');
+      if((p.foto||'') !== (PFOTO||'')) cam.push(PFOTO ? 'foto cargada' : 'foto quitada');
+      const antesVar = vars(p).map(v=>nombreVar(v.t, v.c) || 'único').join(' / ');
+      const ahoraVar = nvar.map(v=>nombreVar(v.t, v.c) || 'único').join(' / ');
+      if(antesVar !== ahoraVar) cam.push('variantes ' + antesVar + ' → ' + ahoraVar);
       p.sku = sku; p.nom = nom; p.cat = cat; p.ico = ico; p.costo = costo; p.precio = precio;
       p.exento = (PEXE === 'no');
-      if(conTallas){ p.tallas = tallas; p.exi = undefined; } else { p.tallas = null; p.exi = uni; }
+      p.var = nvar; delete p.tallas; delete p.exi;
+      if(PFOTO) p.foto = PFOTO; else delete p.foto;
       bitacora('prod','Artículo modificado', sku+' · '+nom + (cam.length ? ' · '+cam.join(' · ') : ''));
-      pbufOlvida(); PRED = null; PTAL = 'no'; PEXE = 'si';
+      pbufOlvida(); PRED = null; pvarDesde(null); PEXE = 'si';
       aviso('Artículo «'+nom+'» actualizado.'); pinta(); return;
     }
     const np = {id:nid('p'), sku, nom, cat, ico, costo, precio, activo:true, exento:(PEXE === 'no')};
-    if(conTallas){ np.tallas = tallas; } else { np.tallas = null; np.exi = uni; }
+    np.var = nvar;
+    if(PFOTO) np.foto = PFOTO;
     DB.productos.push(np);
     bitacora('prod','Artículo agregado', sku+' · '+nom+' · USD '+fN(precio)
-      +(np.exento?' · no gravado':'')+' · '+(conTallas?tallas.reduce((a,x)=>a+x.e,0):uni)+' unidades');
-    pbufOlvida(); PTAL = 'no'; PEXE = 'si';
+      +(np.exento?' · no gravado':'')+' · '+totVar+' unidades'
+      +(PFOTO?'':' · sin foto'));
+    pbufOlvida(); pvarDesde(null); PEXE = 'si';
     aviso('Artículo «'+nom+'» agregado al catálogo.'); pinta(); return;
   }
 
@@ -7632,19 +7985,23 @@ function claveOK(s){ return hayClave() && selloClave(s) === DB.cfg.claveAdmin; }
 
 /* ---------- devolver la existencia al inventario ---------- */
 function reponeLinea(l, entera){
-  const p = DB.productos.find(x=>x.sku === l.sku); if(!p) return false;
+  /* v58 · se busca primero por identificador y sólo después por código. El
+     código es editable: si alguien lo corrigió después de vender, reponer por
+     código no encontraba el artículo y la mercancía anulada no volvía al
+     inventario, sin que nadie se enterara. */
+  const p = (l.id ? DB.productos.find(x=>x.id === l.id) : null)
+         || DB.productos.find(x=>x.sku === l.sku);
+  if(!p) return false;
   /* 'desc' es lo que de verdad se descontó al vender. Una venta vieja pudo
      pedir 15 unidades y sacar 3: reponer 15 le regalaría 12 al inventario. */
   let n = +l.cant || 0;
   if(entera && l.desc !== undefined) n = Math.max(0, +l.desc || 0);
   else if(l.desc !== undefined && l.cant) n = Math.min(n, Math.max(0, +l.desc || 0));
   if(n <= 0) return false;
-  if(l.talla && p.tallas){
-    const t = p.tallas.find(x=>x.t === l.talla);
-    if(t){ t.e += n; return true; }
-    p.tallas.push({t:l.talla, e:n}); return true;
-  }
-  p.exi = (p.exi || 0) + n;
+  const t = l.talla || '', c = l.color || '';
+  let v = varDe(p, t, c);
+  if(!v){ v = {t:t, c:c, e:0}; vars(p).push(v); }
+  v.e = Math.max(0, (+v.e||0)) + n;
   return true;
 }
 /* ---------- bajar los acumulados del cliente ---------- */
@@ -9854,6 +10211,14 @@ window.NUBE = (function(){
     pintaSemaforo();
   }
   function pintaSemaforo(){
+    /* v57 · el chip de la sesión se repinta AQUÍ, con el semáforo.
+
+       Antes sólo se pintaba al repintar la pantalla entera, y la sesión
+       llega después de eso: el conector tarda en cargar. Cuando por fin
+       llegaba, nadie volvía a mirar y el chip no aparecía nunca. Esta
+       función, en cambio, corre en cada cambio de estado —incluido el de
+       entrar y el de salir—, que es justo cuando el chip cambia. */
+    try{ pintaSesionEnCinta(); }catch(e){}
     const c = document.getElementById('nube_sem');
     if(!c) return;
     const r = ROTULOS[ESTADO] || ['—','esp'];
@@ -9934,6 +10299,20 @@ window.NUBE = (function(){
     if(!d) return;
     document.documentElement.removeAttribute('data-sesion');
     document.body.classList.add('conpuerta');
+    try{ d.removeAttribute('aria-hidden'); d.inert = false; }catch(e){}
+
+    /* v57 · al volver a la puerta, no queda nada de la sesión anterior en
+       pantalla: ni la clave escrita, ni un error viejo, ni el botón a medio
+       camino. Quien llega encuentra una puerta limpia. */
+    try{
+      const cl = document.getElementById('np_clave');
+      if(cl) cl.value = '';
+      const er = document.getElementById('np_err');
+      if(er){ er.hidden = true; er.textContent = ''; }
+      const bt = document.getElementById('np_entrar');
+      if(bt && !SIN_CONECTOR){ bt.disabled = false; bt.textContent = 'Entrar'; }
+      window.scrollTo(0, 0);
+    }catch(e){}
 
     /* La puerta se viste con la empresa. Tres casos, en este orden:
          1 · hay logo cargado  → se muestra el logo, en grande
@@ -10027,10 +10406,25 @@ window.NUBE = (function(){
 
   }
   function cierraPuerta(){
-    const d = document.getElementById('nube_puerta');
-    if(d) d.remove();
+    /* v57 · la puerta se ESCONDE, no se destruye.
+
+       Antes se borraba del documento. Y como `abrePuerta()` arranca con «si
+       no existe la puerta, no hagas nada», al cerrar sesión no había qué
+       volver a mostrar: el semáforo decía «Sin sesión» y el sistema seguía
+       abierto en pantalla, con los datos a la vista. Cerrar sesión no
+       cerraba nada.
+
+       Esconderla no cuesta nada —el propio estilo la oculta cuando el
+       documento lleva la marca de sesión— y deja el camino de vuelta. */
     document.body.classList.remove('conpuerta');
     document.documentElement.setAttribute('data-sesion', 'si');
+    /* Escondida quiere decir escondida DE VERDAD: fuera del alcance del
+       teclado y de quien usa un lector de pantalla. Si no, seguiría
+       anunciándose un formulario de acceso mientras la cajera trabaja. */
+    try{
+      const d = document.getElementById('nube_puerta');
+      if(d){ d.setAttribute('aria-hidden', 'true'); d.inert = true; }
+    }catch(e){}
   }
   function escN(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g,
@@ -10282,9 +10676,7 @@ window.NUBE = (function(){
     }, 0));
   }
   function existenciaDe(p){
-    if(p.tallas && p.tallas.length)
-      return p.tallas.reduce(function(a, t){ return a + (+t.e || 0); }, 0);
-    return +p.exi || 0;
+    try{ return exi(p); }catch(e){ return 0; }
   }
 
   function filaVenta(v){
@@ -10311,7 +10703,13 @@ window.NUBE = (function(){
       sku: p.sku, nom: p.nom || p.sku, cat: p.cat || '',
       precio: r2(+p.precio || 0), costo: r2(+p.costo || 0),
       exi: existenciaDe(p),
-      tallas: (p.tallas && p.tallas.length) ? p.tallas : null,
+      /* v58 · al servidor viaja la lista de variantes. Se sigue llamando
+         `tallas` en la columna para no romper lo que ya está asentado allá,
+         pero ahora cada renglón lleva también su color. */
+      tallas: (function(){
+        try{ const v = vars(p).filter(function(x){ return !esVarVacia(x); });
+             return v.length ? v : null; }catch(e){ return null; }
+      })(),
       activo: p.activo !== false,
       gravado: p.exento !== true
     };
