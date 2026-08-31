@@ -950,6 +950,13 @@ body.conpuerta{overflow:hidden}
   border-radius:0;padding:0}
 .nplogo.conimg img{max-width:min(240px,72vw);max-height:112px;object-fit:contain;display:block;
   margin:0 auto;filter:drop-shadow(0 12px 22px rgba(34,24,15,.16))}
+/* v56 · el logo pintado desde el encabezado, antes de que cargue el sistema.
+   Misma caja y mismo tamaño que el <img> que vendrá después, para que al
+   relevarse no se mueva ni un pixel. */
+html[data-logo="si"] .nplogo{width:min(240px,72vw);height:112px;background:none;
+  box-shadow:none;border-radius:0;background-image:var(--np-logo);background-size:contain;
+  background-repeat:no-repeat;background-position:center;
+  filter:drop-shadow(0 12px 22px rgba(34,24,15,.16));font-size:0;color:transparent}
 .npsub2{margin-top:14px;padding-top:14px;border-top:1px solid var(--hair)}
 .npcaja h2{font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;margin:0}
 .npsub{color:var(--ink2);font-size:13.5px;margin:8px 0 20px}
@@ -964,6 +971,35 @@ body.conpuerta{overflow:hidden}
 .npofl p{font-size:13px;color:var(--ink2);margin:0 0 10px}
 .npofl .b{width:100%}
 .npmini{font-size:11.5px;color:var(--muted);margin:10px 0 0;line-height:1.55}
+
+/* v56 · la sesión, en la cinta. «Cerrar sesión» estaba escondido en
+   Gerencial; se busca arriba a la derecha, que es donde se busca siempre. */
+.nbses{position:relative;display:inline-flex;align-items:center;margin-left:12px;flex:none}
+.nbbtn{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.16);color:inherit;border-radius:999px;
+  padding:4px 11px 4px 5px;cursor:pointer;font:inherit;font-weight:600;font-size:12.5px;
+  line-height:1;transition:background .15s}
+.nbbtn:hover{background:rgba(255,255,255,.16)}
+.nbbtn:focus-visible{outline:2px solid var(--oro-cl);outline-offset:2px}
+.nbini{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;
+  background:linear-gradient(140deg,var(--oro-cl),var(--oro-os));color:var(--oro-tx,#3a2c1c);
+  font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:12px}
+.nbcorreo{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  opacity:.9}
+.nbcar{opacity:.6;font-size:9px}
+.nbmenu{position:absolute;top:calc(100% + 8px);right:0;z-index:60;min-width:236px;
+  background:var(--panel);border:1px solid var(--linea);border-radius:12px;
+  box-shadow:0 18px 42px rgba(24,16,8,.28);padding:6px;text-align:left}
+.nbmenu[hidden]{display:none}
+.nbficha{padding:10px 12px 11px;border-bottom:1px solid var(--hair);margin-bottom:5px}
+.nbficha b{display:block;color:var(--ink);font-size:13px;font-weight:650;
+  overflow:hidden;text-overflow:ellipsis}
+.nbficha span{display:block;color:var(--muted);font-size:11.5px;margin-top:3px}
+.nbsal{display:block;width:100%;text-align:left;background:none;border:0;cursor:pointer;
+  font:inherit;font-size:13.5px;color:var(--ink);padding:9px 12px;border-radius:8px}
+.nbsal:hover{background:var(--sup)}
+.nbsal:focus-visible{outline:2px solid var(--oro);outline-offset:-2px}
+@media (max-width:760px){.nbcorreo{display:none}}
 
 .nubesem{display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}
 .nubesem i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
@@ -994,12 +1030,34 @@ html[data-sesion="si"] body.conpuerta{overflow:auto}
 
    Es lo único que corre aquí arriba, a propósito: cualquier otra cosa
    retrasaría el primer pixel. */
-window.SICOM_LLAVE_SESION = 'sicom-auth'
-  + ((String(location.pathname || '').toLowerCase().indexOf('/calidad/') === 0) ? '-calidad' : '');
+window.SICOM_EN_CALIDAD =
+  (String(location.pathname || '').toLowerCase().indexOf('/calidad/') === 0);
+window.SICOM_LLAVE_SESION = 'sicom-auth' + (window.SICOM_EN_CALIDAD ? '-calidad' : '');
+window.SICOM_LLAVE_LOGO   = 'sicom.casakeylis.v2'
+  + (window.SICOM_EN_CALIDAD ? '.cal' : '') + '.logo';
 (function(){
   try{
     var v = localStorage.getItem(window.SICOM_LLAVE_SESION);
     if(v && v.length > 40) document.documentElement.setAttribute('data-sesion', 'si');
+  }catch(e){}
+  /* v56 · EL LOGO, YA.
+
+     La puerta vive en el HTML fijo justamente para aparecer antes de que
+     cargue nada. Pero ahí arriba todavía no se sabe de qué empresa se trata,
+     así que salía un monograma con la inicial y un instante después lo
+     reemplazaba el logo. Ese parpadeo se veía en cada recarga.
+
+     El logo se guarda aparte, en su propia llave, para poder leerlo aquí sin
+     abrir el documento entero. Se pinta como fondo del recuadro, que es lo
+     único que se puede hacer antes de que exista el <body>. Cuando el sistema
+     termina de cargar pone el <img> de verdad encima, con la misma imagen: no
+     hay salto porque no hay cambio. */
+  try{
+    var lg = localStorage.getItem(window.SICOM_LLAVE_LOGO);
+    if(lg && lg.length > 32){
+      document.documentElement.style.setProperty('--np-logo', 'url("' + lg + '")');
+      document.documentElement.setAttribute('data-logo', 'si');
+    }
   }catch(e){}
 })();
 </script>
@@ -1051,6 +1109,39 @@ window.SICOM_LLAVE_SESION = 'sicom-auth'
    Datos
    ========================================================================== */
 let hoy = isoLocal();
+/* v56 · LA FECHA NO SE CONGELA AL ABRIR.
+
+   `hoy` se calculaba una sola vez, al cargar la página, y no volvía a
+   mirarse. Una tienda que deja el sistema abierto y cobra a las 00:20
+   fechaba esa venta el día anterior: entraba en el libro del mes que quizá
+   ya se declaró, y caía dentro de un cierre de caja ya firmado.
+
+   Ahora se comprueba antes de cada operación de dinero y cada medio minuto.
+   Cuando el día cambia, queda dicho en la bitácora y se avisa en pantalla,
+   porque cambiar de día con la caja abierta es algo que la cajera tiene que
+   saber, no algo que el sistema deba resolver por su cuenta. */
+function refrescaHoy(){
+  let d;
+  try{ d = isoLocal(); }catch(e){ return false; }
+  if(d === hoy) return false;
+  const antes = hoy;
+  hoy = d;
+  try{
+    bitacora('datos', 'Cambió el día',
+      'de ' + antes + ' a ' + d + ' · el sistema estaba abierto desde el día anterior');
+  }catch(e){}
+  return true;
+}
+function vigilaElDia(){
+  if(!refrescaHoy()) return;
+  try{
+    aviso('Cambió el día: ahora es ' + fFecha(hoy) + '. Lo que registre a partir de '
+        + 'ahora va con la fecha nueva. Si le queda caja por cerrar del día anterior, '
+        + 'ciérrela antes de seguir.', true);
+    guardar();
+    pinta();
+  }catch(e){}
+}
 const OPERADORAS=['0412','0422','0414','0424','0416','0426'];
 const GENEROS=[['F','Femenino'],['M','Masculino'],['X','Prefiere no decirlo']];
 const PLATAFORMAS=['Binance','Airtm','Zinli','Wallet propia · TRC20','Wallet propia · BEP20','Otra plataforma'];
@@ -1801,7 +1892,81 @@ function pintaNubeEnCinta(){
     c.appendChild(d);
   }
   try{ NUBE.pinta(); }catch(e){}
+  try{ pintaSesionEnCinta(); }catch(e){}
 }
+
+/* v56 · quién está adentro, y cómo salir.
+
+   El botón de cerrar sesión existía, pero vivía en Gerencial · Estado, dos
+   clics adentro. Nadie lo busca ahí: se busca arriba a la derecha, junto al
+   nombre de quien entró. Aquí queda, con el mismo aire dorado del resto. */
+function pintaSesionEnCinta(){
+  const c = $('#cinta');
+  if(!c || typeof NUBE === 'undefined') return;
+  let q = '';
+  try{ q = NUBE.quien() || ''; }catch(e){ q = ''; }
+
+  const caja = document.getElementById('nube_ses');
+  if(!q){ if(caja) caja.remove(); return; }
+
+  const ini = (q.trim()[0] || '?').toUpperCase();
+  if(caja && caja.dataset.correo === q) return;   /* ya está pintado */
+  if(caja) caja.remove();
+
+  const d = document.createElement('span');
+  d.className = 'nbses';
+  d.id = 'nube_ses';
+  d.dataset.correo = q;
+  d.innerHTML =
+      '<button type="button" class="nbbtn" id="nb_abre" aria-haspopup="true" '
+    + 'aria-expanded="false" aria-controls="nb_menu" title="' + esc(q) + '">'
+    + '<span class="nbini" aria-hidden="true">' + esc(ini) + '</span>'
+    + '<span class="nbcorreo">' + esc(q) + '</span>'
+    + '<span class="nbcar" aria-hidden="true">▾</span></button>'
+    + '<div class="nbmenu" id="nb_menu" role="menu" hidden>'
+    + '<div class="nbficha"><b>' + esc(q) + '</b>'
+    + '<span>' + (NUBE.esCalidad() ? 'Ambiente de calidad' : 'La tienda') + '</span></div>'
+    + '<button type="button" class="nbsal" id="nb_salir" role="menuitem">Cerrar sesión</button>'
+    + '</div>';
+  c.appendChild(d);
+}
+function cierraMenuSesion(){
+  const m = document.getElementById('nb_menu'), b = document.getElementById('nb_abre');
+  if(m) m.hidden = true;
+  if(b) b.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', e=>{
+  const abre = e.target.closest && e.target.closest('#nb_abre');
+  if(abre){
+    const m = document.getElementById('nb_menu');
+    if(!m) return;
+    const ver = m.hidden;
+    m.hidden = !ver;
+    abre.setAttribute('aria-expanded', ver ? 'true' : 'false');
+    return;
+  }
+  if(e.target.closest && e.target.closest('#nb_salir')){
+    cierraMenuSesion();
+    if(typeof NUBE === 'undefined') return;
+    /* Cerrar sesión no pierde nada de lo que esté sin subir: queda en este
+       navegador y sube en cuanto alguien vuelva a entrar. Pero si hay algo
+       pendiente, se dice, porque salir con trabajo sin subir merece un aviso. */
+    let pend = false;
+    try{ pend = NUBE.estado() === 'pendiente' || NUBE.estado() === 'sin-red'; }catch(_){}
+    if(pend && !confirm('Hay cambios de este equipo que todavía no subieron al servidor.\n\n'
+      + 'No se pierden: quedan guardados aquí y suben cuando alguien vuelva a entrar.\n\n'
+      + '¿Cierra la sesión igual?')) return;
+    Promise.resolve(NUBE.salir()).then(function(){
+      /* el chip se va con la sesión: repintar es lo que lo quita */
+      try{ pintaSesionEnCinta(); }catch(_){}
+      try{ pinta(); }catch(_){}
+      try{ aviso('Sesión cerrada. Los datos siguen en esta computadora.'); }catch(_){}
+    });
+    return;
+  }
+  if(!e.target.closest || !e.target.closest('#nube_ses')) cierraMenuSesion();
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') cierraMenuSesion(); });
 
 function pintaMarca(){
   /* la pestaña del navegador también es de la empresa */
@@ -2349,7 +2514,12 @@ function registraVenta(){
     lineas:VTA.lineas.map(l=>{const p=DB.productos.find(x=>x.id===l.id)||{};
       /* desc = lo que de verdad salió del estante. Anular repone esto, no lo
          que se pidió: así una venta vieja con sobreventa no infla el inventario */
-      return {sku:l.sku,nom:l.nom,talla:l.talla,cant:l.cant,desc:l.cant,precio:l.precio,cat:p.cat||'',costo:p.costo||0};}),
+      /* v56 · `exento` se guarda CON la venta. Sin esto, devolver un artículo
+         no gravado generaba una nota de crédito con base y débito fiscal
+         negativos que nunca se causaron, porque al devolver se volvía a
+         preguntar por una condición que la línea guardada no traía. */
+      return {sku:l.sku,nom:l.nom,talla:l.talla,cant:l.cant,desc:l.cant,precio:l.precio,
+              cat:p.cat||'',costo:p.costo||0,exento:l.exento===true};}),
     op:'vta',
     cobros:VTA.cobros.map(x=>Object.assign({},x,{op:'cob_'+x.met})),
     vueltos:VTA.vueltos.map(x=>Object.assign({},x,{op:'vue_'+x.met})),
@@ -3435,12 +3605,21 @@ function rifCliente(c){
 /* el desglose de un juego de líneas devueltas, respetando la condición
    de cada artículo tal como estaba al venderse */
 function desgLineasDev(v, ls){
+  /* v56 · con la alícuota QUE LA VENTA CONGELÓ, no con la de hoy.
+
+     Una nota de crédito tiene que revertir exactamente lo que se causó. Si en
+     julio se vendió con 16 % y en agosto la alícuota bajó a 15 %, devolver en
+     agosto con la tasa de agosto deja una diferencia que no cierra nunca. Y
+     apagar el IVA hacía algo peor: mandaba toda la devolución a «no gravadas»
+     y no revertía ni un céntimo de débito fiscal. */
+  const a = ((v && v.fis && v.fis.alic !== undefined) ? (+v.fis.alic || 0) : (+fisc().alic || 0)) / 100;
+  const baseCon = m => a ? r2(m / (1 + a)) : r2(m);
   let base = 0, iva = 0, exe = 0;
   (ls||[]).forEach(l=>{
     const orig = (v.lineas||[])[l.i] || {};
     const m = r2(l.precio * l.cant);
-    if(orig.exento === true || !alicIVA()){ exe += m; }
-    else { const b = baseDe(m); base += b; iva += r2(m - b); }
+    if(orig.exento === true || !a){ exe += m; }
+    else { const b = baseCon(m); base += b; iva += r2(m - b); }
   });
   return {base:r2(base), iva:r2(iva), exento:r2(exe)};
 }
@@ -5117,8 +5296,17 @@ function trancaFallo(etq, msg){
     [{k:'cerrar', t:'Entendido', oro:true}, {k:'resp', t:'Descargar el respaldo'}]);
 }
 
+/* v56 · Si la base estaba ilegible, aquí no se escribe NADA hasta que alguien
+   decida. Vale para el disco y, por lo tanto, para el servidor: sin escritura
+   local no hay subida. */
+let BASE_ROTA = null;
+/* Mientras se va a buscar el respaldo, el cartel no vuelve a levantarse: si
+   no, taparía la pantalla de restaurar. Guardar SIGUE bloqueado. */
+let RESCATANDO = false;
+
 /* ---------- guardar ---------- */
 function guardar(){
+  if(BASE_ROTA){ if(!RESCATANDO) trancaRota(); return false; }
   let s;
   try{ s = JSON.stringify(DB); }
   catch(e){ return false; }
@@ -5137,6 +5325,7 @@ function guardar(){
     if(selloDisco() !== TXREV + ':' + TXYO){ trancaOtra(); return false; }
     ULT_ESCRITO = s;
     ERRGUARDA = false;
+    sincronizaLogo();
     if(TRANCA === 'lleno') destrancaCaja();
     /* v48 · quedó firme en el navegador; ahora que suba al servidor. Si el
        módulo no está o falla, no pasa nada: el dato ya está a salvo aquí. */
@@ -5151,11 +5340,31 @@ function guardar(){
   }
 }
 
+/* v56 · el cartel de la base ilegible. No ofrece «seguir igual»: seguir es
+   exactamente lo que rompía las cosas. */
+let ROTA_AVISADA = false;
+function trancaRota(){
+  if(ROTA_AVISADA) return;
+  ROTA_AVISADA = true;
+  try{
+    trancaCaja('rota', 'Los datos de este navegador no se pudieron leer',
+      '<p>Había información guardada en esta computadora y no se pudo interpretar. '
+      + 'El sistema <b>no ha escrito nada encima</b>: lo ilegible quedó apartado tal cual, '
+      + 'por si se puede rescatar.</p>'
+      + '<p>Hasta que se restaure un respaldo, esta máquina no guarda ni sube. Es a '
+      + 'propósito: escribir encima sería perder lo que todavía está ahí.</p>'
+      + '<p class="trmini">Apartado como <b>' + esc(String(BASE_ROTA)) + '</b></p>',
+      [{k:'rescate', t:'Ir a restaurar un respaldo', oro:true}]);
+  }catch(e){}
+}
+
 /* ---------- una operación de dinero, entera o nada ----------
    fn devuelve false para abortar por su cuenta (una validación que no pasó).
    Si el guardado falla, se vuelve a la foto: la memoria nunca queda adelantada
    respecto del disco. */
 function conTx(etq, fn){
+  /* v56 · antes de mover un centavo, con qué fecha se está trabajando */
+  try{ refrescaHoy(); }catch(e){}
   if(otraEscribio()){ trancaOtra(); return false; }
   let foto;
   try{ foto = JSON.stringify(DB); }
@@ -5223,13 +5432,47 @@ window.addEventListener('storage', function(e){
   trancaOtra();
 });
 
+/* ---------- el logo, aparte ----------
+   Se guarda en su propia llave para que el encabezado pueda pintarlo antes
+   de cargar el documento entero. Se escribe sólo cuando cambia: son unos
+   20 KB y no tiene sentido reescribirlos en cada guardada. */
+const CLAVE_LOGO = CLAVE + '.logo';
+let ULT_LOGO = null;
+function sincronizaLogo(){
+  try{
+    const lg = (DB && DB.empresa && DB.empresa.logo) || '';
+    if(lg === ULT_LOGO) return;
+    ULT_LOGO = lg;
+    if(lg) localStorage.setItem(CLAVE_LOGO, lg);
+    else localStorage.removeItem(CLAVE_LOGO);
+  }catch(e){}
+}
+
 /* ---------- lectura y escritura ---------- */
 function cargar(){
   let b = null, crudo = null;
   try{
     crudo = localStorage.getItem(CLAVE);
     if(crudo) b = JSON.parse(crudo);
-  }catch(e){ console.warn('No se pudo leer el almacenamiento del navegador:', e); }
+  }catch(e){
+    /* v56 · HABÍA DATOS Y NO SE PUDIERON LEER.
+
+       Antes esto se anotaba en la consola —donde nadie mira— y el sistema
+       arrancaba con una base de fábrica que, a la primera guardada, escribía
+       encima de los bytes originales. Y si el servidor iba en la misma
+       revisión, ese documento en blanco pasaba a ser el estado de la empresa
+       para todas las máquinas.
+
+       Ahora no. Lo ilegible se aparta con fecha, no se escribe nada, y la
+       caja queda tomada hasta que alguien restaure un respaldo. Perder una
+       tarde es molesto; perder los libros es otra cosa. */
+    console.warn('No se pudo leer el almacenamiento del navegador:', e);
+    try{
+      const donde = CLAVE + '.ilegible.' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+      localStorage.setItem(donde, crudo);
+      BASE_ROTA = donde;
+    }catch(_){ BASE_ROTA = '(no se pudo apartar)'; }
+  }
   /* esta pestaña queda anclada a la revisión que acaba de leer: si otra
      escribe después, esta lo sabrá antes de guardar encima */
   TXREV = revEnDisco();
@@ -6378,6 +6621,14 @@ function restauraRespaldo(file){
     /* La bitácora que trae el respaldo se verifica antes de darla por buena, y
        el contador se reajusta a lo que hay: es la única baja legítima, y queda
        dicha en la propia bitácora. */
+    /* v56 · restaurar es la salida legítima de una base ilegible: a partir
+       de aquí hay documento bueno y el sistema vuelve a poder escribir. */
+    if(BASE_ROTA){
+      const rota = BASE_ROTA;
+      BASE_ROTA = null; RESCATANDO = false; ROTA_AVISADA = false;
+      try{ bitacora('datos','Base ilegible reemplazada por un respaldo',
+        'lo que no se pudo leer quedó apartado en ' + rota); }catch(e){}
+    }
     const cad = verificaCadena();
     fijaBit((DB.bitacora || []).length + ((DB.bitCorte || {}).n || 0));
     bitacora('datos','Respaldo restaurado', d.ventas.length+' ventas · '+d.clientes.length+' clientes'
@@ -9206,6 +9457,22 @@ document.addEventListener('click', e=>{
    Arranque
    ========================================================================== */
 DB = cargar();
+/* v56 · EL TRINQUETE, AL ARRANCAR.
+
+   `aplicaPiso()` decía en su propio comentario «al cargar, al restaurar y al
+   vaciar», pero al cargar no se llamaba: sólo al restaurar y al vaciar. Si el
+   documento traía un correlativo menor que el número más alto ya emitido en
+   esta máquina —porque llegó del servidor, o porque hubo que sembrar una base
+   nueva— la próxima factura salía con un número ya entregado a una clienta. */
+aplicaPiso();
+if(DB._corrSubido){
+  const _cs = DB._corrSubido; delete DB._corrSubido;
+  try{ bitacora('caja','Numeración protegida',
+    'el documento traía un correlativo ' + _cs + ' más bajo que el último número emitido '
+    + 'en esta computadora · la próxima factura sigue en V-'
+    + String(DB.corr.venta + 1).padStart(5,'0')); }catch(e){}
+}
+sincronizaLogo();
 if(!DB.bitacora.length) bitacora('datos', DB.instalado ? 'Sistema iniciado' : 'Instalación nueva',
   DB.instalado ? 'base cargada' : 'esperando la puesta en marcha');
 if(DB._migPlan){ const vj = DB._planViejo || 0; delete DB._migPlan; delete DB._planViejo;
@@ -9234,6 +9501,10 @@ nuevoSU();
 nuevoPER();
 aplicaTema();
 pinta();
+/* v56 · el reloj de la fecha. Cada medio minuto se comprueba si cambió el
+   día, por si el sistema quedó abierto de una jornada para la otra. Es
+   barato: una comparación de dos cadenas, y sólo hace algo cuando cambia. */
+setInterval(()=>{ try{ vigilaElDia(); }catch(e){} }, 30000);
 /* ==========================================================================
    SICOM · CONTABILIDAD · eventos de los modelos de asiento
    ========================================================================== */
@@ -9530,6 +9801,41 @@ window.NUBE = (function(){
   }
   function fijaVer(n){
     try{ localStorage.setItem(CLAVE_NUBE, String(n)); }catch(e){}
+  }
+
+  /* ---------- qué fue LO ÚLTIMO que este equipo logró subir ----------
+
+     `pendiente` era una variable de módulo: se reiniciaba en cada carga de la
+     página. Una tienda que trabajaba sin internet, registraba tres ventas y
+     recargaba Chrome perdía la única señal de que esas ventas no habían
+     subido; la sincronización siguiente las daba por sincronizadas y adoptaba
+     lo del servidor encima. Sin respaldo y sin trabar la caja.
+
+     Ahora la señal vive en el disco y no es una bandera sino una huella del
+     documento. Es mejor que una bandera: no hay forma de que quede mal puesta
+     porque no se pone a mano —se calcula. Si lo que hay en el navegador no es
+     idéntico a lo último que el servidor aceptó, hay trabajo sin subir, y da
+     igual cuántas veces se recargue. */
+  const CLAVE_SUBIDO = CLAVE_NUBE + '.huella';
+  let REBOTE = false;    /* para que el reintento inmediato no se vuelva un bucle */
+  function huellaDoc(){
+    try{ return hash(JSON.stringify(DB)); }catch(e){ return ''; }
+  }
+  function fijaSubido(){
+    try{ localStorage.setItem(CLAVE_SUBIDO, huellaDoc()); }catch(e){}
+  }
+  function haySinSubir(){
+    try{
+      const h = localStorage.getItem(CLAVE_SUBIDO);
+      if(h !== null) return h !== huellaDoc();
+      /* Nunca subió nada desde aquí. Eso NO significa que haya trabajo sin
+         subir: puede ser una computadora recién estrenada, y ésa justamente
+         tiene que poder bajar lo de la empresa. Lo que importa es si hay algo
+         propio que adoptar borraría. */
+      return (DB.ventas || []).length > 0
+          || (DB.bitacora || []).length > 3
+          || (DB.productos || []).length > 0;
+    }catch(e){ return true; }
   }
   function nombreEquipo(){
     /* no identifica a nadie: es para poder decir «esto vino del equipo de la
@@ -9845,14 +10151,17 @@ window.NUBE = (function(){
   }
 
   function tieneAlgoSinSubir(vMia){
-    /* Una máquina que nunca subió nada pero tiene movimientos propios cuenta
-       como pendiente: adoptar el documento del servidor los borraría. */
-    if(vMia > 0) return false;
-    try{
-      return (DB.ventas || []).length > 0
-          || (DB.bitacora || []).length > 3
-          || (DB.productos || []).length > 0;
-    }catch(e){ return true; }
+    /* v56 · se pregunta al disco, no a una variable que se borra al recargar.
+
+       Antes esto devolvía `false` de entrada para cualquier máquina que
+       hubiera subido alguna vez (`vMia > 0`), y esa era justamente la máquina
+       de la tienda. El resultado: las ventas hechas sin internet se perdían
+       en la primera sincronización después de recargar.
+
+       La huella no distingue entre una máquina nueva y una veterana, y no le
+       hace falta: o lo que hay aquí es idéntico a lo último que el servidor
+       aceptó, o no lo es. */
+    return haySinSubir();
   }
 
   function adopta(doc, ver, equipo, cuando){
@@ -9861,9 +10170,35 @@ window.NUBE = (function(){
     try{
       DB = normaliza(JSON.parse(JSON.stringify(doc)));
       fijaVer(ver);
-      /* el testigo de la bitácora se reajusta al documento que acaba de
-         llegar; si no, el verificador acusaría un faltante que nadie causó */
-      try{ fijaBit(((DB.bitacora || []).length) + ((DB.bitCorte || {}).n || 0)); }catch(e){}
+      /* v56 · el trinquete del correlativo también aquí. El documento del
+         servidor puede traer un número más bajo que el último emitido en esta
+         computadora, y esa factura ya está en manos de una clienta. */
+      try{
+        aplicaPiso();
+        if(DB._corrSubido){
+          const cs = DB._corrSubido; delete DB._corrSubido;
+          bitacora('caja','Numeración protegida',
+            'el documento del servidor traía un correlativo ' + cs + ' más bajo que el '
+            + 'último número emitido aquí · la próxima factura sigue en V-'
+            + String(DB.corr.venta + 1).padStart(5,'0'));
+        }
+      }catch(e){}
+      /* El testigo de la bitácora se reajusta al documento que acaba de
+         llegar; si no, el verificador acusaría un faltante que nadie causó.
+         v56 · pero si BAJA, queda dicho: bajarlo en silencio es justamente lo
+         que haría invisible una pérdida de asientos. */
+      try{
+        const habia = contBit();
+        const trae  = ((DB.bitacora || []).length) + ((DB.bitCorte || {}).n || 0);
+        if(trae < habia){
+          bitacora('nube','El documento del servidor trae menos asientos',
+            'esta computadora contaba ' + habia + ' y el documento trae ' + trae
+            + ' · el testigo se reajusta y queda dicho aquí');
+          fijaBit(trae + 1);
+        }else{
+          fijaBit(trae);
+        }
+      }catch(e){}
       /* Lo que hay ahora en el navegador vino del servidor, no de aquí: las
          huellas que esta máquina llevaba ya no describen nada. Se borran, y
          la próxima guardada rearma el resumen completo. Es la red de
@@ -9877,6 +10212,14 @@ window.NUBE = (function(){
         aviso('Datos al día con el servidor · revisión ' + ver
               + (equipo ? ' · desde ' + equipo : ''));
       }catch(e){}
+      /* v56 · LO QUE HAY AQUÍ ES LO DEL SERVIDOR: queda anotado.
+
+         Se anota AL FINAL, después de pintar, no antes. Pintar normaliza
+         cosas del documento —la cajera en turno, la venta en curso— y eso
+         ya quedó guardado en disco. Anotar la huella antes dejaba a la
+         máquina diciendo «al día» y creyendo a la vez que tenía trabajo sin
+         subir; con esa contradicción se negaba a bajar nada nunca más. */
+      fijaSubido();
     }catch(e){
       pon('conflicto', 'no se pudo adoptar lo del servidor: ' + (e && e.message));
     }finally{
@@ -10116,8 +10459,23 @@ window.NUBE = (function(){
       const d = r.data || {};
       if(d.ok){
         fijaVer(+d.version || 0);
-        pendiente = false;
-        pon('al-dia');
+        /* la huella se anota SOBRE EL DOCUMENTO QUE SE SUBIÓ, no sobre el que
+           haya en memoria ahora: entre el envío y la respuesta la cajera pudo
+           registrar otra venta, y esa sí sigue pendiente */
+        try{ localStorage.setItem(CLAVE_SUBIDO, hash(JSON.stringify(doc))); }catch(e){}
+        pendiente = haySinSubir();
+        pon(pendiente ? 'pendiente' : 'al-dia');
+        /* Entre que se armó el envío y llegó la respuesta pudo cambiar algo
+           más aquí —una venta, un asiento—. Ese resto se sube en seguida: si
+           no, esta máquina quedaría diciendo «al día» con algo que el
+           servidor no tiene, y se negaría a bajar nada nunca más. */
+        if(pendiente && !REBOTE){
+          REBOTE = true;
+          setTimeout(function(){
+            REBOTE = false;
+            if(haySinSubir()) sube(verLocal());
+          }, 250);
+        }
         /* El resumen se confirma aparte. Si el servidor no lo pudo asentar,
            la huella NO se anota: la próxima guardada lo vuelve a mandar. */
         if(proy){
@@ -10238,7 +10596,11 @@ window.NUBE = (function(){
     esCalidad: function(){ return CALIDAD; },
     franja: franjaCalidad,
     marcaSucio: marcaSucio,
-    sincroniza: function(){ pendiente = false; return sincroniza(); },
+    /* v56 · «Comprobar contra el servidor» ya NO apaga la marca de pendiente.
+       La apagaba antes de sincronizar, con lo que el botón que la gente pulsa
+       para asegurar su trabajo era exactamente el que lo borraba. */
+    sincroniza: function(){ return sincroniza(); },
+    sinSubir: function(){ try{ return haySinSubir(); }catch(e){ return true; } },
     alDia: async function(){
       /* «Ponerse al día»: se descarta lo local y se trae lo del servidor. El
          respaldo ya está bajado, así que no se pierde nada de verdad. */
