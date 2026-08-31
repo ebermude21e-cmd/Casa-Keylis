@@ -403,6 +403,18 @@ td.tdfoto{width:52px}
 .sinfoto{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;
   background:var(--sup2);font-size:19px}
 
+/* ---- v59 · las fotos en el reporte de ventas ---- */
+/* la tira de miniaturas de la fila: se reconoce la venta sin abrirla */
+.tirafotos{display:flex;gap:4px;align-items:center;margin-bottom:4px}
+.tirafotos img{width:28px;height:28px;border-radius:6px;object-fit:cover;display:block;
+  border:1px solid var(--linea)}
+.tirafotos span{display:grid;place-items:center;width:28px;height:28px;border-radius:6px;
+  background:var(--sup2);font-size:14px}
+.tirafotos b{font-size:11px;color:var(--muted);font-weight:700;margin-left:2px}
+/* la foto junto al renglón de la devolución */
+.fotolin{width:46px;height:46px;border-radius:9px;object-fit:cover;display:block;flex:0 0 auto;
+  border:1px solid var(--linea)}
+
 /* existencia por talla en el catálogo */
 .tall-ed{gap:10px}
 .tall-ed .tal{display:flex;flex-direction:column;gap:5px;align-items:center;
@@ -1529,6 +1541,29 @@ function nombreVar(t, c){
 }
 function exi(p){ return vars(p).reduce((a,x)=>a + Math.max(0, +x.e||0), 0); }
 function faltaFoto(p){ return !(p && p.foto); }
+
+/* v59 · el artículo al que se refiere una línea de venta.
+
+   Primero por identificador, que no cambia nunca. Sólo si la línea no lo
+   trae —las ventas anteriores a la v58 no lo traen— se busca por código. Un
+   artículo dado de baja sigue encontrándose: la venta vieja tiene derecho a
+   mostrar su foto. */
+function artDeLinea(l){
+  if(!l) return null;
+  try{
+    if(l.id){ const p = DB.productos.find(x=>x.id === l.id); if(p) return p; }
+    if(l.sku) return DB.productos.find(x=>x.sku === l.sku) || null;
+  }catch(e){}
+  return null;
+}
+function fotoDeLinea(l){ const p = artDeLinea(l); return (p && p.foto) || ''; }
+/* la casilla de la foto, con el ícono del artículo como respaldo */
+function celdaFoto(l){
+  const p = artDeLinea(l), f = p && p.foto;
+  return '<td class="tdfoto">' + (f
+    ? '<img class="minifoto" src="'+f+'" alt="'+esc(l.nom||'')+'">'
+    : '<span class="sinfoto">'+((p && p.ico) || '📦')+'</span>') + '</td>';
+}
 function saldoAcc(){return Math.round(DB.accionista.reduce((a,m)=>a+m.usd,0)*100)/100;}
 function pendAbiertos(){return DB.vpend.filter(v=>v.saldo>0.005&&!v.anulado);}
 function cajeraNom(id){const k=DB.cfg.cajeras.find(x=>x.id===id);return k?nomComp(k):'—';}
@@ -8296,7 +8331,14 @@ function repVentas(){
       + '<td class="mini">'+fFecha(v.fecha)+'</td>'
       + '<td>'+esc(nomComp(c))+'</td>'
       + '<td class="codn">'+esc(c.doc || '—')+'</td>'
-      + '<td class="mini">'+v.lineas.reduce((a,l)=>a+l.cant,0)+' und · '+esc(v.canal||'—')+'</td>'
+      /* v59 · las fotos de lo que se llevó, ahí mismo en la fila: se
+         reconoce la venta sin abrirla. */
+      + '<td class="mini"><div class="tirafotos">'
+      + v.lineas.slice(0, 5).map(l=>{ const f = fotoDeLinea(l);
+          return f ? '<img src="'+f+'" alt="'+esc(l.nom||'')+'" title="'+esc(l.nom||'')+'">'
+                   : '<span title="'+esc(l.nom||'')+'">'+((artDeLinea(l)||{}).ico || '📦')+'</span>'; }).join('')
+      + (v.lineas.length > 5 ? '<b>+'+(v.lineas.length-5)+'</b>' : '')
+      + '</div>'+v.lineas.reduce((a,l)=>a+l.cant,0)+' und · '+esc(v.canal||'—')+'</td>'
       + '<td class="n"'+(anulada(v) ? ' style="text-decoration:line-through"' : '')+'>'+fN(v.total)+'</td>'
       + '<td class="n"><b>'+fN(netoVenta(v))+'</b></td>'
       + '<td><span class="chip '+e.c+'">'+e.t+'</span></td>'
@@ -8328,18 +8370,21 @@ function fichaVenta(v, c, t){
   h += '<h3 style="font-size:14px;margin-bottom:10px">Lo que se llevó</h3><table class="dat"><tbody>';
   v.lineas.forEach((l,i)=>{
     const dv = devueltasDe(v, i);
-    h += '<tr><td><b>'+esc(l.nom)+(l.talla ? ' · '+esc(l.talla) : '')+'</b>'
+    /* v59 · la foto del artículo, al lado de su renglón */
+    h += '<tr>' + celdaFoto(l)
+      + '<td><b>'+esc(l.nom)+(nombreVar(l.talla, l.color) ? ' · '+esc(nombreVar(l.talla, l.color)) : '')+'</b>'
       + '<div class="mini">'+esc(l.sku)+' · '+esc(l.cat||'')+'</div></td>'
       + '<td class="n">'+l.cant+' × '+fN(l.precio)+(dv ? '<div class="mini" style="color:var(--avi)">'+dv+' devuelta'+(dv>1?'s':'')+'</div>' : '')+'</td>'
       + '<td class="n"><b>'+fN(l.cant*l.precio)+'</b></td></tr>';
   });
-  if(v.deliv > 0) h += '<tr><td><b>🛵 Delivery</b><div class="mini">'+esc(v.repId ? repNom(v.repId) : '')+'</div></td>'
+  if(v.deliv > 0) h += '<tr><td class="tdfoto"><span class="sinfoto">🛵</span></td>'
+    + '<td><b>Delivery</b><div class="mini">'+esc(v.repId ? repNom(v.repId) : '')+'</div></td>'
     + '<td class="n"></td><td class="n"><b>'+fN(v.deliv)+'</b></td></tr>';
-  h += '<tr><td colspan="2" style="text-align:right"><b>Total de la venta</b></td>'
+  h += '<tr><td colspan="3" style="text-align:right"><b>Total de la venta</b></td>'
      + '<td class="n"><b>USD '+fN(v.total)+'</b></td></tr>';
-  if(devueltoUSD(v) > 0.005) h += '<tr><td colspan="2" style="text-align:right">Devuelto</td>'
+  if(devueltoUSD(v) > 0.005) h += '<tr><td colspan="3" style="text-align:right">Devuelto</td>'
      + '<td class="n" style="color:var(--mal-ink)"><b>−'+fN(devueltoUSD(v))+'</b></td></tr>'
-     + '<tr><td colspan="2" style="text-align:right"><b>Neto</b></td><td class="n"><b>USD '+fN(netoVenta(v))+'</b></td></tr>';
+     + '<tr><td colspan="3" style="text-align:right"><b>Neto</b></td><td class="n"><b>USD '+fN(netoVenta(v))+'</b></td></tr>';
   h += '</tbody></table>';
 
   h += '<div class="mini" style="margin-top:12px">Cobrada por '+esc(cajeraNom(v.cajera))
@@ -8396,7 +8441,12 @@ function formDevolucion(v, t){
     + 'queda como devolución por entregar en tesorería.</p><div class="lineas">';
   v.lineas.forEach((l,i)=>{
     const ya = devueltasDe(v, i), max = l.cant - ya, n = DEV[i] || 0;
-    h += '<div class="lin"><div class="li"><b>'+esc(l.nom)+(l.talla ? ' · '+esc(l.talla) : '')+'</b>'
+    /* v59 · con la foto delante, quien atiende reconoce la pieza que le
+       están entregando sin tener que leer el código. */
+    const _f = fotoDeLinea(l);
+    h += '<div class="lin">'
+      + (_f ? '<img class="fotolin" src="'+_f+'" alt="'+esc(l.nom)+'">' : '')
+      + '<div class="li"><b>'+esc(l.nom)+(nombreVar(l.talla, l.color) ? ' · '+esc(nombreVar(l.talla, l.color)) : '')+'</b>'
       + '<div class="mini">USD '+fN(l.precio)+' c/u · llevó '+l.cant
       + (ya ? ' · ya devolvió '+ya : '')+(max <= 0 ? ' · <b>nada más por devolver</b>' : '')+'</div></div>'
       + '<button class="b sm gh" data-dvm="'+i+'"'+(n <= 0 ? ' disabled' : '')+'>−</button>'
@@ -10516,7 +10566,12 @@ window.NUBE = (function(){
       /* El servidor tiene trabajo que esta máquina no vio. Si aquí no hay
          nada pendiente, se adopta y listo. Si SÍ hay algo pendiente, no se
          pisa: se baja un respaldo de lo local y se traba la caja. */
-      if(!forzar && (pendiente || tieneAlgoSinSubir(vMia))){
+      /* v59 · «tener algo sin subir» se decidía por huella, y la huella dice
+         que sí demasiadas veces: basta con que el documento haya cambiado de
+         forma —al abrir una versión nueva, por ejemplo— para que una máquina
+         que no registró nada se crea con trabajo pendiente. Antes de trabar
+         la caja se mira el contenido. */
+      if(!forzar && (pendiente || tieneAlgoSinSubir(vMia)) && !nadaQuePerder(d.doc)){
         respaldoDeEmergencia();
         pon('conflicto');
         trancaNube(vServ, vMia);
@@ -10885,8 +10940,15 @@ window.NUBE = (function(){
             try{ console.warn('SICOM · el resumen no se asentó: ' + pr.error); }catch(e){}
           }
         }
+      }else if(nadaQuePerder(d.doc)){
+        /* v59 · el servidor va adelante, pero lo que traía esta computadora
+           ya está allá. Esta subida no aportaba nada, así que no hay nada
+           que decidir: se adopta y se sigue trabajando. Ni aviso, ni archivo
+           descargado, ni caja trabada. */
+        pendiente = false;
+        adopta(d.doc, +d.version || 0, d.equipo, d.actualizado);
       }else{
-        /* el servidor va adelante */
+        /* el servidor va adelante y aquí hay trabajo que allá no está */
         respaldoDeEmergencia();
         pon('conflicto', d.motivo || '');
         trancaNube(+d.version || 0, base);
@@ -10970,14 +11032,106 @@ window.NUBE = (function(){
     }catch(e){}
   }
 
+  /* Dos documentos se comparan por su contenido, no por el orden en que
+     quedaron escritas sus llaves: dos máquinas pueden armar el mismo
+     artículo con las llaves en distinto orden y sería el mismo artículo. */
+  function canon(x){
+    if(x === null || typeof x !== 'object') return JSON.stringify(x === undefined ? null : x);
+    if(Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';
+    const k = Object.keys(x).sort();
+    return '{' + k.map(function(n){ return JSON.stringify(n) + ':' + canon(x[n]); }).join(',') + '}';
+  }
+
+  /* v59 · ¿TODO lo que hay en esta computadora está ya en el documento del
+     servidor?
+
+     Esta pregunta reemplaza a «¿mi huella coincide con la última que subí?».
+     La huella decía que sí demasiadas veces: basta con que el documento
+     cambie de forma —al abrir una versión nueva, por ejemplo, cuando los
+     artículos pasan al modelo de variantes— para que una máquina que no
+     registró absolutamente nada se crea con trabajo pendiente y trabe la
+     caja de la tienda sin motivo.
+
+     Lo que se comprueba:
+
+       · La BITÁCORA de aquí tiene que ser el principio exacto de la de allá.
+         Es una cadena de eslabones encadenados por su hash, así que esto
+         prueba de una vez que esta computadora no asentó nada que el
+         servidor no tenga. Y en SICOM todo lo que importa deja asiento.
+
+       · Cada elemento de cada LISTA —ventas, artículos, clientes, tasas,
+         pendientes, cierres, cuentas...— tiene que existir idéntico allá. Si
+         aquí se cambió el precio de un artículo, ese artículo no tiene
+         gemelo en el servidor y la caja se traba, como debe ser.
+
+       · El FONDO DE CAJA tiene que ser el mismo. Es dinero contado a mano y
+         no puede descartarse en silencio.
+
+       · Los CORRELATIVOS de aquí no pueden ir por delante de los de allá: un
+         número de factura emitido en esta máquina puede estar impreso y en
+         manos de una clienta.
+
+     El documento del servidor se normaliza antes de compararlo, para que la
+     única diferencia no sea que la otra computadora todavía no abrió la
+     versión nueva.
+
+     Ante la menor duda se devuelve `false`. El aviso molesta; perder una
+     venta no tiene arreglo. */
+  const LISTAS_DOC = ['ventas','productos','clientes','categorias','tasas',
+                      'vpend','cierres','correos','cuentas','modelos','accionista'];
+
+  function nadaQuePerder(docServ){
+    try{
+      if(!docServ) return false;
+      let S;
+      try{ S = normaliza(JSON.parse(JSON.stringify(docServ))); }catch(e){ return false; }
+
+      /* 1 · la bitácora de aquí, principio exacto de la de allá */
+      const bl = DB.bitacora || [], bs = S.bitacora || [];
+      if(bl.length > bs.length) return false;
+      for(let i = 0; i < bl.length; i++){
+        if(!bl[i] || !bs[i] || !bl[i].h || bl[i].h !== bs[i].h) return false;
+      }
+      if((((DB.bitCorte || {}).n) || 0) > (((S.bitCorte || {}).n) || 0)) return false;
+
+      /* 2 · cada cosa de cada lista, idéntica allá */
+      for(let j = 0; j < LISTAS_DOC.length; j++){
+        const k = LISTAS_DOC[j];
+        const aqui = DB[k], alla = S[k];
+        if(!Array.isArray(aqui)) continue;
+        if(!Array.isArray(alla)) return false;
+        if(aqui.length > alla.length) return false;
+        const bolsa = {};
+        for(let i = 0; i < alla.length; i++) bolsa[hash(canon(alla[i]))] = true;
+        for(let i = 0; i < aqui.length; i++){
+          if(!bolsa[hash(canon(aqui[i]))]) return false;
+        }
+      }
+
+      /* 3 · el efectivo contado a mano */
+      if(Math.round(((+DB.fondoUSD) || 0) * 100) !==
+         Math.round(((+S.fondoUSD)  || 0) * 100)) return false;
+
+      /* 4 · ningún correlativo de aquí por delante */
+      const ca = DB.corr || {}, cs = S.corr || {};
+      const llaves = Object.keys(ca);
+      for(let i = 0; i < llaves.length; i++){
+        if(((+ca[llaves[i]]) || 0) > ((+cs[llaves[i]]) || 0)) return false;
+      }
+
+      return true;
+    }catch(e){ return false; }
+  }
+
   function trancaNube(vServ, vMia){
     try{
-      trancaCaja('nube', 'Otra computadora guardó después',
-        '<p>El servidor va en la revisión <b>' + vServ + '</b> y esta computadora venía de la <b>'
-        + vMia + '</b>. Si esta máquina grabara encima, borraría ese trabajo.</p>'
-        + '<p>Ya se bajó un respaldo de lo que hay aquí, por si hiciera falta.</p>'
-        + '<p><b>Ponerse al día</b> trae lo del servidor y descarta lo que esta máquina '
-        + 'tenga sin subir. Lo descartado está en el respaldo que acaba de bajar.</p>',
+      trancaCaja('nube', 'Hay trabajo hecho en otra computadora',
+        '<p>Otra computadora registró algo que aquí todavía no está, y en esta '
+        + 'hay algo que allá tampoco está. Si esta grabara encima, borraría '
+        + 'aquel trabajo.</p>'
+        + '<p><b>Ponerse al día</b> trae lo de la otra computadora. Lo que había '
+        + 'aquí sin subir queda en el archivo que se acaba de descargar.</p>'
+        + '<p class="mini">Servidor en la revisión ' + vServ + ' · esta computadora venía de la ' + vMia + '.</p>',
         [{k:'nubeal', t:'Ponerse al día', oro:true},
          {k:'resp',   t:'Descargar el respaldo otra vez'}]);
     }catch(e){}
