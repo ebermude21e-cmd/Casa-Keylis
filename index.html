@@ -9445,12 +9445,6 @@ document.addEventListener('change', e=>{
 
 window.NUBE = (function(){
 
-  const URL_SRV = 'https://wqvvanakdbkgrfmlvvrh.supabase.co';
-  const LLAVE   = 'sb_publishable_Cw6SI_d2oz8ZY_X6kRCJuw_DTGyigak';
-
-  /* La empresa de verdad. Sirve de tope: la copia de calidad no la toca. */
-  const RIF_PRODUCCION = 'J-50863887-5';
-
   /* El mismo archivo se publica en los dos sitios y se da cuenta de dónde
      está. Un archivo por ambiente se separa solo con el tiempo; este no. */
   const CALIDAD = (function(){
@@ -9460,6 +9454,34 @@ window.NUBE = (function(){
       return h.indexOf('pruebas.') === 0 || p.indexOf('/calidad/') === 0;
     }catch(e){ return false; }
   })();
+
+  /* CADA AMBIENTE, SU SERVIDOR.
+
+     Son dos proyectos distintos, con dos bases distintas. La de calidad
+     puede recibir todas las pruebas del mundo sin que ninguna llegue a los
+     libros de la tienda: no es que esté prohibido, es que no hay camino.
+
+     Las llaves de abajo son las PÚBLICAS. Están hechas para viajar dentro de
+     la página y no abren nada por sí solas: quien las tiene sigue teniendo
+     que entrar con correo y clave, y a partir de ahí las reglas del servidor
+     deciden qué ve. */
+  const SRV_TIENDA = {
+    url:   'https://wqvvanakdbkgrfmlvvrh.supabase.co',
+    llave: 'sb_publishable_Cw6SI_d2oz8ZY_X6kRCJuw_DTGyigak'
+  };
+  const SRV_CALIDAD = {
+    url:   'https://itotudruqzgupvybvdnj.supabase.co',
+    llave: 'sb_publishable_HsD6FcXcGV9W5BTZG63xUw_ULtXNc9q'
+  };
+
+  const URL_SRV = (CALIDAD ? SRV_CALIDAD : SRV_TIENDA).url;
+  const LLAVE   = (CALIDAD ? SRV_CALIDAD : SRV_TIENDA).llave;
+
+  /* La empresa. Es la misma en los dos servidores —calidad es una copia de
+     la tienda, no otro negocio—, así que el RIF ya no sirve para distinguir
+     un ambiente del otro. Se conserva porque el sistema lo usa en otros
+     sitios, pero el tope de más abajo mira el servidor, no el RIF. */
+  const RIF_PRODUCCION = 'J-50863887-5';
 
   /* La revisión del servidor sobre la que está montado lo que hay en este
      navegador. Vive aparte del documento: es de esta máquina, no de la
@@ -9742,14 +9764,18 @@ window.NUBE = (function(){
       return;
     }
 
-    /* --- v49 · el tope ---------------------------------------------------
-       Si esta copia es la de calidad y el servidor contesta con el RIF de la
-       empresa de verdad, aquí se termina: no se baja nada y no se sube nada.
-       Quien entró usó las credenciales de la tienda en el sitio equivocado, y
-       seguir significaría meter pruebas en los libros reales. */
-    if(CALIDAD && String(d && d.rif) === RIF_PRODUCCION){
+    /* --- el tope (v49, con el criterio corregido en la v55) --------------
+       Desde la v55 cada ambiente tiene su propio servidor, así que esto no
+       debería ocurrir jamás. Se queda puesto justamente por eso: si algún día
+       se publica mal y la copia de calidad termina apuntando al servidor de
+       la tienda, aquí se planta. No baja nada y no sube nada.
+
+       El criterio ya no es el RIF —es el mismo en los dos servidores, porque
+       es la misma empresa— sino a QUÉ SERVIDOR se está hablando, que es lo
+       único que separa de verdad un ambiente del otro. */
+    if(CALIDAD && URL_SRV === SRV_TIENDA.url){
       pon('calidad-tope',
-          'esta es la copia de calidad y la sesión pertenece a la empresa de producción');
+          'esta es la copia de calidad y está apuntando al servidor de la tienda');
       avisaTope();
       return;
     }
@@ -9838,6 +9864,11 @@ window.NUBE = (function(){
       /* el testigo de la bitácora se reajusta al documento que acaba de
          llegar; si no, el verificador acusaría un faltante que nadie causó */
       try{ fijaBit(((DB.bitacora || []).length) + ((DB.bitCorte || {}).n || 0)); }catch(e){}
+      /* Lo que hay ahora en el navegador vino del servidor, no de aquí: las
+         huellas que esta máquina llevaba ya no describen nada. Se borran, y
+         la próxima guardada rearma el resumen completo. Es la red de
+         seguridad: cualquier hueco en el resumen se cierra solo. */
+      olvidaHuellas();
       guardar();
       pendiente = false;
       pon('al-dia');
@@ -9851,6 +9882,187 @@ window.NUBE = (function(){
     }finally{
       ADOPTANDO = false;
     }
+  }
+
+  /* =====================================================================
+     EL RESUMEN PARA EL PANEL
+
+     El documento entero viaja aparte y es la fuente de la verdad. Esto es
+     otra cosa: las mismas operaciones, ya calculadas, en la forma que las
+     tablas del servidor esperan. Sirve para que el panel del accionista
+     —y cualquier consulta contable— puedan sumar sin abrir el documento.
+
+     Tres reglas:
+
+       · Los números salen de las funciones de la aplicación (`desgDe`, que
+         devuelve el desglose CONGELADO al momento de la venta). No se
+         recalculan con la alícuota de hoy: una venta de julio se declara
+         con la regla de julio.
+
+       · Sólo viaja lo que cambió. Cada fila lleva una huella; la huella se
+         anota únicamente cuando el servidor confirma que la asentó.
+
+       · Una venta nunca se manda a borrar. Se anula, y eso es un cambio de
+         estado. Sólo artículos y pendientes se pueden quitar de verdad.
+     ===================================================================== */
+  const CLAVE_PROY = CLAVE + '.proy';
+  let ULT_PROY = null;          /* lo que respondió el servidor la última vez */
+  let SIN_RESUMEN = false;      /* el servidor todavía no sabe recibirlo */
+
+  function huellas(){
+    try{
+      const j = JSON.parse(localStorage.getItem(CLAVE_PROY) || 'null');
+      return (j && typeof j === 'object') ? j : {};
+    }catch(e){ return {}; }
+  }
+  function fijaHuellas(h){
+    try{ localStorage.setItem(CLAVE_PROY, JSON.stringify(h)); }catch(e){}
+  }
+  function olvidaHuellas(){
+    /* Después de adoptar lo del servidor, o cuando se pide a mano, las
+       huellas dejan de valer: lo que hay en el navegador ya no es lo que
+       esta máquina había mandado. La próxima guardada manda todo. */
+    try{ localStorage.removeItem(CLAVE_PROY); }catch(e){}
+  }
+  function hu(o){
+    try{ return hash(JSON.stringify(o)); }catch(e){ return String(Math.random()); }
+  }
+
+  function cliDe(v){
+    try{ return (DB.clientes || []).find(function(x){ return x.id === v.cliId; }) || null; }
+    catch(e){ return null; }
+  }
+  function cobradoUSD(v){
+    const t = +v.tasa || 0;
+    return r2((v.cobros || []).reduce(function(a, x){
+      return a + (x.mon === 'BS' ? (t ? (+x.monto || 0) / t : 0) : (+x.monto || 0));
+    }, 0));
+  }
+  function existenciaDe(p){
+    if(p.tallas && p.tallas.length)
+      return p.tallas.reduce(function(a, t){ return a + (+t.e || 0); }, 0);
+    return +p.exi || 0;
+  }
+
+  function filaVenta(v){
+    const d = desgDe(v);                  /* el desglose congelado de la venta */
+    const c = cliDe(v);
+    const dev = devueltoUSD(v);
+    return {
+      num: v.num, fecha: v.fecha, hora: v.hora || '',
+      cajera: cajeraNom(v.cajera), canal: v.canal || '',
+      cliente: c ? ((c.nom || '') + ' ' + (c.ape || '')).trim() : '',
+      doc: c ? (c.doc || '') : '',
+      total: r2(+v.total || 0),
+      base: r2(d.base || 0), iva: r2(d.iva || 0), exento: r2(d.exento || 0),
+      igtf: r2(d.igtf || 0),
+      cobrado: cobradoUSD(v),
+      deliv: r2(+v.deliv || 0), pend: r2(+v.pend || 0),
+      tasa: (+v.tasa || null),
+      estado: anulada(v) ? 'anulada' : (dev > 0.005 ? 'devuelta' : 'registrada'),
+      doc_json: v
+    };
+  }
+  function filaProducto(p){
+    return {
+      sku: p.sku, nom: p.nom || p.sku, cat: p.cat || '',
+      precio: r2(+p.precio || 0), costo: r2(+p.costo || 0),
+      exi: existenciaDe(p),
+      tallas: (p.tallas && p.tallas.length) ? p.tallas : null,
+      activo: p.activo !== false,
+      gravado: p.exento !== true
+    };
+  }
+  function filaPendiente(q){
+    const c = (DB.clientes || []).find(function(x){ return x.id === q.cliId; }) || null;
+    return {
+      id: q.id, tipo: q.tipo || 'vuelto', venta: q.venta || '', fecha: q.fecha,
+      cliente: c ? ((c.nom || '') + ' ' + (c.ape || '')).trim() : '',
+      usd: r2(+q.usd || 0), saldo: r2(+q.saldo || 0),
+      cajera: cajeraNom(q.cajera),
+      cerrado: !!q.anulado || (+q.saldo || 0) <= 0.005,
+      doc_json: q
+    };
+  }
+  function filaTasa(t){
+    return { fecha: t.fecha, bcv: +t.bcv || 0, par: (+t.par || null),
+             estado: t.estado || 'confirmada' };
+  }
+  function filaCierre(x){
+    return {
+      fecha: x.fecha, cajera: cajeraNom(x.cajera),
+      usd: r2(+x.usd || 0), bs: r2(+x.bs || 0),
+      dif_usd: r2(+x.difUSD || 0), dif_bs: r2(+x.difBS || 0),
+      cuadro: x.cuadro !== false, motivo: x.motivo || '',
+      doc_json: x
+    };
+  }
+  function filaAcc(m, i){
+    /* El documento no le pone nombre a cada movimiento del accionista y la
+       tabla sólo acepta insertar. Sin una llave estable, cada guardada
+       volvería a insertar los mismos movimientos. La posición sirve: esa
+       lista sólo crece por el final. */
+    return {
+      clave: i + '·' + (m.fecha || '') + '·' + (m.tipo || '') + '·' + (m.venta || ''),
+      fecha: m.fecha, tipo: m.tipo || 'mov', concepto: m.concepto || '',
+      usd: r2(+m.usd || 0), venta: m.venta || '', ref: m.ref || ''
+    };
+  }
+
+  /* Devuelve { payload, huellas } o null si no hay nada nuevo que asentar. */
+  function proyeccion(){
+    if(typeof DB === 'undefined' || !DB) return null;
+    if(typeof desgDe !== 'function') return null;   /* módulo a medio cargar */
+
+    const ant = huellas();
+    const nue = { v:{}, p:{}, q:{}, t:{}, c:{}, a:{} };
+    const out = { ventas:[], productos:[], pendientes:[], tasas:[], cierres:[],
+                  accionista:[], borrar:{ productos:[], pendientes:[] } };
+
+    function junta(lista, mapa, arma, llave, destino){
+      (lista || []).forEach(function(x, i){
+        let fila; try{ fila = arma(x, i); }catch(e){ return; }
+        if(!fila) return;
+        const k = String(fila[llave] === undefined ? i : fila[llave]);
+        if(!k || k === 'undefined' || k === 'null') return;
+        const h = hu(fila);
+        mapa[k] = h;
+        if((ant[destino.m] || {})[k] === h) return;   /* igual que la última vez */
+        destino.a.push(fila);
+      });
+    }
+
+    junta(DB.ventas,      nue.v, filaVenta,     'num',   {m:'v', a:out.ventas});
+    junta(DB.productos,   nue.p, filaProducto,  'sku',   {m:'p', a:out.productos});
+    junta(DB.vpend,       nue.q, filaPendiente, 'id',    {m:'q', a:out.pendientes});
+    junta(DB.tasas,       nue.t, filaTasa,      'fecha', {m:'t', a:out.tasas});
+    junta(DB.cierres,     nue.c, filaCierre,    'fecha', {m:'c', a:out.cierres});
+    junta(DB.accionista,  nue.a, filaAcc,       'clave', {m:'a', a:out.accionista});
+
+    /* lo que esta máquina había mandado y ya no existe */
+    Object.keys(ant.p || {}).forEach(function(k){
+      if(!(k in nue.p)) out.borrar.productos.push(k); });
+    Object.keys(ant.q || {}).forEach(function(k){
+      if(!(k in nue.q)) out.borrar.pendientes.push(k); });
+
+    const cuantas = out.ventas.length + out.productos.length + out.pendientes.length
+                  + out.tasas.length + out.cierres.length + out.accionista.length
+                  + out.borrar.productos.length + out.borrar.pendientes.length;
+    if(!cuantas) return null;
+
+    /* Si el resumen se hace muy grande, se manda sin la copia de cada
+       operación: el documento completo ya viaja aparte y no se pierde nada
+       de lo que el panel necesita. */
+    let txt = '';
+    try{ txt = JSON.stringify(out); }catch(e){ return null; }
+    if(txt.length > 1200000){
+      out.ventas.forEach(function(x){ x.doc_json = {}; });
+      out.pendientes.forEach(function(x){ x.doc_json = {}; });
+      out.cierres.forEach(function(x){ x.doc_json = {}; });
+      out.recortado = true;
+    }
+
+    return { payload: out, huellas: nue, cuantas: cuantas };
   }
 
   /* ---------- subir ---------- */
@@ -9873,16 +10085,50 @@ window.NUBE = (function(){
     try{ doc = JSON.parse(JSON.stringify(DB)); }
     catch(e){ subiendo = false; pon('pendiente', 'no se pudo preparar el documento'); return; }
 
+    /* El resumen se arma ANTES de la llamada, sobre el mismo estado que se
+       está subiendo. Si algo falla al armarlo, se sube el documento igual:
+       el resumen se puede rehacer, el dato no. */
+    let proy = null;
+    try{ proy = proyeccion(); }catch(e){ proy = null; }
+
     try{
-      const r = await sb.rpc('sube_estado', {
-        p_doc: doc, p_base: base, p_equipo: nombreEquipo()
+      let r = await sb.rpc('sube_estado', {
+        p_doc: doc, p_base: base, p_equipo: nombreEquipo(),
+        p_proy: proy ? proy.payload : null
       });
+      /* Si el servidor todavía no tiene la versión que sabe recibir el
+         resumen, la llamada ni siquiera llega a ejecutarse: no hay función
+         con esos argumentos. Entonces se sube el documento con la llamada
+         de antes. El dato es lo que no se puede perder; el resumen espera.
+         Esto hace que publicar la aplicación y actualizar el servidor no
+         tengan que ocurrir en el mismo minuto. */
+      if(r.error && /PGRST202|schema cache|could not find|does not exist|function public\.sube_estado/i
+                      .test(String((r.error && (r.error.message || r.error.hint)) || ''))){
+        SIN_RESUMEN = true;
+        proy = null;
+        r = await sb.rpc('sube_estado', {
+          p_doc: doc, p_base: base, p_equipo: nombreEquipo()
+        });
+      }else{
+        SIN_RESUMEN = false;
+      }
       if(r.error) throw r.error;
       const d = r.data || {};
       if(d.ok){
         fijaVer(+d.version || 0);
         pendiente = false;
         pon('al-dia');
+        /* El resumen se confirma aparte. Si el servidor no lo pudo asentar,
+           la huella NO se anota: la próxima guardada lo vuelve a mandar. */
+        if(proy){
+          const pr = d.proy;
+          ULT_PROY = pr || null;
+          if(pr && pr.ok !== false){
+            fijaHuellas(proy.huellas);
+          }else if(pr && pr.error){
+            try{ console.warn('SICOM · el resumen no se asentó: ' + pr.error); }catch(e){}
+          }
+        }
       }else{
         /* el servidor va adelante */
         respaldoDeEmergencia();
@@ -9942,10 +10188,11 @@ window.NUBE = (function(){
     if(TOPE_AVISADO) return;
     TOPE_AVISADO = true;
     try{
-      aviso('Esta es la copia de calidad. La sesión es de la empresa de producción, '
-          + 'así que no se toca el servidor: lo que registre aquí queda solo en este equipo.', true);
+      aviso('Esta es la copia de calidad y está apuntando al servidor de la tienda. '
+          + 'No se toca nada: lo que registre aquí queda solo en este equipo. '
+          + 'Avísele a quien publicó, porque es un error de publicación.', true);
       bitacora('nube', 'Sincronización detenida en calidad',
-        'la sesión pertenece a ' + RIF_PRODUCCION + ' y esta copia no escribe sobre los libros reales');
+        'la copia de calidad apunta a ' + URL_SRV + ', que es el servidor de la tienda');
       guardar();
     }catch(e){}
   }
@@ -10006,6 +10253,12 @@ window.NUBE = (function(){
       if(sb) await sb.auth.signOut();
     },
     estado: function(){ return ESTADO; },
+    /* Rearma el resumen desde cero y lo manda. Sirve cuando el panel se ve
+       incompleto: no toca el documento, sólo vuelve a asentar las filas. */
+    reproyecta: function(){ olvidaHuellas(); marcaSucio(); return true; },
+    resumen: function(){
+      return { servidorViejo: SIN_RESUMEN, ultimo: ULT_PROY };
+    },
     version: verLocal,
     quien: function(){ return sesion && sesion.user ? sesion.user.email : ''; },
     pinta: pintaSemaforo
