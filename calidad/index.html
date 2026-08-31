@@ -541,8 +541,6 @@ tr.porasignar .cnt.vac{color:var(--avi);letter-spacing:.14em;font-weight:600}
 tr.porasignar{background:var(--avi-bg)}
 /* la cédula y el sufijo del porcentaje son datos atómicos */
 table.dat.reps td:nth-child(3), table.dat.reps td:nth-child(5){white-space:nowrap}
-/* un solo día en la tendencia no debe leerse como una barra de progreso */
-.tend .d{max-width:96px}
 
 /* ---------- KPIs ejecutivos y estadísticas ---------- */
 :root{
@@ -568,22 +566,67 @@ table.dat.reps td:nth-child(3), table.dat.reps td:nth-child(5){white-space:nowra
 
 .cats.perper{margin:0 0 18px}
 
-/* tendencia */
-.tend{
-  display:flex;align-items:flex-end;gap:6px;height:104px;position:relative;
-  padding-top:20px;border-bottom:1px solid var(--linea)
+/* ---- v60 · la gráfica del período ----------------------------------------
+   Una sola familia de color, tres pasos de claro a oscuro. No están elegidos
+   a ojo: los tres pasan las comprobaciones de una escala ordinal —un solo
+   tono, claridad que baja de forma pareja, y el paso más claro con contraste
+   suficiente contra el papel blanco—. El contexto va en el claro; el mejor
+   tramo y el de hoy, en los oscuros.
+
+   Las líneas de referencia son finas y continuas. Sólo la del promedio va
+   punteada, porque no es una línea de la cuadrícula: es un umbral. */
+:root{
+  --gr-1:#c9ab63;   /* el contexto */
+  --gr-2:#b08a3a;   /* hoy */
+  --gr-3:#7d6224;   /* el mejor tramo */
 }
-.tend .d{flex:1 1 0;min-width:12px;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
-.tend .d i{display:block;border-radius:4px 4px 0 0;min-height:3px;background:var(--s3)}
-.tend .d.hoy i{background:var(--oro)}
-.tend .prom{position:absolute;left:0;right:0;border-top:1px dashed var(--muted);pointer-events:none}
-.tend .prom b{
-  position:relative;top:-9px;background:var(--panel);padding:0 6px;
-  font-size:10.5px;font-weight:600;color:var(--muted)
-}
-.tendpie{display:flex;gap:6px;margin-top:6px}
-.tendpie span{flex:1 1 0;min-width:12px;text-align:center;font-size:10.5px;color:var(--muted);
+.graf{display:grid;grid-template-columns:auto 1fr;column-gap:10px;row-gap:7px;margin-top:4px}
+.gejes{display:flex;flex-direction:column;justify-content:space-between;height:164px;
+  font-size:10.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;
+  padding-bottom:0}
+.gejes span{line-height:1;transform:translateY(-50%)}
+.gejes span:last-child{transform:none}
+.gplot{position:relative;height:164px;border-bottom:1px solid var(--linea)}
+.grid{position:absolute;inset:0;pointer-events:none}
+.grid i{position:absolute;left:0;right:0;height:1px;background:var(--hair)}
+.gbars{position:absolute;inset:0;display:flex;align-items:flex-end;gap:2px}
+.gd{flex:1 1 0;min-width:5px;height:100%;position:relative;display:flex;
+  flex-direction:column;justify-content:flex-end}
+/* el fin de semana, un fondo tenue: en una tienda eso se lee de un golpe */
+.gd.band{background:color-mix(in srgb, var(--sup) 62%, var(--panel))}
+/* con pocos tramos, una barra a todo el ancho deja de ser una barra y pasa a
+   ser un bloque: se le pone tope y se centra */
+.gd i{display:block;width:100%;max-width:58px;margin:0 auto;
+  border-radius:4px 4px 0 0;min-height:2px;background:var(--gr-1)}
+.gd.hoy i{background:var(--gr-2)}
+.gd.max i{background:var(--gr-3)}
+.gd u{position:absolute;left:50%;transform:translateX(-50%);text-decoration:none;
+  font-size:10.5px;font-weight:700;color:var(--ink2);white-space:nowrap;
+  font-variant-numeric:tabular-nums;pointer-events:none;z-index:3}
+.gd u.izq{left:0;transform:none}
+.gd u.der{left:auto;right:0;transform:none}
+/* el promedio no es una línea de la cuadrícula sino un umbral: por eso va
+   punteada, y por eso se dibuja POR ENCIMA de las barras. Su rótulo va a la
+   izquierda, que es donde nunca choca con la cifra del mejor tramo. */
+.gprom{position:absolute;left:0;right:0;border-top:1px dashed var(--oro-os);
+  pointer-events:none;z-index:2}
+.gprom b{position:absolute;left:0;top:-15px;background:var(--panel);padding:0 5px 0 0;
+  font-size:10.5px;font-weight:600;color:var(--oro-os);white-space:nowrap}
+.gpie{display:flex;gap:2px}
+.gpie span{flex:1 1 0;min-width:5px;text-align:center;font-size:10.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums;overflow:hidden}
+.gpie span.mudo{visibility:hidden}
+.gnota{margin-top:12px;font-size:12.5px;color:var(--muted)}
+
+/* un día con una sola venta: la cifra es la gráfica */
+.unsolo{display:flex;flex-direction:column;gap:4px;padding:6px 0 2px}
+.unsolo .k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:700}
+.unsolo .v{font-size:38px;font-weight:800;letter-spacing:-.025em;line-height:1.05;
   font-variant-numeric:tabular-nums}
+.unsolo .v small{font-size:15px;font-weight:600;color:var(--muted);letter-spacing:0}
+.unsolo .s{font-size:13.5px;color:var(--ink2)}
+.unsolo .n{font-size:12.5px;color:var(--muted);margin-top:6px}
 
 /* barras horizontales */
 .bh{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:baseline;margin-bottom:13px}
@@ -3224,6 +3267,84 @@ function bandaKPI(R){
     + '</div>';
 }
 
+/* ==========================================================================
+   LA GRÁFICA DEL PERÍODO
+
+   Una sola serie: la venta neta. Una sola familia de color, de claro a
+   oscuro, con el mejor tramo y el de hoy destacados; el resto es contexto.
+   Eje con escala y cifras, líneas de referencia finas, y rótulo SÓLO donde
+   dice algo: un número sobre cada barra no lo lee nadie.
+
+   `puntos` es una lista de {rot, v, hoy, band, tit}:
+     rot   lo que va debajo de la barra
+     v     el monto
+     hoy   si es el tramo de hoy, para destacarlo
+     band  si lleva fondo tenue (los fines de semana)
+     tit   lo que se lee al pasar por encima
+   ========================================================================== */
+function barrasTiempo(puntos, opt){
+  opt = opt || {};
+  const max = Math.max.apply(null, puntos.map(x=>x.v)) || 1;
+  const suma = puntos.reduce((a,x)=>a+x.v, 0);
+  const prom = r2(suma / puntos.length);
+  const iMax = puntos.reduce((b,x,i)=>x.v > puntos[b].v ? i : b, 0);
+
+  /* la escala: tres cifras redondas, de arriba abajo */
+  const tope = escalaTope(max);
+  const ejes = [tope, r2(tope/2), 0];
+
+  /* con muchos tramos no caben todos los rótulos: se dejan los extremos y
+     uno de cada tantos, para que el eje no se convierta en una mancha */
+  const paso = puntos.length > 24 ? 4 : puntos.length > 14 ? 2 : 1;
+
+  let h = '<div class="graf">'
+    + '<div class="gejes">' + ejes.map(v=>'<span>'+fN(v, v >= 1000 ? 0 : 0)+'</span>').join('') + '</div>'
+    + '<div class="gplot">'
+    + '<div class="grid"><i style="bottom:100%"></i><i style="bottom:50%"></i></div>'
+    + (puntos.length > 1 && prom > 0.005
+        ? '<div class="gprom" style="bottom:'+(prom/tope*100)+'%"><b>promedio '+fN(prom)+'</b></div>'
+        : '')
+    + '<div class="gbars">'
+    + puntos.map((x,i)=>{
+        const alt = tope > 0 ? (x.v/tope*100) : 0;
+        const cl = (x.band ? ' band' : '') + (x.hoy ? ' hoy' : '')
+                 + (i === iMax && x.v > 0.005 ? ' max' : '');
+        /* se rotula el mejor tramo y el de hoy, nada más. En los extremos el
+           rótulo se pega al borde en vez de centrarse: centrado se saldría
+           del papel y se leería a medias. */
+        const borde = i === 0 ? ' izq' : (i === puntos.length - 1 ? ' der' : '');
+        const rot = (x.v > 0.005 && (i === iMax || x.hoy))
+          ? '<u class="'+borde.trim()+'" style="bottom:calc('+alt+'% + 5px)">'+fN(x.v)+'</u>' : '';
+        return '<div class="gd'+cl+'" title="'+esc(x.tit || (x.rot + ' · USD ' + fN(x.v)))+'">'
+             + rot + '<i style="height:'+alt+'%"></i></div>'; }).join('')
+    + '</div></div>'
+    + '<div></div><div class="gpie">'
+    + puntos.map((x,i)=>'<span'+((i % paso === 0 || i === puntos.length-1) ? '' : ' class="mudo"')
+        + '>'+esc(x.rot)+'</span>').join('')
+    + '</div></div>';
+
+  if(opt.pie) h += '<div class="gnota">'+opt.pie+'</div>';
+  return h;
+}
+/* Una escala que termine en una cifra redonda: si el eje dice 137,42 no es
+   una escala, es el dato otra vez.
+
+   Los cortes son finos a propósito. Con saltos gruesos —1, 2, 5, 10— una
+   venta de 285 obliga a un eje de 500 y la barra más alta se queda a media
+   altura: la gráfica desperdicia la mitad del papel y todo se ve chato. Con
+   estos, la barra mayor nunca baja del 66 % de la altura. */
+const CORTES = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+function escalaTope(max){
+  if(!(max > 0)) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(max)));
+  const n = max / e;
+  let paso = 10;
+  for(let i = 0; i < CORTES.length; i++){
+    if(n <= CORTES[i] + 1e-9){ paso = CORTES[i]; break; }
+  }
+  return r2(paso * e);
+}
+
 /* ------------------------------------------------------------ tendencia -- */
 function bloqueTendencia(R){
   const dias = [];
@@ -3231,22 +3352,70 @@ function bloqueTendencia(R){
   while(f <= R.h && guarda++ < 40){ dias.push(f);
     const x = new Date(f + 'T12:00:00'); x.setDate(x.getDate()+1); f = isoLocal(x); }
   const datos = dias.map(d=>({f:d, v:r2(ventasRango(d,d).reduce((a,x)=>a+netoVenta(x),0))}));
-  const conVta = datos.filter(x=>x.v > 0.005);
-  if(!conVta.length) return '';
-  const max = Math.max.apply(null, datos.map(x=>x.v)) || 1;
-  const prom = r2(datos.reduce((a,x)=>a+x.v,0) / datos.length);
-  const unico = conVta.length === 1;
+  if(!datos.filter(x=>x.v > 0.005).length) return '';
 
-  let h = '<div class="card"><h2>Cómo viene el período</h2>'
-    + '<div class="tend">'
-    + (unico ? '' : '<div class="prom" style="bottom:'+(prom/max*100)+'%"><b>promedio '+fN(prom)+'</b></div>')
-    + datos.map(x=>'<div class="d'+(x.f===hoy?' hoy':'')+'" title="'+fFecha(x.f)+' · USD '+fN(x.v)+'">'
-        + '<i style="height:'+(x.v/max*100)+'%"></i></div>').join('')
-    + '</div><div class="tendpie">'
-    + datos.map(x=>'<span>'+x.f.slice(8)+'</span>').join('')+'</div>';
-  if(unico) h += '<div class="nota">Un solo día con ventas en este período. '
-    + 'La comparación aparece cuando haya un segundo día.</div>';
-  return h + '</div>';
+  /* v60 · UN SOLO DÍA no se dibuja como una barra sola: una barra sola
+     siempre llega al tope, porque ella misma es el máximo, y no dice nada.
+     Lo que sí dice algo de un día es a qué horas se vendió. */
+  if(datos.length === 1) return bloqueDia(R, datos[0]);
+
+  const conVta = datos.filter(x=>x.v > 0.005).length;
+  const mejor = datos.reduce((b,x)=>x.v > b.v ? x : b, datos[0]);
+  const puntos = datos.map(x=>{
+    const d = new Date(x.f + 'T12:00:00').getDay();
+    return { rot: x.f.slice(8), v: x.v, hoy: x.f === hoy,
+             band: (d === 0 || d === 6),
+             tit: fFecha(x.f) + ' · USD ' + fN(x.v) };
+  });
+  const pie = conVta + ' de ' + datos.length + ' días con venta'
+    + ' · mejor día ' + fFecha(mejor.f) + ' con USD ' + fN(mejor.v)
+    + (datos.some(x=>{ const d = new Date(x.f+'T12:00:00').getDay(); return d===0||d===6; })
+        ? ' · el fondo tenue son los fines de semana' : '');
+
+  return '<div class="card"><h2>Cómo viene el período</h2>'
+    + '<p class="cap">Venta neta de cada día, ya descontado lo anulado y lo devuelto.</p>'
+    + barrasTiempo(puntos, {pie: pie})
+    + '</div>';
+}
+
+/* ----------------------------------------------------- un solo día ------- */
+function bloqueDia(R, punto){
+  const vs = ventasRango(R.d, R.d).filter(v=>!anulada(v));
+  if(!vs.length) return '';
+
+  /* con una sola venta no hay reparto que mostrar: la cifra es la gráfica */
+  if(vs.length === 1){
+    const v = vs[0];
+    return '<div class="card"><h2>Cómo se repartió el día</h2>'
+      + '<div class="unsolo"><span class="k">Una sola venta el '+fFecha(R.d)+'</span>'
+      + '<span class="v">'+fN(netoVenta(v))+' <small>USD</small></span>'
+      + '<span class="s">a las '+esc(v.hora || '—')+' · '+esc(v.canal || 'sin canal')
+      + ' · '+v.lineas.reduce((a,l)=>a+l.cant,0)+' '
+      + (v.lineas.reduce((a,l)=>a+l.cant,0)===1 ? 'unidad' : 'unidades')+'</span>'
+      + '<span class="n">El reparto por horas aparece cuando el día tenga una segunda venta.</span>'
+      + '</div></div>';
+  }
+
+  /* de la primera hora con venta a la última, sin franjas vacías de más */
+  const hs = vs.map(v=>parseInt(String(v.hora || '00:00').slice(0,2), 10) || 0);
+  const de = Math.max(0, Math.min.apply(null, hs));
+  const a  = Math.min(23, Math.max.apply(null, hs));
+  const puntos = [];
+  for(let x = de; x <= a; x++){
+    const dentro = vs.filter(v=>(parseInt(String(v.hora||'00:00').slice(0,2),10)||0) === x);
+    const monto = r2(dentro.reduce((s,v)=>s+netoVenta(v), 0));
+    puntos.push({ rot: String(x).padStart(2,'0'), v: monto, hoy: false, band: false,
+      tit: String(x).padStart(2,'0')+':00 a '+String(x).padStart(2,'0')+':59 · USD '+fN(monto)
+         + ' · '+dentro.length+' '+(dentro.length===1?'venta':'ventas') });
+  }
+  const pico = puntos.reduce((b,x)=>x.v > b.v ? x : b, puntos[0]);
+  return '<div class="card"><h2>Cómo se repartió el día</h2>'
+    + '<p class="cap">Venta neta por hora del '+fFecha(R.d)+'. '
+    + 'La comparación entre días aparece cuando el período abarque más de uno.</p>'
+    + barrasTiempo(puntos, {pie: vs.length + ' ventas entre las '+String(de).padStart(2,'0')
+        + ':00 y las '+String(a).padStart(2,'0')+':59 · la hora más fuerte fue la de las '
+        + pico.rot+':00, con USD '+fN(pico.v)})
+    + '</div>';
 }
 
 /* --------------------------------------------------- barras horizontales -- */
@@ -3303,7 +3472,9 @@ function bloqueArticulos(R){
   const m = {};
   vs.forEach(v=>v.lineas.forEach(l=>{
     const k = l.sku || l.nom;
-    if(!m[k]) m[k] = {nom:l.nom, cat:l.cat || '—', uds:0, venta:0, costo:0, sinCosto:false};
+    /* v60 · se guarda una línea de muestra para poder llegar al artículo y a
+       su foto. Se queda con la primera: todas apuntan al mismo artículo. */
+    if(!m[k]) m[k] = {nom:l.nom, cat:l.cat || '—', uds:0, venta:0, costo:0, sinCosto:false, ref:l};
     const c = costoLinea(l);
     m[k].uds += l.cant; m[k].venta += l.precio * l.cant;
     if(c > 0) m[k].costo += c * l.cant; else m[k].sinCosto = true;
@@ -3312,14 +3483,16 @@ function bloqueArticulos(R){
   if(!ls.length) return '';
   return '<div class="card"><h2>Qué se vendió</h2>'
     + '<div class="tabwrap"><table class="dat cmp"><thead><tr>'
-    + '<th class="rank">#</th><th>Artículo</th><th>Categoría</th>'
+    + '<th class="rank">#</th><th></th><th>Artículo</th><th>Categoría</th>'
     + '<th class="n">Und</th><th class="n">Venta USD</th><th class="n">Costo USD</th>'
     + '<th class="n">Margen USD</th><th class="n">Margen</th></tr></thead><tbody>'
     + ls.map((x,i)=>{
         const mg = r2(x.venta - x.costo);
         const p = x.sinCosto || x.costo <= 0 ? null : (mg / x.venta) * 100;
         const cl = p === null ? '' : (p >= 40 ? '' : p >= 15 ? ' medio' : ' bajo');
-        return '<tr><td class="rank">'+(i+1)+'</td><td><b>'+esc(x.nom)+'</b></td>'
+        return '<tr><td class="rank">'+(i+1)+'</td>'
+          + celdaFoto(x.ref)
+          + '<td><b>'+esc(x.nom)+'</b></td>'
           + '<td class="mini">'+esc(x.cat)+'</td>'
           + '<td class="n">'+x.uds+'</td><td class="n">'+fN(x.venta)+'</td>'
           + '<td class="n">'+(x.costo>0?fN(x.costo):'—')+'</td>'
