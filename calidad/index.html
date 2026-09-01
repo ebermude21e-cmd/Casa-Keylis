@@ -403,6 +403,14 @@ td.tdfoto{width:52px}
 .sinfoto{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;
   background:var(--sup2);font-size:19px}
 
+/* ---- v61 · el medidor de espacio ---- */
+.espmed{display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:6px}
+.espbar{flex:1 1 240px; height:12px; border-radius:999px; background:var(--sup2); overflow:hidden}
+.espbar i{display:block; height:100%; border-radius:999px; background:var(--ok)}
+.espbar i.avi{background:var(--avi)}
+.espbar i.mal{background:var(--mal)}
+.espcif{font-variant-numeric:tabular-nums; font-size:14.5px; white-space:nowrap}
+
 /* ---- v59 · las fotos en el reporte de ventas ---- */
 /* la tira de miniaturas de la fila: se reconoce la venta sin abrirla */
 .tirafotos{display:flex;gap:4px;align-items:center;margin-bottom:4px}
@@ -1129,12 +1137,48 @@ html[data-sesion="si"] body.conpuerta{overflow:auto}
 window.SICOM_EN_CALIDAD =
   (String(location.pathname || '').toLowerCase().indexOf('/calidad/') === 0);
 window.SICOM_LLAVE_SESION = 'sicom-auth' + (window.SICOM_EN_CALIDAD ? '-calidad' : '');
+
+/* v61 · ¿esta sesión guardada sigue valiendo?
+
+   Una sesión sirve si es un permiso de verdad —tiene su token— y todavía no
+   se le pasó el plazo. El margen de gracia es para la tienda: sin internet el
+   permiso no se puede renovar, y trancarle la caja a la cajera por eso sería
+   peor que el problema que se quiere evitar. Pero es un margen, no una
+   puerta abierta para siempre. */
+window.SICOM_GRACIA_DIAS = 14;
+window.SICOM_SESION_VALIDA = function(crudo){
+  try{
+    if(!crudo || crudo.length < 40) return false;
+    var s = JSON.parse(crudo);
+    if(!s) return false;
+    var tok = s.access_token || (s.currentSession && s.currentSession.access_token);
+    if(!tok || String(tok).length < 20) return false;
+    var exp = s.expires_at || (s.currentSession && s.currentSession.expires_at) || 0;
+    if(!exp) return true;               /* sin fecha no se puede juzgar: se deja pasar */
+    var ahora = Math.floor(Date.now() / 1000);
+    return ahora < (+exp) + window.SICOM_GRACIA_DIAS * 86400;
+  }catch(e){ return false; }
+};
 window.SICOM_LLAVE_LOGO   = 'sicom.casakeylis.v2'
   + (window.SICOM_EN_CALIDAD ? '.cal' : '') + '.logo';
 (function(){
   try{
-    var v = localStorage.getItem(window.SICOM_LLAVE_SESION);
-    if(v && v.length > 40) document.documentElement.setAttribute('data-sesion', 'si');
+    /* v61 · ANTES BASTABA UNA CADENA LARGA.
+
+       Lo único que se comprobaba era que en el navegador hubiera algo de más
+       de 40 caracteres. Ni se leía, ni se miraba el vencimiento. A quien le
+       revocaran la cuenta le bastaba con desconectar el WiFi para seguir
+       entrando y facturando.
+
+       Ahora se lee la sesión de verdad. Se sigue pudiendo trabajar sin
+       internet —una tienda no deja de vender porque se cayó la conexión— pero
+       con un plazo: pasada la vigencia del permiso más el margen de gracia,
+       hay que volver a entrar con clave al menos una vez.
+
+       Esto corre antes del primer pixel a propósito: un candado que se pone
+       tarde deja ver lo que tenía que tapar. */
+    if(window.SICOM_SESION_VALIDA(localStorage.getItem(window.SICOM_LLAVE_SESION)))
+      document.documentElement.setAttribute('data-sesion', 'si');
   }catch(e){}
   /* v56 · EL LOGO, YA.
 
@@ -1443,7 +1487,36 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
 function aviso(m,mal){const t=$('#toast');t.textContent=m;t.className='toast ver'+(mal?' mal':'');
   clearTimeout(t._h);t._h=setTimeout(()=>t.className='toast',2800);}
 function num(s){return parseFloat(String(s==null?'':s).replace(/\./g,'').replace(',','.'));}
-function pila(s){const v=parseFloat(String(s==null?'':s).replace(',','.'));return isFinite(v)?v:0;}
+/* v61 · AQUÍ SE PERDÍAN LOS MILES.
+
+   El sistema rellena los campos de dinero con `fN`, que escribe el punto de
+   miles —«1.250,00»—, y los volvía a leer con esto, que sólo cambiaba la coma
+   por el punto. `parseFloat('1.250.00')` da 1,25. Con un solo clic en
+   «Modificar» y «Guardar», un artículo de USD 1.250 quedaba en USD 1,25, y el
+   aviso decía «actualizado» sin nombrar la cifra: sólo se veía entrando a la
+   bitácora. Lo mismo con el fondo de caja y con el conteo del cierre.
+
+   La regla ahora es la de Venezuela, y no adivina:
+
+     · Si hay coma, la coma es el decimal y TODO punto es de miles.
+         «1.250,00» → 1250      «85.755,50» → 85755,5
+     · Si no hay coma, el punto sólo es de miles cuando el número tiene la
+       forma de estar agrupado de tres en tres.
+         «1.250» → 1250   «1.250.000» → 1250000
+     · En cualquier otro caso el punto es el decimal, para que quien escriba a
+       la americana tampoco salga perjudicado.
+         «1.25» → 1,25    «1250.5» → 1250,5 */
+function pila(s){
+  let t = String(s == null ? '' : s).trim();
+  if(!t) return 0;
+  if(t.indexOf(',') >= 0){
+    t = t.replace(/\./g, '').replace(',', '.');
+  }else if(/^-?\d{1,3}(\.\d{3})+$/.test(t)){
+    t = t.replace(/\./g, '');
+  }
+  const v = parseFloat(t);
+  return isFinite(v) ? v : 0;
+}
 function nid(p){return p+(++DB.corr.id);}
 function horaAhora(){ return horaLocal(); }
 function dias(iso){return Math.round((Date.parse(hoy)-Date.parse(iso))/86400000);}
@@ -1585,6 +1658,27 @@ function nombreVar(t, c){
 function exi(p){ return vars(p).reduce((a,x)=>a + Math.max(0, +x.e||0), 0); }
 function faltaFoto(p){ return !(p && p.foto); }
 
+/* v61 · UNA FOTO ES UNA IMAGEN, NO UN TROZO DE DOCUMENTO.
+
+   La dirección de la imagen se metía cruda entre comillas dobles. Un valor
+   preparado a mano —`x" onerror="…`— cerraba la comilla y ejecutaba código en
+   el origen de la aplicación, que es donde vive el token del servidor. No
+   entra por el cargador de fotos, que siempre produce una imagen del propio
+   navegador; entra por restaurar un respaldo recibido por correo, o por el
+   documento que baja del servidor.
+
+   Dos cerrojos, porque uno solo se olvida: aquí se comprueba que sea de
+   verdad una imagen incrustada, y en `normaliza` se descarta la que no lo
+   sea, para que nunca llegue a pintarse. */
+function fotoSegura(f){
+  f = String(f || '');
+  if(!/^data:image\/(png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+/=\s]+$/.test(f)) return '';
+  return f;
+}
+/* el ícono son cuatro caracteres, pero cuatro caracteres alcanzan para dejar
+   el catálogo entero en negrita */
+function icoSeguro(p){ return esc(String((p && p.ico) || '') || '📦'); }
+
 /* v59 · el artículo al que se refiere una línea de venta.
 
    Primero por identificador, que no cambia nunca. Sólo si la línea no lo
@@ -1602,10 +1696,10 @@ function artDeLinea(l){
 function fotoDeLinea(l){ const p = artDeLinea(l); return (p && p.foto) || ''; }
 /* la casilla de la foto, con el ícono del artículo como respaldo */
 function celdaFoto(l){
-  const p = artDeLinea(l), f = p && p.foto;
+  const p = artDeLinea(l), f = fotoSegura(p && p.foto);
   return '<td class="tdfoto">' + (f
-    ? '<img class="minifoto" src="'+f+'" alt="'+esc(l.nom||'')+'">'
-    : '<span class="sinfoto">'+((p && p.ico) || '📦')+'</span>') + '</td>';
+    ? '<img class="minifoto" src="'+esc(f)+'" alt="'+esc(l.nom||'')+'">'
+    : '<span class="sinfoto">'+icoSeguro(p)+'</span>') + '</td>';
 }
 function saldoAcc(){return Math.round(DB.accionista.reduce((a,m)=>a+m.usd,0)*100)/100;}
 function pendAbiertos(){return DB.vpend.filter(v=>v.saldo>0.005&&!v.anulado);}
@@ -2425,7 +2519,7 @@ function pasoArts(){
     /* v58 · manda la foto; si no la hay, el ícono. La cajera reconoce la
        pieza sin leer el código. */
     h+='<div class="prod"><div class="foto'+(p.foto?' confoto':'')+'">'
-      +(p.foto?'<img src="'+p.foto+'" alt="'+esc(p.nom)+'">':(p.ico||'📦'))+'</div>'
+      +(fotoSegura(p.foto)?'<img src="'+esc(fotoSegura(p.foto))+'" alt="'+esc(p.nom)+'">':icoSeguro(p))+'</div>'
       +'<div class="pi"><b>'+esc(p.nom)+'</b><div class="mini">'+esc(p.sku)+' · '+esc(p.cat)+' · existencia '+ex+(ex<=0?' · <b style="color:var(--mal)">agotado</b>':'')+'</div></div>'
       +'<div class="pp"><b>USD '+fN(p.precio)+'</b>'+(t?'<div class="mini">Bs '+fN(p.precio*t.bcv)+'</div>':'')+'</div>';
 
@@ -2679,10 +2773,17 @@ function registrar(){
     return aviso('Faltan USD ' + fN(faltaUSD()) + ' por cobrar.', true);
   if(vueltoResta() < -0.005)
     return aviso('Está entregando USD ' + fN(-vueltoResta()) + ' más de vuelto del que corresponde.', true);
+  /* v61 · si el día ya se cerró, la venta se registra igual —la tienda no
+     cierra porque la caja se haya arqueado— pero NO puede pasar en silencio.
+     Antes pasaba: el esperado subía, el cierre firmado se quedaba con la
+     cifra vieja, no se podía volver a cerrar, y esa plata no la contaba
+     ningún arqueo, ni el de ese día ni el del siguiente. */
+  const _cerrado = DB.cierres.find(c=>c.fecha === hoy) || null;
   const _cliAntes = VTA.cli;
   const _ok = conTx('registrar la venta', function(){ return registraVenta(); });
   if(!_ok){ VTA.cli = _cliAntes; return; }
-  aviso('Venta ' + VTA.hecha.num + ' registrada · recibo enviado a ' + (VTA.hecha.mail || ''));
+  aviso('Venta ' + VTA.hecha.num + ' registrada · recibo enviado a ' + (VTA.hecha.mail || '')
+    + (_cerrado ? ' · OJO: el cierre de hoy ya estaba firmado y quedó marcado como afectado' : ''));
   VTA.paso='correo'; pinta();
 }
 
@@ -2736,6 +2837,19 @@ function registraVenta(){
     cobros:VTA.cobros.map(x=>Object.assign({},x,{op:'cob_'+x.met})),
     vueltos:VTA.vueltos.map(x=>Object.assign({},x,{op:'vue_'+x.met})),
     pend:resta>0.005?resta:0});
+  /* v61 · el cierre de un día al que se le agrega una venta DESPUÉS de
+     firmado deja de cuadrar, y hay que decirlo donde se mira: en el propio
+     cierre. Es el mismo mecanismo que ya usaban la anulación y la devolución.
+
+     Antes no se decía en ninguna parte: el esperado subía, el cierre firmado
+     se quedaba con la cifra vieja, no se podía volver a cerrar, y esa plata
+     no la contaba ningún arqueo, ni el de ese día ni el del siguiente. */
+  const _cie = DB.cierres.find(c=>c.fecha === hoy);
+  if(_cie){
+    if(!_cie.afectado) _cie.afectado = [];
+    _cie.afectado.push({venta:num, usd:totalVenta(),
+                        motivo:'venta posterior al cierre', cuando:hoy});
+  }
   VTA.hecha={num,fecha:hoy,tasa:t?t.bcv:null,pend:resta>0.005?resta:0,cajera:DB.turno,
              repId:VTA.repId,pagoRep:pagoRep()};
   /* el recibo sale con la misma acción: no hace falta un segundo clic */
@@ -2848,13 +2962,29 @@ function pasoCorreo(){
 /* -------------------------------------------------------- TESORERÍA ------ */
 function ventasDe(f){return DB.ventas.filter(v=>v.fecha===f);}
 function movMet(f,k,mon){
-  let e=0,sal=0;
+  let e=0,sal=0,acc=0;
   ventasVal(f).forEach(v=>{
-    v.cobros.forEach(c=>{if(c.met===k)e+=c.monto;});
+    /* v61 · un cobro con fuente «accionista» entró a la cuenta personal del
+       socio, no a la de la empresa. Se sigue contando —la venta se cobró—
+       pero aparte, para que quien concilie contra el estado de cuenta de la
+       empresa no tenga que ir venta por venta averiguando cuáles fueron por
+       el socio. */
+    v.cobros.forEach(c=>{ if(c.met===k){ e+=c.monto; if(c.fuente==='accionista') acc+=c.monto; } });
     v.vueltos.forEach(x=>{if(x.met===k)sal+=x.monto;});
   });
   DB.vpend.forEach(v=>v.entregas.forEach(x=>{if(x.met===k&&x.fecha===f)sal+=x.monto;}));
-  return {ent:Math.round(e*100)/100, sal:Math.round(sal*100)/100, neto:Math.round((e-sal)*100)/100};
+  /* v61 · UN REINTEGRO AL ACCIONISTA SACA DINERO DE LA CAJA.
+
+     El método por omisión es efectivo en dólares: esa plata sale físicamente
+     de la gaveta. Antes sólo quedaba escrita en el estado de cuenta del
+     accionista, que el arqueo no mira, así que el cierre reclamaba un
+     faltante que no existía. */
+  (DB.accionista || []).forEach(function(m){
+    if(m && m.fecha === f && m.op === 'acc_rei' && (m.met || 'efec_usd') === k)
+      sal += Math.abs(+m.usd || 0);
+  });
+  return {ent:Math.round(e*100)/100, sal:Math.round(sal*100)/100,
+          acc:Math.round(acc*100)/100, neto:Math.round((e-sal)*100)/100};
 }
 function esperadoCaja(f){
   const r={};
@@ -3206,16 +3336,45 @@ function costoLinea(l){
 }
 function tieneCosto(l){ return costoLinea(l) > 0; }
 
+/* v61 · la alícuota CONGELADA de una venta, no la de hoy. Una venta de julio
+   se mira con la regla de julio. */
+function alicDe(v){
+  const a = (v && v.fis && v.fis.alic !== undefined) ? (+v.fis.alic || 0) : (+fisc().alic || 0);
+  return a / 100;
+}
+/* Y lo que de un precio es de la tienda, quitando el impuesto.
+
+   La condición de exento se pregunta a LA LÍNEA, no a la venta: una misma
+   factura puede llevar artículos gravados y no gravados, y la línea guarda su
+   condición desde la v56 justamente para esto. */
+function sinIVA(v, l, monto){
+  if(l && l.exento === true) return r2(monto);
+  const a = alicDe(v);
+  return a ? r2(monto / (1 + a)) : r2(monto);
+}
+
 /* el bloque de cifras de un rango */
 function cifrasDe(d, h){
   const vs = ventasRango(d, h);
   let venta = 0, costo = 0, uds = 0, conCosto = 0;
   vs.forEach(v=>{
     venta += netoVenta(v);
-    v.lineas.forEach(l=>{
-      uds += l.cant;
+    v.lineas.forEach((l,i)=>{
+      /* v61 · DOS ERRORES EN LA MISMA LÍNEA.
+
+         El precio del catálogo YA lleva el IVA adentro, y el costo no. El
+         margen se inflaba con el débito fiscal completo, que es plata del
+         SENIAT y no ganancia de la tienda.
+
+         Y las devoluciones no se restaban: se recorrían las líneas enteras.
+         Una venta de USD 100 devuelta completa dejaba el vendido neto en cero
+         y el margen en USD 60 — la ganancia de una venta que ya no existe. */
+      const dev = devueltasDe(v, i);
+      const q = Math.max(0, l.cant - dev);
+      uds += q;
+      if(q <= 0) return;
       const c = costoLinea(l);
-      if(c > 0){ costo += c * l.cant; conCosto += l.precio * l.cant; }
+      if(c > 0){ costo += c * q; conCosto += sinIVA(v, l, l.precio) * q; }
     });
   });
   const fug = DB.ventas.filter(x=>anulada(x) && x.anulada.fecha >= d && x.anulada.fecha <= h)
@@ -3253,9 +3412,18 @@ function bandaKPI(R){
     ? '<span class="dlt '+(pct>=pctB?'ok':'mal')+'">'+(pct>=pctB?'▲':'▼')+' '
       + fN(Math.abs(pct-pctB),1)+' pts</span>' : '';
 
+  /* v61 · el equivalente en bolívares se armaba multiplicando el total del
+     período por la tasa del último día. Un mes de USD 10.000 salía por Bs
+     8,58 millones cuando lo realmente cobrado andaba por 8,2: cada venta
+     guarda SU tasa, y ahora se usa. */
+  const bsReal = A.ventas.reduce(function(a, v){
+    const tv = (+v.tasa || 0) || ((tasaEn(v.fecha) || {}).bcv || 0);
+    return a + netoVenta(v) * tv;
+  }, 0);
+
   return '<div class="hero">'
     + kpiCard('Vendido neto', fN(A.venta), 'USD', delta(A.venta, B.venta, true),
-        (t ? 'Bs '+fN(A.venta*t.bcv, 0)+' · ' : '')
+        (bsReal > 0 ? 'Bs '+fN(bsReal, 0)+' a la tasa de cada venta · ' : '')
         + (B.venta > 0.005 ? 'vs '+fN(B.venta)+' '+esc(R.prev.n) : 'sin comparable'), true)
     + kpiCard('Margen bruto', pct === null ? '—' : fN(A.margen), pct === null ? '' : 'USD', dPts,
         pct === null ? 'ningún artículo tiene costo cargado'
@@ -3470,25 +3638,30 @@ function bloqueOrigen(R){
 function bloqueArticulos(R){
   const vs = ventasRango(R.d, R.h);
   const m = {};
-  vs.forEach(v=>v.lineas.forEach(l=>{
+  vs.forEach(v=>v.lineas.forEach((l,i)=>{
     const k = l.sku || l.nom;
     /* v60 · se guarda una línea de muestra para poder llegar al artículo y a
        su foto. Se queda con la primera: todas apuntan al mismo artículo. */
     if(!m[k]) m[k] = {nom:l.nom, cat:l.cat || '—', uds:0, venta:0, costo:0, sinCosto:false, ref:l};
+    /* v61 · sin lo devuelto, y la venta sin el IVA para que el margen sea el
+       de la tienda y no el del SENIAT */
+    const q = Math.max(0, l.cant - devueltasDe(v, i));
+    if(q <= 0) return;
     const c = costoLinea(l);
-    m[k].uds += l.cant; m[k].venta += l.precio * l.cant;
-    if(c > 0) m[k].costo += c * l.cant; else m[k].sinCosto = true;
+    m[k].uds += q; m[k].venta += sinIVA(v, l, l.precio) * q;
+    if(c > 0) m[k].costo += c * q; else m[k].sinCosto = true;
   }));
   const ls = Object.keys(m).map(k=>m[k]).sort((a,b)=>b.venta - a.venta);
   if(!ls.length) return '';
   return '<div class="card"><h2>Qué se vendió</h2>'
     + '<div class="tabwrap"><table class="dat cmp"><thead><tr>'
     + '<th class="rank">#</th><th></th><th>Artículo</th><th>Categoría</th>'
-    + '<th class="n">Und</th><th class="n">Venta USD</th><th class="n">Costo USD</th>'
+       + '<th class="n">Und</th><th class="n">Venta sin IVA</th><th class="n">Costo USD</th>'
     + '<th class="n">Margen USD</th><th class="n">Margen</th></tr></thead><tbody>'
     + ls.map((x,i)=>{
+        /* v61 · el mismo criterio que arriba: sin IVA y sin lo devuelto */
         const mg = r2(x.venta - x.costo);
-        const p = x.sinCosto || x.costo <= 0 ? null : (mg / x.venta) * 100;
+        const p = x.sinCosto || x.costo <= 0 || x.venta <= 0 ? null : (mg / x.venta) * 100;
         const cl = p === null ? '' : (p >= 40 ? '' : p >= 15 ? ' medio' : ' bajo');
         return '<tr><td class="rank">'+(i+1)+'</td>'
           + celdaFoto(x.ref)
@@ -5337,7 +5510,9 @@ document.addEventListener('click',e=>{
     DB.cfg.vendedores.push({id:nid('v'),nom,ape,ci,com,banco,op,tel,activo:true,cta:_cv});
     if(_cv) bitacora('contab','Cuenta de vendedora abierta', _cv + ' · ' + nom + ' ' + ape);
     aviso('Vendedor agregado con sus datos de pago.');pinta();return;}
-  if(b.dataset.vtog){const v=DB.cfg.vendedores.find(x=>x.id===b.dataset.vtog);v.activo=!v.activo;pinta();return;}
+  if(b.dataset.vtog){const v=DB.cfg.vendedores.find(x=>x.id===b.dataset.vtog);v.activo=!v.activo;
+    bitacora('cfg', v.activo?'Vendedora reactivada':'Vendedora desactivada', v.nom+' '+(v.ape||''));
+    pinta();return;}
   if(b.id==='nr_g'){
     const nom=$('#nr_nom').value.trim(),ape=$('#nr_ape').value.trim();
     {const vn=valNom(nom,'nombre'); if(!vn.ok) return aviso(vn.msg,true);
@@ -5355,14 +5530,18 @@ document.addEventListener('click',e=>{
     DB.cfg.repartidores.push({id:nid('r'),nom,ape,ci,pct,banco,op,tel,activo:true,cta:_cr});
     if(_cr) bitacora('contab','Cuenta de repartidor abierta', _cr + ' · ' + nom + ' ' + ape);
     aviso('Repartidor agregado con sus datos de pago.');pinta();return;}
-  if(b.dataset.rtog){const r=DB.cfg.repartidores.find(x=>x.id===b.dataset.rtog);r.activo=!r.activo;pinta();return;}
+  if(b.dataset.rtog){const r=DB.cfg.repartidores.find(x=>x.id===b.dataset.rtog);r.activo=!r.activo;
+    bitacora('cfg', r.activo?'Repartidor reactivado':'Repartidor desactivado', r.nom+' '+(r.ape||''));
+    pinta();return;}
   if(b.id==='nz_g'){const nom=$('#nz_nom').value.trim(),usd=pila($('#nz_usd').value),t=$('#nz_t').value.trim();
     if(nom.length<3)return aviso('Escriba el nombre de la zona.',true);
     if(usd<=0)return aviso('La tarifa debe ser mayor que cero.',true);
     DB.cfg.zonas.push({id:nid('z'),nom,usd,t:t||'Por confirmar',activo:true});
     bitacora('cfg','Zona de delivery agregada', nom+' · USD '+fN(usd));
     aviso('Zona agregada.');pinta();return;}
-  if(b.dataset.ztog){const z=DB.cfg.zonas.find(x=>x.id===b.dataset.ztog);z.activo=!z.activo;pinta();return;}
+  if(b.dataset.ztog){const z=DB.cfg.zonas.find(x=>x.id===b.dataset.ztog);z.activo=!z.activo;
+    bitacora('cfg', z.activo?'Zona de delivery reactivada':'Zona de delivery desactivada', z.nom);
+    pinta();return;}
   if(b.id==='nc_g'){const n=$('#nc_nom').value.trim();
     if(n.length<3)return aviso('Escriba el nombre del canal.',true);
     if(DB.cfg.canales.some(c=>c.toLowerCase()===n.toLowerCase()))return aviso('Ese canal ya existe.',true);
@@ -5390,11 +5569,17 @@ document.addEventListener('click',e=>{
     if(ape.length<2)return aviso('Escriba el apellido de la cajera.',true);
     if(!/^\d{6,9}$/.test(ci))return aviso('La cédula debe tener entre 6 y 9 dígitos.',true);
     if(DB.cfg.cajeras.some(k=>k.ci===ci))return aviso('Ya hay una cajera con esa cédula.',true);
-    DB.cfg.cajeras.push({id:nid('k'),nom,ape,ci,activo:true});aviso('Cajera agregada.');pinta();return;}
+    DB.cfg.cajeras.push({id:nid('k'),nom,ape,ci,activo:true});
+    bitacora('cfg','Cajera agregada', nom+' '+ape+' · C.I. '+ci);
+    aviso('Cajera agregada.');pinta();return;}
   if(b.dataset.ktog){const k=DB.cfg.cajeras.find(x=>x.id===b.dataset.ktog);
     if(DB.turno===k.id)return aviso('No puede desactivar a la cajera en turno.',true);
-    k.activo=!k.activo;pinta();return;}
-  if(b.dataset.kturno){DB.turno=b.dataset.kturno;aviso('Turno de '+cajeraNom(DB.turno));pinta();return;}
+    k.activo=!k.activo;
+    bitacora('cfg', k.activo?'Cajera reactivada':'Cajera desactivada', k.nom+' '+(k.ape||''));
+    pinta();return;}
+  if(b.dataset.kturno){const _antes=DB.turno; DB.turno=b.dataset.kturno;
+    bitacora('caja','Cajera en turno', cajeraNom(_antes)+' → '+cajeraNom(DB.turno));
+    aviso('Turno de '+cajeraNom(DB.turno));pinta();return;}
 });
 
 document.addEventListener('input',e=>{
@@ -5883,7 +6068,12 @@ function normaliza(b){
     /* v58 · la existencia pasa a vivir en `var`, una sola vez y sin perder
        una unidad: cada talla se vuelve una variante sin color, y el `exi`
        suelto una variante sin talla ni color. */
-    migraVar(p); });
+    migraVar(p);
+    /* v61 · lo que no sea una imagen incrustada de verdad no llega ni a
+       pintarse. Es el segundo cerrojo: da igual si el documento viene de un
+       respaldo ajeno o del servidor. */
+    if(p.foto !== undefined){ const f = fotoSegura(p.foto); if(f) p.foto = f; else delete p.foto; }
+  });
   /* el logo y la paleta del diseño 1 entran una sola vez: si la empresa ya
      subió otro logo o eligió otros colores, no se le pisan */
   if(eraMarca !== 2){
@@ -6661,7 +6851,7 @@ function cfgProd(){
     + '<label class="f">Foto del artículo</label>'
     + '<div class="fotoed">'
     + '<div class="fotoprev'+(PFOTO?' llena':'')+'">'
-    + (PFOTO ? '<img src="'+PFOTO+'" alt="">'
+    + (PFOTO ? '<img src="'+esc(fotoSegura(PFOTO))+'" alt="">'
              : '<span>Sin foto<b>se puede cargar después</b></span>')
     + '</div>'
     + '<div class="fotoacc">'
@@ -6773,9 +6963,9 @@ function cfgProd(){
     DB.productos.forEach(p=>{
       const ex = exi(p), mg = margen(p);
       const vsp = vars(p).filter(v=>!esVarVacia(v));
-      h += '<tr><td class="tdfoto">' + (p.foto
-             ? '<img class="minifoto" src="'+p.foto+'" alt="'+esc(p.nom)+'">'
-             : '<span class="sinfoto">'+(p.ico||'📦')+'</span>') + '</td>'
+      h += '<tr><td class="tdfoto">' + (fotoSegura(p.foto)
+             ? '<img class="minifoto" src="'+esc(fotoSegura(p.foto))+'" alt="'+esc(p.nom)+'">'
+             : '<span class="sinfoto">'+icoSeguro(p)+'</span>') + '</td>'
         + '<td><b>'+esc(p.nom)+'</b>'
         + (faltaFoto(p) ? ' <span class="chip avi">falta foto</span>' : '')
         + '<div class="mini">'+esc(p.sku)
@@ -6921,6 +7111,51 @@ function gerEnlaces(){
   return h;
 }
 
+/* v61 · CUÁNTO PESA LO GUARDADO.
+
+   El documento entero vive en el navegador, y ahí el cupo es de unos 5 MB.
+   Cada foto de artículo pesa unos 15 KB: son unos 340 artículos con foto y se
+   llenó, sin una sola venta. Cuando eso pasa, la transacción revierte y sale
+   el cartel —no se corrompe nada— pero la caja deja de vender de golpe y
+   nadie tenía forma de verlo venir. Ahora se ve. */
+function pesoDoc(){
+  let bytes = 0;
+  try{ bytes = (localStorage.getItem(CLAVE) || '').length; }catch(e){}
+  const tope = 5 * 1024 * 1024;
+  const fotos = (DB.productos || []).filter(p=>p && p.foto).length;
+  const compr = (DB.ventas || []).filter(v=>v && (v.print || v.vprint)).length;
+  return { bytes: bytes, tope: tope, pct: Math.min(100, bytes / tope * 100),
+           fotos: fotos, compr: compr };
+}
+function fPeso(b){
+  if(b >= 1048576) return fN(b / 1048576, 1) + ' MB';
+  if(b >= 1024)    return fN(b / 1024, 0) + ' KB';
+  return b + ' bytes';
+}
+function bloqueEspacio(){
+  const e = pesoDoc();
+  if(!e.bytes) return '';
+  const cl = e.pct >= 90 ? 'mal' : e.pct >= 75 ? 'avi' : 'ok';
+  return '<div class="card"><h2>Cuánto espacio queda</h2>'
+    + '<p class="cap">Todo lo que el sistema guarda vive dentro del navegador de esta '
+    + 'computadora. Cuando se llena, la caja deja de poder registrar hasta que se libere '
+    + 'espacio: conviene verlo venir.</p>'
+    + '<div class="espmed"><div class="espbar"><i class="'+cl+'" style="width:'
+    + Math.max(1.5, e.pct).toFixed(1)+'%"></i></div>'
+    + '<div class="espcif"><b>'+fPeso(e.bytes)+'</b> de '+fPeso(e.tope)
+    + ' <span class="mini">· '+fN(e.pct,0)+' %</span></div></div>'
+    + '<div class="mini" style="margin-top:10px">'
+    + e.fotos+' '+(e.fotos===1?'artículo con foto':'artículos con foto')
+    + ' · '+e.compr+' '+(e.compr===1?'venta con comprobante adjunto':'ventas con comprobante adjunto')
+    + '. Una foto ocupa unos 15 KB; un comprobante de pago, unos 60 KB.</div>'
+    + (e.pct >= 75
+        ? '<div class="nota rj" style="margin-top:14px"><b>Conviene liberar espacio.</b> '
+          + 'Lo que más pesa son los comprobantes adjuntos a las ventas viejas. '
+          + 'Descargue un respaldo antes de tocar nada.</div>'
+        : '')
+    + '</div>';
+}
+
 function gerEstado(){
   const ps = pasos(), fal = ps.filter(p=>!p.ok);
   let h = '<div class="card"><h2>'+(fal.length?'Faltan '+fal.length+' cosas por configurar':'El sistema está listo para vender')+'</h2>'
@@ -6935,6 +7170,7 @@ function gerEstado(){
       + '</div>';
   });
   h += '</div></div>';
+  h += bloqueEspacio();
 
   /* --- v47 · con qué pantalla abre el sistema ------------------------- */
   const ab = (DB.cfg.abreEn === 'home') ? 'home' : 'vta';
@@ -7070,6 +7306,11 @@ function restauraRespaldo(file){
       if(String(conf || '').trim().toUpperCase() !== rifPaq){
         aviso('Restauración cancelada: el respaldo es de otra empresa.', true); return; }
     }
+    /* v61 · restaurar reemplaza la empresa entera: misma exigencia que
+       anular. Se pide DESPUÉS de comprobar que el archivo es un respaldo de
+       verdad: no tiene sentido pedirle la clave a alguien para después
+       decirle que se equivocó de archivo. */
+    if(!pideClaveAdmin('restaurar un respaldo')) return;
     if(!confirm('Va a reemplazar TODO lo que hay ahora ('+DB.ventas.length+' ventas) por el contenido del respaldo ('
       + d.ventas.length + ' ventas' + (cuando ? ', del '+isoLocal(cuando).split('-').reverse().join('/') : '')
       + ').\n\nEsto no se puede deshacer. ¿Continúa?')) return;
@@ -7104,6 +7345,10 @@ function restauraRespaldo(file){
   r.readAsText(file);
 }
 function vaciaMovimientos(){
+  /* v61 · si anular UNA venta exige la clave, borrar TODAS tiene que exigirla
+     también. Antes bastaban dos confirmaciones, y el documento vacío subía al
+     servidor y quedaba como el estado de la empresa. */
+  if(!pideClaveAdmin('vaciar todos los movimientos')) return;
   if(!confirm('Va a borrar '+DB.ventas.length+' ventas, '+DB.clientes.length+' clientes, los vueltos pendientes, '
     + 'el estado de cuenta del accionista, los correos y la bitácora.\n\nEsto no se puede deshacer. ¿Continúa?')) return;
   if(!confirm('Confírmelo una vez más: se borran todos los movimientos.')) return;
@@ -7166,6 +7411,56 @@ function pvarCompleta(){
     if(PVAR[k] === undefined) PVAR[k] = 0;
   }));
 }
+/* v61 · al encender o apagar «por tallas» o «por colores», lo que ya estaba
+   contado se muda a la casilla que le corresponde en la rejilla nueva, en vez
+   de quedarse huérfano. Al ENCENDER, todo se va a la primera casilla; al
+   APAGAR, se suma todo en la única que queda. Ni aparece ni desaparece una
+   unidad. */
+/* v61 · quitar algo que está vacío no cuesta nada; quitar algo que tiene
+   mercancía sí, y hay que decir cuánta. */
+function confirmaDescarte(que, cuantas){
+  if(!(cuantas > 0)) return true;
+  return confirm('Va a quitar ' + que + ', y con él ' + cuantas + ' '
+    + (cuantas === 1 ? 'unidad' : 'unidades') + ' de existencia.\n\n'
+    + 'Esto no se puede deshacer. ¿Continúa?');
+}
+function heredaAlCambiar(cual, valor){
+  /* el estado de ANTES hay que leerlo antes de tocar nada: si el interruptor
+     ya se hubiera movido, «antes» y «después» serían lo mismo y no habría qué
+     heredar. */
+  const tsA = ptallasF(), csA = pcolsF();
+  if(cual === 't'){
+    if(PTAL === valor) return;
+    PTAL = valor;
+    if(PTAL === 'si' && !PTALLAS.length) PTALLAS = ['S','M','L','XL'];
+  }else{
+    if(PCOL === valor) return;
+    PCOL = valor;
+  }
+  const tsD = ptallasF(), csD = pcolsF();
+  const nuevo = {};
+  tsD.forEach(t=>csD.forEach(c=>{ nuevo[claveVar(t, c)] = 0; }));
+  if(tsD.length === 1 && csD.length === 1){
+    /* se apagó algo: todo se junta en la única casilla que queda */
+    let suma = 0;
+    tsA.forEach(t=>csA.forEach(c=>{ suma += Math.max(0, +PVAR[claveVar(t, c)] || 0); }));
+    nuevo[claveVar(tsD[0], csD[0])] = suma;
+  }else{
+    /* se encendió algo: lo que había se va a la primera casilla, y de ahí la
+       persona lo reparte */
+    let suma = 0;
+    tsA.forEach(t=>csA.forEach(c=>{ suma += Math.max(0, +PVAR[claveVar(t, c)] || 0); }));
+    nuevo[claveVar(tsD[0], csD[0])] = suma;
+    /* y lo que ya estaba en una casilla que sobrevive, se respeta */
+    tsD.forEach(t=>csD.forEach(c=>{
+      const k = claveVar(t, c);
+      if(PVAR[k] !== undefined && (tsA.indexOf(t) >= 0 && csA.indexOf(c) >= 0))
+        nuevo[k] = Math.max(0, +PVAR[k] || 0);
+    }));
+  }
+  PVAR = nuevo;
+}
+
 /* Lee de la pantalla lo que la persona escribió en la rejilla. */
 function pvarLee(){
   try{
@@ -7370,9 +7665,15 @@ document.addEventListener('click', e=>{
 
   /* ---------------- artículos ---------------- */
   if(b.dataset.pexe){ pbufLee(); PEXE = b.dataset.pexe; pinta(); return; }
-  if(b.dataset.ptal){ pbufLee(); PTAL = b.dataset.ptal;
+  /* v61 · el interruptor HEREDA, igual que «Agregar talla».
+
+     Antes no: un artículo con 7 unidades sueltas, al tocar «Existencia por
+     talla», mostraba la rejilla en ceros y las 7 quedaban huérfanas. Y los
+     dos caminos hacían cosas contrarias estando a cuatro centímetros uno del
+     otro: escribir la talla a mano sí heredaba. */
+  if(b.dataset.ptal){ pbufLee(); heredaAlCambiar('t', b.dataset.ptal);
     pvarCompleta(); pinta(); return; }
-  if(b.dataset.pcol){ pbufLee(); PCOL = b.dataset.pcol;
+  if(b.dataset.pcol){ pbufLee(); heredaAlCambiar('c', b.dataset.pcol);
     pvarCompleta(); pinta(); return; }
 
   /* v58 · agregar un color. El PRIMER color hereda lo que ya estaba anotado
@@ -7407,6 +7708,13 @@ document.addEventListener('click', e=>{
   if(b.dataset.pcolx){
     pbufLee();
     const c = b.dataset.pcolx;
+    /* v61 · un clic en la «×» podía llevarse veinte unidades sin decir
+       cuántas eran y sin manera de deshacerlo. El sistema sí pregunta en
+       otros sitios equivalentes: no deja borrar una categoría con artículos,
+       y para restaurar un respaldo ajeno hay que escribir el RIF. */
+    if(!confirmaDescarte('el color «' + c + '»',
+        Object.keys(PVAR).reduce(function(a,k){
+          return k.split('\u00a7')[1] === c ? a + Math.max(0, +PVAR[k] || 0) : a; }, 0))) return;
     PCOLORES = PCOLORES.filter(x=>x !== c);
     Object.keys(PVAR).forEach(k=>{ if(k.split('\u00a7')[1] === c) delete PVAR[k]; });
     if(!PCOLORES.length) PCOL = 'no';
@@ -7415,6 +7723,9 @@ document.addEventListener('click', e=>{
   if(b.dataset.ptalx){
     pbufLee();
     const t = b.dataset.ptalx;
+    if(!confirmaDescarte('la talla «' + t + '»',
+        Object.keys(PVAR).reduce(function(a,k){
+          return k.split('\u00a7')[0] === t ? a + Math.max(0, +PVAR[k] || 0) : a; }, 0))) return;
     PTALLAS = PTALLAS.filter(x=>x !== t);
     Object.keys(PVAR).forEach(k=>{ if(k.split('\u00a7')[0] === t) delete PVAR[k]; });
     if(!PTALLAS.length) PTAL = 'no';
@@ -8190,6 +8501,20 @@ function estadoVenta(v){
 function selloClave(s){ return hash('sicom·' + String(s||'') + '·casakeylis'); }
 function hayClave(){ return !!(DB.cfg && DB.cfg.claveAdmin); }
 function claveOK(s){ return hayClave() && selloClave(s) === DB.cfg.claveAdmin; }
+/* v61 · el portero de lo que no tiene vuelta atrás. Si todavía no se ha
+   definido una clave de administrador no se traba nada —el sistema recién
+   instalado tiene que poder limpiarse— pero se dice en voz alta. */
+function pideClaveAdmin(que){
+  if(!hayClave()){
+    return confirm('Todavía no hay clave de administrador definida, así que '
+      + 'cualquiera con esta computadora puede ' + que + '.\n\n'
+      + 'Defínala en Configuración · Seguridad. ¿Continúa de todos modos?');
+  }
+  const c = prompt('Para ' + que + ' hace falta la clave de administrador:');
+  if(c === null) return false;
+  if(!claveOK(c)){ aviso('Clave incorrecta.', true); return false; }
+  return true;
+}
 
 /* ---------- devolver la existencia al inventario ---------- */
 function reponeLinea(l, entera){
@@ -8270,19 +8595,44 @@ function anulaVentaCuerpo(num, cod, det, clave){
     cie.afectado.push({venta:v.num, usd:v.total, motivo:'anulación', cuando:hoy});
   }
 
+  const _devolver = devolverAlAnular(v);
   v.anulada = {fecha:hoy, hora:horaAhora(), motivo:motivo,
                motivoC:cod, detalle:String(det||'').trim(),
                por:cajeraNom(DB.turno), cierre: cie ? cie.fecha : null,
                vueltoCancelado:Math.round(vueltoCancelado*100)/100,
                yaEntregado:Math.round(yaEntregado*100)/100,
-               devuelto:devolverAlAnular(v), op:'anul'};
+               devuelto:_devolver, op:'anul'};
+
+  /* v61 · EL DINERO QUE SALE AL ANULAR TIENE QUE DEJAR RASTRO.
+
+     Antes el sistema decía «entréguele USD 100 a la clienta» y no creaba
+     ningún movimiento. El arqueo, que sólo mira ventas válidas y entregas de
+     tesorería, veía desaparecer el cobro y no veía salir el efectivo: la
+     gaveta quedaba con un sobrante en bolívares y un faltante en dólares, y
+     la cajera tenía que escribir un motivo a mano para que cuadrara como
+     «diferencia de caja» —una cuenta de gasto— cuando fue un reverso de
+     venta.
+
+     La devolución ya lo hacía bien: creaba un pendiente en tesorería. La
+     anulación queda igual. */
+  if(_devolver > 0.005){
+    const _c = DB.clientes.find(x=>x.id === v.cliId) || {};
+    v.anulada.pendId = nid('an');
+    DB.vpend.push({id:v.anulada.pendId, tipo:'devolucion', venta:v.num, fecha:hoy,
+                   cliId:v.cliId, usd:_devolver, saldo:_devolver, entregas:[],
+                   cajera:DB.turno, op:'anul_pag',
+                   nota:'reverso de la venta anulada ' + v.num});
+  }
 
   bitacora('caja','Venta anulada', v.num + ' · USD ' + fN(v.total) + ' · ' + cod + ' · ' + motivo
     + (cie ? ' · afecta el cierre del ' + fFecha(cie.fecha) : '')
     + ' · se le devuelven USD ' + fN(v.anulada.devuelto)
     + (yaEntregado > 0.005 ? ' (ya se le había entregado USD ' + fN(yaEntregado) + ' de vuelto)' : ''));
 
-  aviso('Venta ' + v.num + ' anulada. Entréguele USD ' + fN(v.anulada.devuelto) + ' a la clienta.'
+  aviso('Venta ' + v.num + ' anulada.'
+    + (v.anulada.devuelto > 0.005
+        ? ' Quedan USD ' + fN(v.anulada.devuelto) + ' por entregarle a la clienta, en Tesorería.'
+        : '')
     + (cie ? ' El cierre del ' + fFecha(cie.fecha) + ' quedó marcado como afectado.' : ''));
   return true;
 }
@@ -8332,8 +8682,22 @@ function devuelveCuerpo(num, cod, det){
   const lineas = [];
   v.lineas.forEach((l,i)=>{
     const n = DEV[i] || 0; if(!n) return;
-    lineas.push({i:i, sku:l.sku, nom:l.nom, talla:l.talla, cant:n, precio:l.precio, costo:l.costo||0});
-    reponeLinea({sku:l.sku, talla:l.talla, cant:n, desc:(l.desc !== undefined ? l.desc : l.cant)});
+    /* v61 · SE LE PASABA LA TALLA Y SE LE COMÍA EL COLOR Y EL IDENTIFICADOR.
+
+       Sin color, `reponeLinea` no encontraba la variante y CREABA una nueva
+       sin color: la blusa negra devuelta aparecía como una tercera variante
+       «M sin color». El catálogo la contaba, la caja no la dejaba vender, y
+       si después alguien abría el artículo y le daba «Guardar» sin tocar
+       nada, esa unidad se borraba sola.
+
+       Y sin identificador, un artículo al que le hubieran corregido el código
+       después de vender no se encontraba: la mercancía devuelta no volvía al
+       inventario y nadie se enteraba. El comentario de `reponeLinea` explica
+       justamente eso… y esta llamada era la que no lo pasaba. */
+    lineas.push({i:i, id:l.id, sku:l.sku, nom:l.nom, talla:l.talla, color:l.color||'',
+                 cant:n, precio:l.precio, costo:l.costo||0});
+    reponeLinea({id:l.id, sku:l.sku, talla:l.talla, color:l.color||'', cant:n,
+                 desc:(l.desc !== undefined ? l.desc : l.cant)});
   });
 
   const c = DB.clientes.find(x=>x.id === v.cliId) || {};
@@ -8359,7 +8723,8 @@ function devuelveCuerpo(num, cod, det){
                    arts:lineas.reduce((a,l)=>a+l.cant,0), tipo:'devolucion', estado:'enviado'});
 
   bitacora('caja','Devolución registrada', v.num + ' · USD ' + fN(usd) + ' · '
-    + lineas.map(l=>l.cant + '× ' + l.nom + (l.talla ? ' ' + l.talla : '')).join(' · ')
+    + lineas.map(l=>l.cant + '× ' + l.nom
+        + (nombreVar(l.talla, l.color) ? ' ' + nombreVar(l.talla, l.color) : '')).join(' · ')
     + ' · ' + cod + ' · ' + motivo);
 
   aviso('Devolución registrada por USD ' + fN(usd) + ' · entréguesela al cliente.');
@@ -8507,9 +8872,9 @@ function repVentas(){
       /* v59 · las fotos de lo que se llevó, ahí mismo en la fila: se
          reconoce la venta sin abrirla. */
       + '<td class="mini"><div class="tirafotos">'
-      + v.lineas.slice(0, 5).map(l=>{ const f = fotoDeLinea(l);
-          return f ? '<img src="'+f+'" alt="'+esc(l.nom||'')+'" title="'+esc(l.nom||'')+'">'
-                   : '<span title="'+esc(l.nom||'')+'">'+((artDeLinea(l)||{}).ico || '📦')+'</span>'; }).join('')
+      + v.lineas.slice(0, 5).map(l=>{ const f = fotoSegura(fotoDeLinea(l));
+          return f ? '<img src="'+esc(f)+'" alt="'+esc(l.nom||'')+'" title="'+esc(l.nom||'')+'">'
+                   : '<span title="'+esc(l.nom||'')+'">'+icoSeguro(artDeLinea(l))+'</span>'; }).join('')
       + (v.lineas.length > 5 ? '<b>+'+(v.lineas.length-5)+'</b>' : '')
       + '</div>'+v.lineas.reduce((a,l)=>a+l.cant,0)+' und · '+esc(v.canal||'—')+'</td>'
       + '<td class="n"'+(anulada(v) ? ' style="text-decoration:line-through"' : '')+'>'+fN(v.total)+'</td>'
@@ -8585,7 +8950,8 @@ function fichaVenta(v, c, t){
     devDe(v).forEach(d=>{
       const p = DB.vpend.find(x=>x.id === d.pendId);
       h += '<tr><td><b>'+fFecha(d.fecha)+'</b><div class="mini">'+esc(d.motivo)+'</div>'
-        + '<div class="mini">'+d.lineas.map(l=>l.cant+'× '+esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join(' · ')+'</div></td>'
+        + '<div class="mini">'+d.lineas.map(l=>l.cant+'× '+esc(l.nom)
+            +(nombreVar(l.talla, l.color) ? ' '+esc(nombreVar(l.talla, l.color)) : '')).join(' · ')+'</div></td>'
         + '<td class="n"><b>USD '+fN(d.usd)+'</b><div class="mini">'
         + (p && p.saldo > 0.005 ? '<span class="chip avi">por entregar</span>' : '<span class="chip ok">entregada</span>')
         + '</div></td></tr>';
@@ -9920,7 +10286,16 @@ function flujoAnular(){
      + 'Es lo que la clienta puso sobre el mostrador y todavía está en la caja. '
      + 'La cuenta era de USD '+fN(cobrado)+'.'
      + (entregado > 0.005 ? ' Ya se le habían entregado USD '+fN(entregado)+', y eso está descontado.' : '')
-     + ' Anular reversa la operación completa: entregado esto, no queda deuda con nadie.</div>';
+     + ' Anular reversa la operación completa.</div>'
+     /* v61 · antes esta nota decía «entregado esto, no queda deuda con nadie»,
+        y el sistema no registraba nada: el dinero salía de la gaveta sin
+        dejar rastro y el arqueo lo reclamaba como faltante. Ahora la salida
+        queda anotada en Tesorería, y se confirma cuando de verdad se
+        entrega. */
+     + '<div class="nota" style="margin-top:10px">Al anular, esos USD '
+     + fN(aDevolver) + ' quedan anotados en <b>Tesorería · Devoluciones por pagar</b>. '
+     + 'Cuando se los entregue, márquelo ahí: es lo que hace que el arqueo de la caja '
+     + 'cuadre al cerrar.</div>';
 
   h += '<div class="lineas">'
      + '<div class="lin"><div class="li"><b>Vuelven al inventario</b><div class="mini">'
@@ -10355,9 +10730,11 @@ window.NUBE = (function(){
      esa distinción habría que elegir entre dejar el sistema abierto o
      cerrarle la caja a la tienda cada vez que se cae internet. */
   function haySesionGuardada(){
+    /* v61 · la misma comprobación que hace el encabezado, para que la puerta
+       y el candado de arriba no puedan discrepar nunca. */
     try{
-      const v = localStorage.getItem(window.SICOM_LLAVE_SESION || 'sicom-auth');
-      return !!(v && v.length > 40);
+      return !!window.SICOM_SESION_VALIDA(
+        localStorage.getItem(window.SICOM_LLAVE_SESION || 'sicom-auth'));
     }catch(e){ return false; }
   }
 
@@ -11252,6 +11629,18 @@ window.NUBE = (function(){
      venta no tiene arreglo. */
   const LISTAS_DOC = ['ventas','productos','clientes','categorias','tasas',
                       'vpend','cierres','correos','cuentas','modelos','accionista'];
+  /* v61 · Y ESTAS DOS, QUE SE ME QUEDARON FUERA EN LA v59.
+
+     La comprobación miraba las listas, el fondo de caja y los correlativos, y
+     daba por hecho que todo lo demás dejaba asiento en la bitácora. Casi
+     todo lo deja; seis acciones de personal no lo dejaban. Resultado: se caía
+     el internet, se desactivaba a la repartidora que renunció, la otra
+     computadora subía una venta, volvía el internet — y la repartidora
+     revivía, con el semáforo diciendo «al día» y sin un solo aviso.
+
+     Se arregla por los dos lados: aquí se comparan, y más abajo esas seis
+     acciones pasan a dejar asiento. */
+  const IGUALES_DOC = ['cfg', 'turno', 'fisc', 'empresa', 'mapaCtas'];
 
   function nadaQuePerder(docServ){
     try{
@@ -11279,6 +11668,13 @@ window.NUBE = (function(){
         for(let i = 0; i < aqui.length; i++){
           if(!bolsa[hash(canon(aqui[i]))]) return false;
         }
+      }
+
+      /* v61 · lo que tiene que ser IDÉNTICO. Si aquí se cambió la
+         configuración y allá no, esto es un cambio que se perdería. */
+      for(let j = 0; j < IGUALES_DOC.length; j++){
+        const k = IGUALES_DOC[j];
+        if(canon(DB[k]) !== canon(S[k])) return false;
       }
 
       /* 3 · el efectivo contado a mano */
