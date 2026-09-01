@@ -10,7 +10,10 @@
   --oro:#c8a24a; --oro-cl:#e0c37e; --oro-os:#9c7c2e;
   --crema:#f7f2e7; --crema-2:#efe6d3; --marron:#4a3826; --marron-2:#6b533a;
   --page:#faf7f0; --panel:#ffffff; --sup:#f5f0e4; --sup2:#ebe3d2;
-  --ink:#2c2118; --ink2:#6b5c4c; --muted:#776e5a;
+  --ink:#2c2118; --ink2:#6b5c4c;
+  /* v62 · el apagado se aclaraba de más sobre la crema: los encabezados de
+     todas las tablas quedaban en 4,44:1, por debajo del mínimo legible. */
+  --muted:#6b6250;
   --linea:#e2d8c4; --hair:#efe8db;
   --ok:#2f8f5b; --ok-bg:#e6f4ec; --ok-ink:#1f6b42;
   --mal:#c1442f; --mal-bg:#fbeae6; --mal-ink:#9e3524;
@@ -402,6 +405,23 @@ td.tdfoto{width:52px}
   border:1px solid var(--linea)}
 .sinfoto{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;
   background:var(--sup2);font-size:19px}
+
+/* ---- v62 · lo que encontró la auditoría de interfaz ----------------------
+
+   1 · Un correo o un nombre largo mandaba la página entera de lado: no había
+       un solo `overflow-wrap` en todo el archivo. En el teléfono, el recibo
+       se salía 451 píxeles.
+   2 · Las cifras grandes se cortaban dentro de su tarjeta: «100.000.589,99»
+       se leía «100.000.589» sin ninguna señal de que faltaba algo. En un
+       indicador de dinero eso es inaceptable.
+   3 · El texto apagado no llegaba al contraste mínimo sobre las superficies
+       crema —los encabezados de TODAS las tablas iban a 4,44:1—. */
+.mail, .hallado, .card, td, .lin, .toast, .vacio, .nota{overflow-wrap:anywhere}
+.hero .vrow .v{font-size:clamp(20px, 2.4vw, 34px); min-width:0}
+.hero .h{min-width:0}
+.hero{overflow:visible}
+table.dat td.codn, table.dat td:first-child b{white-space:nowrap}
+.kpis-mod .kpi.avi .kn{color:var(--avi-ink)}
 
 /* ---- v61 · el medidor de espacio ---- */
 .espmed{display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:6px}
@@ -1212,7 +1232,13 @@ window.SICOM_LLAVE_LOGO   = 'sicom.casakeylis.v2'
         }
       }catch(_){}
     }
-    if(lg && lg.length > 32){
+    /* v62 · esto arma una regla de CSS con el valor guardado. Si ese valor
+       trae una comilla, se sale de la `url()` y escribe estilo a su antojo.
+       Aquí sólo pasa una imagen incrustada de verdad, comprobada carácter por
+       carácter — es la misma regla que usa el resto del sistema, escrita
+       aparte porque este trozo corre antes que nada. */
+    if(lg && lg.length > 32
+       && /^data:image\/(png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+/=]+$/.test(lg)){
       document.documentElement.style.setProperty('--np-logo', 'url("' + lg + '")');
       document.documentElement.setAttribute('data-logo', 'si');
     }
@@ -1675,6 +1701,15 @@ function fotoSegura(f){
   if(!/^data:image\/(png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+/=\s]+$/.test(f)) return '';
   return f;
 }
+/* v62 · EL LOGO DE LA EMPRESA ES UNA IMAGEN IGUAL QUE LA FOTO.
+
+   En la v61 blindé la foto del artículo y se me quedó el logo, que se pinta
+   en la barra de TODAS las pantallas, en el recibo y en la puerta. Entraba
+   por el mismo sitio: un respaldo recibido por correo, o el documento que
+   baja del servidor. */
+function logoSeguro(){
+  try{ return fotoSegura(DB.empresa && DB.empresa.logo); }catch(e){ return ''; }
+}
 /* el ícono son cuatro caracteres, pero cuatro caracteres alcanzan para dejar
    el catálogo entero en negrita */
 function icoSeguro(p){ return esc(String((p && p.ico) || '') || '📦'); }
@@ -2069,8 +2104,8 @@ function vistaSetup(){
   let h = '<div class="home setup"><div class="homein">';
 
   h += '<div class="hmarca">'
-    + (DB.empresa.logo
-        ? '<div class="hlogo"><img src="'+DB.empresa.logo+'" alt=""></div>'
+    + (logoSeguro()
+        ? '<div class="hlogo"><img src="'+esc(logoSeguro())+'" alt=""></div>'
         : '<div class="hmono">'+esc((SU.marca.trim()[0] || SU.nom.trim()[0] || 'S').toUpperCase())+'</div>')
     + '<span class="hfil" aria-hidden="true"></span>'
     + '<h1>Poner en marcha <b>SICOM</b></h1>'
@@ -2137,8 +2172,8 @@ function vistaSetup(){
 
   h += '<div class="card sucard"><h2>El logo</h2>'
     + '<p class="cap">De él salen los colores de todo el sistema. Se puede cargar ahora o más tarde.</p>';
-  if(DB.empresa.logo){
-    h += '<div class="logobox"><img src="'+DB.empresa.logo+'" alt=""></div>'
+  if(logoSeguro()){
+    h += '<div class="logobox"><img src="'+esc(logoSeguro())+'" alt=""></div>'
        + '<div class="acc"><label class="b sm gh" style="cursor:pointer;margin:0">Cambiar'
        + '<input type="file" id="mk_arch" accept="image/*" hidden></label>'
        + '<button class="b sm gh" id="mk_quitar">Quitar</button></div>';
@@ -2594,7 +2629,12 @@ function pasoCobro(){
   let h='<div class="g2"><div class="card'+(ed?' editando':'')+'"><h2>'
     +(ed?'Modificando el cobro':(nc?'Agregar otro método':'¿Cómo paga?'))+'</h2>'
     +'<p class="cap">'+(ed?'El comprador cambió de opinión: elija la vía correcta, ajuste el monto y guarde. Mientras tanto ese cobro está fuera de la cuenta, por eso ve que falta USD '+fN(Math.max(0,falta))+'.'
-        :(nc?'Este es un <b>pago mixto</b>: lleva '+nc+' '+(nc===1?'método':'métodos')+' y todavía falta USD '+fN(Math.max(0,falta))+'. Agregue los que hagan falta.'
+        /* v62 · con la venta ya cuadrada seguía diciendo «todavía falta USD
+           0,00. Agregue los que hagan falta», al lado de un cartel verde que
+           decía CUADRADO. */
+        :(nc?'Este es un <b>pago mixto</b>: lleva '+nc+' '+(nc===1?'método':'métodos')
+            +(falta > 0.005 ? ' y todavía falta USD '+fN(falta)+'. Agregue los que hagan falta.'
+                            : ' y ya está cuadrado.')
         :'Si paga con una sola vía, agréguela y listo. Si paga con varias, agréguelas una por una — el sistema va restando.'))+'</p>'
     +'<div class="mets">'+METODOS.map(x=>{
         const ex = esDivisa(x.k) && pctIGTF() && falta > 0.005 ? igtfSiPaga(x.k) : 0;
@@ -2818,7 +2858,11 @@ function registraVenta(){
 
   DB.ventas.push({num,fecha:hoy,hora:horaAhora(),cliId:c.id,canal:VTA.canal,vendedorId:VTA.vendedorId==='sin'?null:VTA.vendedorId,
     repId:VTA.repId,entrega:VTA.entrega,deliv:montoDeliv(),cajera:DB.turno,total:totalVenta(),tasa:t?t.bcv:null,
-    fis:(function(){ const d=desgVenta(); return {alic:fisc().alic, base:d.base, iva:d.iva, exento:d.exento,
+    /* v62 · se congela la alícuota que SE COBRÓ, no la que está configurada.
+       Con el IVA apagado la venta no llevaba ni un centavo de impuesto pero
+       guardaba `alic:16`, y después el margen le descontaba un IVA que nunca
+       existió: una venta de 100 con costo 40 decía margen 46,21 en vez de 60. */
+    fis:(function(){ const d=desgVenta(); return {alic:(ivaActivo()?(+fisc().alic||0):0), base:d.base, iva:d.iva, exento:d.exento,
       igtfPct:fisc().igtfPct, igtf:igtfVenta(), cobrado:totalCobrar()}; })(),
     lineas:VTA.lineas.map(l=>{const p=DB.productos.find(x=>x.id===l.id)||{};
       /* desc = lo que de verdad salió del estante. Anular repone esto, no lo
@@ -2881,7 +2925,11 @@ function correoHTML(){
     +'Cada pieza que sale de aquí la escogemos pensando en '+tr.gente+', y que nos haya elegido hoy es exactamente '
     +'lo que nos mantiene haciendo esto con cariño.</p>';
   h+='<div class="bloque"><h4>Lo que se llevó</h4><table><tbody>';
-  VTA.lineas.forEach(l=>{h+='<tr><td>'+esc(l.nom)+(l.talla?' <b>· talla '+esc(l.talla)+'</b>':'')
+  /* v62 · el recibo decía «talla M» y se callaba el color: en una boutique
+     donde el mismo vestido viene en negro y en rojo, la clienta no veía cuál
+     compró. */
+  VTA.lineas.forEach(l=>{const _nv=nombreVar(l.talla, l.color);
+    h+='<tr><td>'+esc(l.nom)+(_nv?' <b>· '+esc(_nv)+'</b>':'')
     +'<div class="mini">'+l.cant+' × USD '+fN(l.precio)+'</div></td>'
     +'<td style="text-align:right;font-variant-numeric:tabular-nums"><b>USD '+fN(l.precio*l.cant)+'</b></td></tr>';});
   if(montoDeliv()>0) h+='<tr><td>Delivery · '+esc((DB.cfg.zonas.find(z=>z.id===VTA.zonaId)||{}).nom||'')+'</td>'
@@ -2963,7 +3011,19 @@ function pasoCorreo(){
 function ventasDe(f){return DB.ventas.filter(v=>v.fecha===f);}
 function movMet(f,k,mon){
   let e=0,sal=0,acc=0;
-  ventasVal(f).forEach(v=>{
+  /* v62 · AQUÍ SE DESCONTABA LA PLATA DOS VECES.
+
+     Se recorrían sólo las ventas VÁLIDAS. Al anular una venta del mismo día,
+     su cobro desaparecía de «entró» y, encima, la devolución que la v61
+     empezó a anotar en Tesorería se sumaba a «salió»: la misma plata restada
+     dos veces. Una venta de USD 100 anulada y pagada dejaba el esperado en
+     100 cuando en la gaveta había 200.
+
+     El arqueo cuenta DINERO, no ventas: ese billete entró cuando la clienta
+     lo puso sobre el mostrador, y sale cuando se le devuelve. Las dos cosas
+     ocurrieron, y las dos tienen que estar. Por eso se recorren todas las
+     ventas del día, anuladas incluidas. */
+  ventasDe(f).forEach(v=>{
     /* v61 · un cobro con fuente «accionista» entró a la cuenta personal del
        socio, no a la de la empresa. Se sigue contando —la venta se cobró—
        pero aparte, para que quien concilie contra el estado de cuenta de la
@@ -4396,10 +4456,12 @@ function parseMasivo(txt){
     if(m)iso=m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
     else if(/^\d{4}-\d{2}-\d{2}$/.test(f))iso=f;
     if(!iso){r.mal='Fecha no reconocida: «'+f+'»';filas.push(r);return;}
-    r.fecha=iso; const bcv=num(p[1]);
+    /* v62 · lo mismo en la carga masiva, que además entraba ya confirmada:
+       pisaba el histórico de días pasados sin marcar un solo error. */
+    r.fecha=iso; const bcv=pila(p[1]);
     if(!isFinite(bcv)||bcv<=0){r.mal='Tasa inválida: «'+p[1]+'»';filas.push(r);return;}
     if(bcv<1||bcv>100000){r.mal='Fuera de rango ('+fN(bcv,2)+')';filas.push(r);return;}
-    r.bcv=bcv; if(p[2]){const pa=num(p[2]);if(isFinite(pa)&&pa>0)r.par=pa;}
+    r.bcv=bcv; if(p[2]){const pa=pila(p[2]);if(isFinite(pa)&&pa>0)r.par=pa;}
     if(iso>hoy){r.mal='Fecha futura';filas.push(r);return;}
     if(vistos[iso]){r.mal='Repetida (línea '+vistos[iso]+')';filas.push(r);return;}
     vistos[iso]=i+1;
@@ -4447,13 +4509,21 @@ function vistaAcc(){
     +'<div class="acc" style="margin:0 0 16px"><button class="b gh" data-irtes="reint">Ir a Tesorería para reponerle →</button></div>'
     +'<table class="dat"><thead><tr><th>Fecha</th><th>Concepto</th><th>Ref.</th>'
     +'<th class="n">A favor</th><th class="n">En contra</th><th class="n">Saldo</th></tr></thead><tbody>';
-  const ord=DB.accionista.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)); let ac=s;
+  /* v62 · el saldo corriente se calculaba como si las filas fueran de la más
+     nueva a la más vieja, pero dentro de un mismo día quedaban al revés: con
+     un aporte y un reintegro el mismo día, la columna mostraba un saldo
+     negativo que la cuenta nunca tuvo. Ahora se numeran los movimientos en su
+     orden real, se acumula sobre ese orden, y sólo después se voltea. */
+  const cron = DB.accionista.map((m,i)=>({m:m, i:i}))
+    .sort((a,b)=> a.m.fecha === b.m.fecha ? a.i - b.i : a.m.fecha.localeCompare(b.m.fecha));
+  let corr = 0;
+  cron.forEach(x=>{ corr = Math.round((corr + (+x.m.usd || 0)) * 100) / 100; x.saldo = corr; });
+  const ord = cron.slice().reverse().map(x=>Object.assign({}, x.m, {_saldo:x.saldo}));
   ord.forEach(m=>{
     h+='<tr><td><b>'+fFecha(m.fecha)+'</b></td><td>'+esc(m.concepto)+'</td><td class="mini">'+(m.ref?esc(m.ref):'—')+'</td>'
       +'<td class="n">'+(m.usd>0?'<b style="color:var(--ok-ink)">'+fN(m.usd)+'</b>':'—')+'</td>'
       +'<td class="n">'+(m.usd<0?'<b style="color:var(--mal-ink)">'+fN(Math.abs(m.usd))+'</b>':'—')+'</td>'
-      +'<td class="n"><b>'+fN(ac)+'</b></td></tr>';
-    ac=Math.round((ac-m.usd)*100)/100;});
+      +'<td class="n"><b>'+fN(m._saldo)+'</b></td></tr>';});
   h+='</tbody></table></div>';
   return h;
 }
@@ -4481,6 +4551,13 @@ function vistaCorreos(){
       +'<td class="n">'+c.compras+'</td><td class="n"><b>'+fN(c.monto)+'</b></td>'
       +'<td class="mini">'+(c.ultima?fFecha(c.ultima):'—')+'</td>'
       +'</tr>';});
+  /* v62 · sin clientes se pintaba el encabezado de la tabla colgando de la
+     nada, sin una línea que dijera por qué está vacía. La tarjeta de al lado
+     sí tenía su vacío bien hecho. */
+  if(!DB.clientes.length)
+    h+='<tr><td colspan="7"><div class="vacio" style="margin:0"><div class="vi">👤</div>'
+      +'Todavía no hay clientes registrados. Se dan de alta solos: el primero aparece '
+      +'cuando se registre una venta.</div></td></tr>';
   h+='</tbody></table></div><div class="card"><h2>Correos enviados</h2>';
   if(!DB.correos.length) h+='<div class="vacio"><div class="vi">✉</div>Todavía no ha enviado ninguno.</div>';
   else{h+='<table class="dat"><thead><tr><th>Fecha</th><th>Cliente</th><th>Correo</th><th>Venta</th><th>Tipo</th><th>Estado</th></tr></thead><tbody>';
@@ -5169,7 +5246,10 @@ function barra(){
            ? ' · por esta vía son USD '+fN(exactoPara(VTA.met))+' con el IGTF' : '')
       : (vue>0?'Hay que devolver USD '+fN(vue):'Listo para registrar.');
     der=vue>0?'<button class="b oro" id="c_ir2">Continuar al vuelto →</button>'
-             :'<button class="b" id="c_reg2"'+(falta>0.005?' disabled':'')+'>Registrar y enviar el recibo</button>';
+             :/* v62 · los dos botones llamaban a la misma función y estaban a treinta
+   centímetros uno del otro: la cajera creía que uno mandaba el correo y el
+   otro no. El recibo sale siempre, con cualquiera de los dos. */
+'<button class="b" id="c_reg2"'+(falta>0.005?' disabled':'')+'>Registrar la venta</button>';
   }else{
     izq='<button class="b gh" data-paso="cobro">← Atrás</button>';
     inf=resta>0.005?'Quedará USD '+fN(resta)+' pendiente por entregar':(resta<-0.005?'Está entregando de más.':'Vuelto completo.');
@@ -5197,14 +5277,28 @@ document.addEventListener('click',e=>{
   if(b.dataset.csub){pbufOlvida();CSUB=b.dataset.csub;pinta();return;}
 
   /* tasas */
-  if(b.id==='t_g'){const f=$('#t_f').value,bv=num($('#t_b').value),pa=num($('#t_p').value);
+  /* v62 · AQUÍ SE MULTIPLICABA LA TASA POR CIEN.
+
+     La v61 enseñó a `pila` a distinguir el punto de miles del punto decimal,
+     y cambió todos los campos de dinero. Este se quedó con `num`, que borra
+     TODOS los puntos. Quien copiaba «857.55» del portal del BCV en inglés, o
+     lo pegaba de una hoja de cálculo en configuración inglesa, cargaba una
+     tasa de Bs 85.755 —el control de rango llega hasta 100.000, así que
+     pasaba— y a partir de ahí toda la caja del día quedaba cien veces mal. */
+  if(b.id==='t_g'){const f=$('#t_f').value,bv=pila($('#t_b').value),pa=pila($('#t_p').value);
     if(!f)return aviso('Indique la fecha.',true);
     if(!isFinite(bv)||bv<=0)return aviso('La tasa no es válida.',true);
     if(bv<1||bv>100000)return aviso('Esa tasa está fuera de rango razonable.',true);
     const ya=DB.tasas.find(x=>x.fecha===f);
     if(ya){ya.bcv=bv;ya.par=isFinite(pa)?pa:ya.par;ya.estado='por confirmar';}
     else DB.tasas.push({fecha:f,bcv:bv,par:isFinite(pa)?pa:null,estado:'por confirmar'});
-    aviso('Tasa cargada. Confírmela abajo.');pinta();return;}
+    /* v62 · el aviso decía «Tasa cargada» en tono normal aunque acabara de
+       dejar la caja trancada: corregir la tasa de hoy la manda a «por
+       confirmar» y la vigente pasa a ser la de otro día. Ahora se dice. */
+    aviso('Tasa de Bs '+fN(bv,2)+' cargada para el '+fFecha(f)
+      + (f===hoy ? ' · CONFÍRMELA abajo: hasta entonces la caja no puede cobrar en bolívares.'
+                 : ' · confírmela abajo.'), f===hoy);
+    pinta();return;}
   if(b.dataset.conf){const x=DB.tasas.find(t=>t.fecha===b.dataset.conf);
     if(x){x.estado='confirmada';bitacora('tasas','Tasa confirmada',fFecha(x.fecha)+' · Bs '+fN(x.bcv,2));aviso('Confirmada.');}
     pinta();return;}
@@ -5442,7 +5536,22 @@ document.addEventListener('click',e=>{
     if(m.banco&&!bcoP)return aviso(org(m).falta+'.',true);
     if(m.banco&&ref.length<3)return aviso('Falta '+org(m).ref.toLowerCase()+'.',true);
     if(usd>v.saldo+0.005)return aviso('Está entregando más de lo que se le debe (USD '+fN(v.saldo)+').',true);
-    if(m.k==='efec_usd'&&usd>DB.fondoUSD+0.005)return aviso('El fondo en efectivo no alcanza.',true);
+    /* v62 · ESTO DEJABA LA CAJA SIN PODER CERRAR.
+
+       Se comparaba contra el fondo, que es sólo el sencillo para dar vuelto.
+       Pero en la gaveta también está lo cobrado en efectivo durante el día.
+       Con un fondo de USD 100, anular una venta de USD 500 en efectivo era
+       un callejón sin salida: no dejaba entregarle los billetes que estaban
+       ahí mismo, y sin entregarlos no se podía cerrar el día.
+
+       Ahora se compara contra lo que de verdad hay: fondo más lo cobrado,
+       menos lo que ya salió. */
+    if(m.k==='efec_usd'){
+      const hay = (esperadoCaja(hoy).efec_usd || {}).esperado || 0;
+      if(usd > hay + 0.005)
+        return aviso('En la gaveta hay USD '+fN(hay)+' en efectivo, y está entregando USD '
+          + fN(usd)+'.', true);
+    }
     v.entregas.push({fecha:hoy,met:m.k,mon:m.mon,monto:monto,usd:usd,ref:ref,banco:bcoP,
       fuente:m.banco?(v._fu||'empresa'):'empresa',cajera:DB.turno});
     v.saldo=Math.round((v.saldo-usd)*100)/100;
@@ -5654,6 +5763,10 @@ document.addEventListener('change',e=>{
   if(id==='a_banco'){ REI.banco=e.target.value; return; }
   if(id==='cl_op'){VTA.nuevo.op=e.target.value;pinta();return;}
   if(id==='k_turno'){
+    /* v62 · el candado sólo se evaluaba estando en la pantalla de la caja, y
+       se rodeaba yéndose a Tesorería, cambiando la cajera allá y volviendo: la
+       venta quedaba firmada por quien no la hizo. El carrito está armado o no
+       lo está, mire uno la pantalla que mire. */
     const antes = DB.turno, nuevo = e.target.value;
     if(antes === nuevo) return;
     /* La venta se firma con quien la registra. Cambiar de cajera con el
@@ -6064,6 +6177,12 @@ function normaliza(b){
     }
   }
   b.temaV = 1;
+  /* v62 · el logo se sanea igual que la foto del artículo: entra por el mismo
+     sitio —un respaldo ajeno, o el documento del servidor— y se pinta en la
+     barra de TODAS las pantallas. */
+  try{ if(b.empresa && b.empresa.logo !== undefined){
+    const _lg = fotoSegura(b.empresa.logo); if(_lg) b.empresa.logo = _lg; else b.empresa.logo = '';
+  } }catch(e){}
   b.productos.forEach(p=>{ if(p.costo===undefined) p.costo = 0; if(p.activo===undefined) p.activo = true;
     /* v58 · la existencia pasa a vivir en `var`, una sola vez y sin perder
        una unidad: cada talla se vuelve una variante sin color, y el `exi`
@@ -6517,7 +6636,10 @@ function pasos(){
      t:'Datos de la empresa',
      d:'Razón social y RIF con el dígito verificador correcto. Salen impresos en cada recibo y en cada correo.',
      tab:'cfg', sub:'emp'},
-    {ok: !!t, t:'Tasa de cambio confirmada',
+    /* v62 · decía «listo» mirando la última tasa confirmada, aunque fuera de
+       la semana pasada, mientras la caja estaba trancada esperando la de hoy.
+       El tablero que existe para avisar era el que mentía. */
+    {ok: tasaDeHoyCargada(), t:'Tasa de cambio confirmada',
      d:'Sin una tasa confirmada no se puede cobrar en bolívares.', tab:'cfg', sub:'tasas'},
     {ok: DB.categorias.length > 0, t:'Categorías del catálogo',
      d:'Un artículo no se puede guardar sin categoría.', tab:'cfg', sub:'cat'},
@@ -7158,7 +7280,9 @@ function bloqueEspacio(){
 
 function gerEstado(){
   const ps = pasos(), fal = ps.filter(p=>!p.ok);
-  let h = '<div class="card"><h2>'+(fal.length?'Faltan '+fal.length+' cosas por configurar':'El sistema está listo para vender')+'</h2>'
+  let h = '<div class="card"><h2>'+(fal.length===1 ? 'Falta 1 cosa por configurar'
+       : fal.length ? 'Faltan '+fal.length+' cosas por configurar'
+       : 'El sistema está listo para vender')+'</h2>'
     + '<p class="cap">'+(fal.length
         ? 'Mientras falte algo de esta lista, la caja va a trabajar a medias.'
         : 'Todo lo que la caja necesita está cargado y confirmado.')+'</p>'
@@ -7420,14 +7544,27 @@ function pvarCompleta(){
    mercancía sí, y hay que decir cuánta. */
 function confirmaDescarte(que, cuantas){
   if(!(cuantas > 0)) return true;
-  return confirm('Va a quitar ' + que + ', y con él ' + cuantas + ' '
+  return confirm('Va a quitar ' + que + ', y con '
+    + (que.indexOf('talla') >= 0 ? 'ella ' : 'él ') + cuantas + ' '
     + (cuantas === 1 ? 'unidad' : 'unidades') + ' de existencia.\n\n'
     + 'Esto no se puede deshacer. ¿Continúa?');
 }
+/* v62 · ESTO CAMBIABA LA MERCANCÍA DE TALLA.
+
+   La versión anterior sólo sabía juntarlo todo en una casilla cuando quedaba
+   UNA sola; si sobrevivía un eje con varios valores, volcaba las 21 unidades
+   en la primera casilla. Apagar «por colores» en una blusa con S/Rojo 6,
+   M/Rojo 9, S/Negro 2 y M/Negro 4 dejaba S=21 y M=0: el total cuadraba —por
+   eso la prueba lo dio por bueno, sólo miraba la suma— pero el inventario
+   quedaba mintiendo, y la caja iba a dejar vender 21 tallas S que no existen.
+
+   Ahora cada casilla vieja se PROYECTA sobre la rejilla nueva: el eje que
+   sobrevive conserva su valor, y el que se apaga se suma. Al encender un eje
+   nuevo, lo que había cae en su primera casilla, que es de donde la persona
+   lo reparte. Ni aparece ni desaparece una unidad, y nada cambia de sitio sin
+   motivo. */
 function heredaAlCambiar(cual, valor){
-  /* el estado de ANTES hay que leerlo antes de tocar nada: si el interruptor
-     ya se hubiera movido, «antes» y «después» serían lo mismo y no habría qué
-     heredar. */
+  /* el estado de ANTES hay que leerlo antes de tocar nada */
   const tsA = ptallasF(), csA = pcolsF();
   if(cual === 't'){
     if(PTAL === valor) return;
@@ -7440,24 +7577,14 @@ function heredaAlCambiar(cual, valor){
   const tsD = ptallasF(), csD = pcolsF();
   const nuevo = {};
   tsD.forEach(t=>csD.forEach(c=>{ nuevo[claveVar(t, c)] = 0; }));
-  if(tsD.length === 1 && csD.length === 1){
-    /* se apagó algo: todo se junta en la única casilla que queda */
-    let suma = 0;
-    tsA.forEach(t=>csA.forEach(c=>{ suma += Math.max(0, +PVAR[claveVar(t, c)] || 0); }));
-    nuevo[claveVar(tsD[0], csD[0])] = suma;
-  }else{
-    /* se encendió algo: lo que había se va a la primera casilla, y de ahí la
-       persona lo reparte */
-    let suma = 0;
-    tsA.forEach(t=>csA.forEach(c=>{ suma += Math.max(0, +PVAR[claveVar(t, c)] || 0); }));
-    nuevo[claveVar(tsD[0], csD[0])] = suma;
-    /* y lo que ya estaba en una casilla que sobrevive, se respeta */
-    tsD.forEach(t=>csD.forEach(c=>{
-      const k = claveVar(t, c);
-      if(PVAR[k] !== undefined && (tsA.indexOf(t) >= 0 && csA.indexOf(c) >= 0))
-        nuevo[k] = Math.max(0, +PVAR[k] || 0);
-    }));
-  }
+  tsA.forEach(t=>csA.forEach(c=>{
+    const v = Math.max(0, +PVAR[claveVar(t, c)] || 0);
+    if(!v) return;
+    const t2 = tsD.indexOf(t) >= 0 ? t : tsD[0];
+    const c2 = csD.indexOf(c) >= 0 ? c : csD[0];
+    const k = claveVar(t2, c2);
+    nuevo[k] = (nuevo[k] || 0) + v;
+  }));
   PVAR = nuevo;
 }
 
@@ -7882,6 +8009,10 @@ const OPS = [
   {k:'vue',       g:'Egresos de caja', n:'Vuelto entregado al cliente',        d:'El cambio que se le devolvió en el momento.'},
   {k:'vue_pend',  g:'Pasivos',         n:'Vuelto pendiente por entregar',      d:'Deuda con el cliente mientras no se le entregue.'},
   {k:'dev_pag',   g:'Egresos de caja', n:'Devolución pagada al cliente',       d:'El dinero que se le regresó por la mercancía devuelta.'},
+  /* v62 · la v61 empezó a anotar en Tesorería el dinero que sale al anular, y
+     esa operación se quedó sin cuenta: era la única salida de caja del
+     sistema que no se podía mapear. */
+  {k:'anul_pag',  g:'Egresos de caja', n:'Reverso pagado al cliente',          d:'El dinero que se le regresó porque se le anuló la venta.'},
   {k:'acc_cob',   g:'Accionista',      n:'Cobro recibido por el accionista',   d:'Entró a su cuenta, no a la de la empresa.'},
   {k:'acc_vue',   g:'Accionista',      n:'Vuelto pagado por el accionista',    d:'Salió de su bolsillo. La empresa se lo debe.'},
   {k:'acc_rei',   g:'Accionista',      n:'Reintegro al accionista',            d:'Cuando se le repone lo que puso.'},
@@ -8057,7 +8188,7 @@ function MAPA_BASE(){ return {
   vta:'4.1.01', deliv:'4.1.02', dev:'4.2.01', anul:'4.2.02', costo:'5.1.01',
   cob_efec_usd:'1.1.01', cob_efec_bs:'1.1.02', cob_pm:'1.1.04', cob_pdv:'1.1.04',
   cob_usdt:'1.1.05', cob_zelle:'1.1.05',
-  vue:'1.1.01', vue_pend:'2.2.01', dev_pag:'2.2.02',
+  vue:'1.1.01', vue_pend:'2.2.01', dev_pag:'2.2.02', anul_pag:'2.2.02',
   acc_cob:'2.5.01', acc_vue:'2.5.01', acc_rei:'2.5.01',
   dif_caja:'6.2.01', com_vend:'6.1.01', pago_rep:'6.1.02'
 }; }
@@ -8580,6 +8711,16 @@ function anulaVentaCuerpo(num, cod, det, clave){
       usd:-m.usd, ref:m.ref, venta:v.num, op:'anul'});
   });
 
+  /* v62 · LO QUE HAY QUE DEVOLVERLE SE CALCULA AQUÍ, ANTES DE CANCELAR NADA.
+
+     `devolverAlAnular` descuenta el vuelto que ya se le entregó, mirando los
+     pendientes que NO están anulados. El bucle de abajo los anula. Si se
+     calculaba después, ese descuento no ocurría nunca y se le pagaba de más:
+     una venta de USD 100 cobrada con 120, con 10 de vuelto ya entregados,
+     anotaba 120 en vez de 110. La pantalla de confirmación —que sí calculaba
+     antes— decía 110, así que además las dos cifras no coincidían. */
+  const _devolver = devolverAlAnular(v);
+
   /* el vuelto que quedó pendiente se cancela */
   let vueltoCancelado = 0, yaEntregado = 0;
   DB.vpend.filter(p=>p.venta === v.num && !p.anulado).forEach(p=>{
@@ -8595,7 +8736,6 @@ function anulaVentaCuerpo(num, cod, det, clave){
     cie.afectado.push({venta:v.num, usd:v.total, motivo:'anulación', cuando:hoy});
   }
 
-  const _devolver = devolverAlAnular(v);
   v.anulada = {fecha:hoy, hora:horaAhora(), motivo:motivo,
                motivoC:cod, detalle:String(det||'').trim(),
                por:cajeraNom(DB.turno), cierre: cie ? cie.fecha : null,
@@ -8861,7 +9001,9 @@ function repVentas(){
 
   h += '<table class="dat" style="margin-top:16px"><thead><tr><th>Venta</th><th>Fecha</th><th>Cliente</th>'
      + '<th>Cédula</th><th>Artículos</th><th class="n">Total USD</th><th class="n">Neto</th><th>Estado</th><th></th></tr></thead><tbody>';
-  ls.slice(0, 300).forEach(v=>{
+  /* v62 · el pie decía «se muestran las 60 más recientes» y se pintaban 300:
+     con 243 ventas la página medía 24.000 píxeles y el aviso era falso. */
+  ls.slice(0, 60).forEach(v=>{
     const c = DB.clientes.find(x=>x.id === v.cliId) || {nom:'—', ape:'', doc:''};
     const e = estadoVenta(v), sel = VSEL === v.num;
     h += '<tr'+(anulada(v) ? ' style="opacity:.62"' : '')+'>'
@@ -9032,7 +9174,8 @@ function formAnulacion(v){
 
   h += '<div class="lineas">'
      + '<div class="lin"><div class="li"><b>Vuelven al inventario</b><div class="mini">'
-     + v.lineas.map(l=>l.cant+'× '+esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join(' · ')
+     + v.lineas.map(l=>l.cant+'× '+esc(l.nom)
+         +(nombreVar(l.talla, l.color) ? ' '+esc(nombreVar(l.talla, l.color)) : '')).join(' · ')
      + '</div></div><span class="lm">'+v.lineas.reduce((a,l)=>a+l.cant,0)+' und</span></div>'
      + '<div class="lin"><div class="li"><b>El cliente deja de acumular</b><div class="mini">'
      + 'una compra menos y USD '+fN(v.total)+' menos en su historial</div></div>'
@@ -9945,7 +10088,8 @@ function histDevoluciones(){
     h += '<tr><td><b>'+fFecha(x.d.fecha)+'</b><div class="mini">'+esc(x.d.hora||'')+'</div></td>'
       + '<td><b>'+esc(x.v.num)+'</b><div class="mini">del '+fFecha(x.v.fecha)+'</div></td>'
       + '<td>'+esc(nomComp(c))+'</td>'
-      + '<td class="mini">'+x.d.lineas.map(l=>l.cant+'× '+esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join('<br>')+'</td>'
+      + '<td class="mini">'+x.d.lineas.map(l=>l.cant+'× '+esc(l.nom)
+          +(nombreVar(l.talla, l.color) ? ' '+esc(nombreVar(l.talla, l.color)) : '')).join('<br>')+'</td>'
       + '<td class="mini"><b>'+esc(x.d.motivoC||'')+'</b> · '+esc((motUni(x.d.motivoC)||{}).n || x.d.motivo)
       + (x.d.detalle ? '<div class="mini">'+esc(x.d.detalle)+'</div>' : '')+'</td>'
       + '<td class="n"><b>'+fN(x.d.usd)+'</b>'+(t ? '<div class="mini">Bs '+fN(x.d.usd*t.bcv, 0)+'</div>' : '')+'</td>'
@@ -10205,7 +10349,8 @@ function flujoDevolver(){
      + '<div class="lineas">';
   v.lineas.forEach((l,i)=>{
     const ya = devueltasDe(v, i), max = l.cant - ya, n = RV.items[i] || 0;
-    h += '<div class="lin"><div class="li"><b>'+esc(l.nom)+(l.talla ? ' · '+esc(l.talla) : '')+'</b>'
+    h += '<div class="lin"><div class="li"><b>'+esc(l.nom)
+       +(nombreVar(l.talla, l.color) ? ' · '+esc(nombreVar(l.talla, l.color)) : '')+'</b>'
       + '<div class="mini">USD '+fN(l.precio)+' c/u · se llevó '+l.cant
       + (ya ? ' · ya devolvió '+ya : '')+(max <= 0 ? ' · <b>nada más por devolver</b>' : '')+'</div></div>'
       + '<button class="b sm gh" data-rvm="'+i+'"'+(n <= 0 ? ' disabled' : '')+'>−</button>'
@@ -10299,7 +10444,8 @@ function flujoAnular(){
 
   h += '<div class="lineas">'
      + '<div class="lin"><div class="li"><b>Vuelven al inventario</b><div class="mini">'
-     + v.lineas.map(l=>l.cant+'× '+esc(l.nom)+(l.talla ? ' '+esc(l.talla) : '')).join(' · ')
+     + v.lineas.map(l=>l.cant+'× '+esc(l.nom)
+         +(nombreVar(l.talla, l.color) ? ' '+esc(nombreVar(l.talla, l.color)) : '')).join(' · ')
      + '</div></div><span class="lm">'+v.lineas.reduce((a,l)=>a+l.cant, 0)+' und</span></div>'
      + '<div class="lin"><div class="li"><b>'+esc(nomComp(c))+' deja de acumular</b>'
      + '<div class="mini">una compra menos y USD '+fN(v.total)+' menos en su historial</div></div>'
