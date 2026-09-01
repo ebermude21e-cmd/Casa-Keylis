@@ -124,7 +124,10 @@ table.dat .n{text-align:right;font-variant-numeric:tabular-nums}
 .riel .p.vue.on .n{background:#33261a;color:var(--oro-cl)}
 .hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:2px;background:var(--linea);
   border:1px solid var(--linea);border-radius:var(--r3);overflow:hidden}
-.hero .h{background:var(--panel);padding:20px 22px}
+/* v66 · las casillas vacías de la rejilla se pintaban del color de la línea y
+   dejaban una plancha beige al final de la fila. La línea pasa a las celdas. */
+.hero{background:var(--panel)!important;gap:0}
+.hero .h{background:var(--panel);padding:20px 22px;box-shadow:0 0 0 .5px var(--linea)}
 .hero .h.dest{background:linear-gradient(150deg,#fffdf7,var(--crema))}
 .hero .k{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .hero .v{display:block;font-size:30px;font-weight:800;letter-spacing:-.025em;font-variant-numeric:tabular-nums;margin-top:5px;line-height:1.1}
@@ -405,6 +408,11 @@ td.tdfoto{width:52px}
   border:1px solid var(--linea)}
 .sinfoto{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;
   background:var(--sup2);font-size:19px}
+
+/* ---- v63 · la carga masiva de artículos ---- */
+#ai_dz .di{font-size:34px;opacity:.6}
+.tabwrap table.dat th, .tabwrap table.dat td{white-space:nowrap}
+.tabwrap table.dat td:nth-child(3){white-space:normal;min-width:180px}
 
 /* ---- v62 · lo que encontró la auditoría de interfaz ----------------------
 
@@ -1017,6 +1025,37 @@ h3.grp{
 .modcap{margin:-2px 0 12px;max-width:84ch}
 
 .tabwrap{overflow-x:auto;border:1px solid var(--linea);border-radius:var(--r1)}
+/* v65 · la tarjeta de lo que no se deshace: se ve distinta de todo lo demás
+   de la pantalla, para que nadie la toque de paso */
+/* v66 · las tablas no se deshacen letra por letra en pantallas angostas.
+   `.card{overflow-wrap:anywhere}` se heredaba a las celdas y, con la tabla
+   aplastada a 300 px, «CATEGORÍA» salía en vertical, una letra por renglón. */
+.tabwrap table.dat th, .tabwrap table.dat td{overflow-wrap:normal;word-break:normal}
+.tabwrap table.dat th{white-space:nowrap}
+@media (max-width:900px){ .tabwrap table.dat{width:auto;min-width:100%} }
+/* el texto que explica por qué una fila no entra es el único que no puede
+   quedar cortado */
+.tabwrap table.dat.prev td:nth-child(3){white-space:normal;min-width:200px;max-width:340px}
+/* y el código se queda fijo al deslizar, para saber de quién se habla */
+.tabwrap table.dat.prev th:nth-child(2),
+.tabwrap table.dat.prev td:nth-child(2){position:sticky;left:0;z-index:1;
+  background:var(--panel);box-shadow:1px 0 0 var(--linea)}
+/* el botón de importar viaja con la persona: con 400 filas quedaba a quince
+   pantallas del resumen que sirve para decidir */
+.aiacc{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--linea);
+  padding:12px 0;margin-top:16px;z-index:2;flex-wrap:wrap}
+.airesum{align-self:center;color:var(--muted);font-size:13px}
+/* el foco del teclado se ve sobre cualquier botón, incluido el rojo */
+.b:focus-visible,.sg:focus-visible,.subtabs button:focus-visible,.dz:focus-within{
+  outline:2px solid var(--oro-os,var(--oro));outline-offset:2px}
+.b.mal:focus-visible{outline-color:var(--tx)}
+.ocultofoco{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.soloangosto{display:none}
+@media (max-width:760px){ .soloancho{display:none} .soloangosto{display:block} }
+.card.peligro{border-color:var(--mal);border-width:2px}
+.card.peligro>h2{color:var(--mal)}
+.b.mal{background:var(--mal);color:#fff;border-color:var(--mal)}
+.b.mal:hover{filter:brightness(1.08)}
 table.asiento{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
 table.asiento th{
   text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
@@ -1286,7 +1325,7 @@ window.SICOM_LLAVE_LOGO   = 'sicom.casakeylis.v2'
 </header>
 <div class="wrap" id="app"></div>
 <div class="barra" id="barra" style="display:none"><div class="barrain" id="barrain"></div></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ==========================================================================
@@ -1683,6 +1722,62 @@ function nombreVar(t, c){
 }
 function exi(p){ return vars(p).reduce((a,x)=>a + Math.max(0, +x.e||0), 0); }
 function faltaFoto(p){ return !(p && p.foto); }
+/* v64 · El catálogo se puede montar antes que la lista de precios. Un artículo
+   en cero está a medio cargar, no en oferta: se marca, se cuenta, y no se
+   deja vender hasta que alguien le ponga su precio. */
+function faltaPrecio(p){ return !(p && +p.precio > 0); }
+
+/* v65 · ¿Este artículo aparece en alguna venta, anulada o no, entregada o
+   pendiente? Se pregunta por el `id` y también por el código, porque una
+   venta vieja pudo haberse guardado antes de que existieran los ids. */
+function vendidoAlgunaVez(p){
+  if(!p) return false;
+  const id = p.id, sku = String(p.sku || '').toUpperCase();
+  const enLineas = function(ls){
+    return (ls || []).some(function(l){
+      return (l.id && l.id === id) || (l.sku && String(l.sku).toUpperCase() === sku); });
+  };
+  try{
+    if((DB.ventas || []).some(function(v){ return enLineas(v.lineas); })) return true;
+    if((DB.vpend  || []).some(function(v){ return enLineas(v.lineas); })) return true;
+  }catch(e){ return true; }   /* ante la duda, se conserva */
+  return false;
+}
+/* Lo que pasaría si se vaciara el catálogo ahora mismo. Se calcula aparte
+   para poder ENSEÑARLO antes de hacerlo. */
+/* v66 · antes esto recorría el histórico entero DOS veces por artículo, en
+   cada repintado de la pantalla. Con 1.200 artículos y 3.000 ventas eran
+   millones de comparaciones cada vez que se tocaba un botón. Ahora el
+   histórico se recorre UNA vez y se guarda lo que aparece. */
+function usadosEnVentas(){
+  const usa = Object.create(null);
+  const mete = function(ls){
+    (ls || []).forEach(function(l){
+      if(l && l.id)  usa['#' + l.id] = 1;
+      if(l && l.sku) usa['@' + String(l.sku).toUpperCase()] = 1; });
+  };
+  try{
+    (DB.ventas || []).forEach(function(v){ mete(v.lineas);
+      (v.devuelto || []).forEach(function(d){ mete(d.lineas); }); });
+    (DB.vpend || []).forEach(function(v){ mete(v.lineas); });
+  }catch(e){ return null; }        /* null = ante la duda, no se borra nada */
+  return usa;
+}
+function planVaciado(){
+  const todos = DB.productos || [];
+  const usa = usadosEnVentas();
+  const conHistoria = [], sinHistoria = [];
+  todos.forEach(function(p){
+    const tiene = !usa
+      || usa['#' + p.id]
+      || usa['@' + String(p.sku || '').toUpperCase()];
+    (tiene ? conHistoria : sinHistoria).push(p);
+  });
+  return { total:todos.length, borrar:sinHistoria, baja:conHistoria,
+           /* los que HOY están activos y van a dejar de estarlo: es lo que
+              después dice el aviso, y las dos cifras tienen que cuadrar */
+           aBajar: conHistoria.filter(function(p){ return p.activo !== false; }).length };
+}
 
 /* v61 · UNA FOTO ES UNA IMAGEN, NO UN TROZO DE DOCUMENTO.
 
@@ -2556,11 +2651,25 @@ function pasoArts(){
     h+='<div class="prod"><div class="foto'+(p.foto?' confoto':'')+'">'
       +(fotoSegura(p.foto)?'<img src="'+esc(fotoSegura(p.foto))+'" alt="'+esc(p.nom)+'">':icoSeguro(p))+'</div>'
       +'<div class="pi"><b>'+esc(p.nom)+'</b><div class="mini">'+esc(p.sku)+' · '+esc(p.cat)+' · existencia '+ex+(ex<=0?' · <b style="color:var(--mal)">agotado</b>':'')+'</div></div>'
-      +'<div class="pp"><b>USD '+fN(p.precio)+'</b>'+(t?'<div class="mini">Bs '+fN(p.precio*t.bcv)+'</div>':'')+'</div>';
+      +'<div class="pp">'+(faltaPrecio(p)
+          ? '<span class="chip mal">falta precio</span>'
+            + '<div class="mini">no se puede vender</div>'
+          : '<b>USD '+fN(p.precio)+'</b>'+(t?'<div class="mini">Bs '+fN(p.precio*t.bcv)+'</div>':''))
+        +'</div>';
 
     /* v58 · un botón por variante. Con tallas Y colores se agrupa por color,
        para que se lea «Negro: S M L» y no una lista revuelta. */
     const vs = vars(p).filter(v=>!esVarVacia(v));
+    /* v66 · antes salían los botones de talla apagados, que parecen
+       disponibles y no dicen nada al tocarlos —el mensaje bueno estaba
+       escrito pero un botón apagado no dispara el clic, así que no se veía
+       nunca. Ahora se dice qué falta y dónde se arregla. */
+    if(faltaPrecio(p)){
+      h+='<div style="flex:1 0 100%" class="ayuda"><b>No se puede vender hasta ponerle '
+        +'el precio.</b> Está en Configuración · Artículos. '
+        +'<button class="b sm gh" data-goto="cfg|prod">Ponérselo</button></div></div>';
+      return;
+    }
     if(vs.length){
       const cols = porColores(p) ? coloresDe(p) : [''];
       cols.forEach(c=>{
@@ -2572,13 +2681,14 @@ function pasoArts(){
           const en = VTA.lineas.find(l=>l.k===k);
           const rot = v.t || (v.c || 'Único');
           return '<button data-add="'+p.id+'" data-t="'+esc(v.t||'')+'" data-c="'+esc(v.c||'')+'"'
-            +(v.e<=0?' disabled':'')+' class="'+(en?'on':'')+'">'
+            +((v.e<=0||faltaPrecio(p))?' disabled':'')+' class="'+(en?'on':'')+'">'
             +esc(rot)+'<i>'+v.e+'</i>'+(en?'<u>'+en.cant+'</u>':'')+'</button>';}).join('')+'</div>';
       });
     }else{
       const en=VTA.lineas.find(l=>l.k===p.id+'||');
-      h+='<div style="flex:1 0 100%"><button class="b sm '+(en?'oro':'gh')+'" data-add="'+p.id+'" data-t="" data-c=""'+(ex<=0?' disabled':'')+'>'
-        +(en?'Agregado · '+en.cant:'Agregar')+'</button></div>';}
+      h+='<div style="flex:1 0 100%"><button class="b sm '+(en?'oro':'gh')+'" data-add="'+p.id+'" data-t="" data-c=""'
+        +((ex<=0||faltaPrecio(p))?' disabled':'')+'>'
+        +(faltaPrecio(p)?'Falta ponerle el precio':en?'Agregado · '+en.cant:'Agregar')+'</button></div>';}
     h+='</div>';});
   h+='</div><div class="card peg"><h2>Esta venta</h2>';
   if(!VTA.lineas.length) h+='<div class="vacio"><div class="vi">🛍️</div>Todavía no ha agregado nada.</div>';
@@ -2908,7 +3018,12 @@ function registraVenta(){
 }
 
 /* 6 · CORREO */
-function catalogo(){return DB.productos.filter(p=>p.activo!==false&&exi(p)>0).sort((a,b)=>exi(b)-exi(a)).slice(0,6);}
+/* v66 · lo que sale por correo al cliente tiene que tener precio. Después de
+   una carga masiva sin lista de precios, los artículos con más existencia son
+   justamente los que todavía valen cero, y el recibo salía anunciando
+   «Cartera alta gama cuero · USD 0,00 · 14 disponibles». */
+function catalogo(){return DB.productos.filter(p=>p.activo!==false&&exi(p)>0&&!faltaPrecio(p))
+  .sort((a,b)=>exi(b)-exi(a)).slice(0,6);}
 /* cada línea se lleva la condición del artículo al momento de venderlo:
    si mañana cambia el catálogo, la venta de ayer no se mueve */
 function marcaExento(l){ const p = DB.productos.find(x=>x.id===l.id); if(p && p.exento) l.exento = true; return l; }
@@ -2963,7 +3078,7 @@ function correoHTML(){
   const cat=catalogo();
   h+='<div class="bloque"><h4>Disponible ahora mismo en la tienda</h4>'
     +'<p class="mini" style="margin:0 0 12px">Lo que hay en existencia hoy, consultado directo del inventario.</p>'
-    +'<div class="cat">'+cat.map(p=>'<div class="ci"><div class="ce">'+p.ico+'</div><b>'+esc(p.nom)+'</b>'
+    +'<div class="cat">'+cat.map(p=>'<div class="ci"><div class="ce">'+icoSeguro(p)+'</div><b>'+esc(p.nom)+'</b>'
       +'<span>'+esc(p.cat)+'</span><span class="pz">USD '+fN(p.precio)+'</span><span class="mini">'+exi(p)+' disponibles</span></div>').join('')+'</div></div>';
   h+='<p>Si algo no le quedó como esperaba, escríbanos y lo resolvemos. Y si le gustó, cuéntele a alguien: así hemos crecido.</p>'
     +'<p style="margin-bottom:0"><b>Un abrazo,</b><br>El equipo de '+esc(marcaDe())+'</p>'
@@ -4446,6 +4561,218 @@ function vistaTasas(){
   h+='</tbody></table></div>';
   return h;
 }
+/* ==========================================================================
+   LA CARGA MASIVA DE ARTÍCULOS
+
+   El código de la pieza es la llave de todo: amarra el artículo con su
+   existencia y con cada venta. Dos filas con el mismo código son el mismo
+   artículo con dos variantes; dos códigos distintos son dos artículos.
+   ========================================================================== */
+
+/* Los encabezados se leen sin acentos, sin mayúsculas y sin espacios, porque
+   nadie escribe «categoría» dos veces igual. */
+function normEnc(t){
+  return String(t || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+const COL_ART = {
+  codigo:'sku', cod:'sku', sku:'sku', codigobarra:'sku', codigodebarra:'sku',
+  nombre:'nom', articulo:'nom', descripcion:'nom', producto:'nom', pieza:'nom',
+  categoria:'cat', linea:'cat', rubro:'cat',
+  talla:'talla', tallas:'talla', size:'talla',
+  color:'color', colores:'color',
+  existencia:'exi', cantidad:'exi', stock:'exi', unidades:'exi', exi:'exi',
+  costo:'costo', costousd:'costo', costodolares:'costo', costoenusd:'costo',
+  precio:'precio', preciousd:'precio', precioventa:'precio', pvp:'precio',
+  precioendolares:'precio', precioventausd:'precio',
+  iva:'iva', gravado:'iva', llevaiva:'iva', impuesto:'iva',
+  icono:'ico', ico:'ico', emoji:'ico'
+};
+
+/* De un texto pegado o de un CSV a filas. Acepta punto y coma, tabulación y
+   coma, y respeta las comillas: un nombre puede llevar una coma adentro. */
+function filasDeTexto(txt){
+  const lineas = String(txt || '').replace(/^\uFEFF/, '').split(/\r?\n/);
+  const sep = (lineas[0] || '').indexOf('\t') >= 0 ? '\t'
+            : (lineas[0] || '').indexOf(';')  >= 0 ? ';' : ',';
+  return lineas.filter(function(l){ return l.trim(); }).map(function(l){
+    const out = []; let cur = '', dentro = false;
+    for(let i = 0; i < l.length; i++){
+      const c = l[i];
+      if(c === '"'){ if(dentro && l[i+1] === '"'){ cur += '"'; i++; } else dentro = !dentro; }
+      else if(c === sep && !dentro){ out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  });
+}
+
+/* Revisa fila por fila y arma la vista previa. No toca el catálogo: sólo
+   dice qué pasaría. */
+function parseArts(filas, opt){
+  opt = opt || {};
+  if(!filas || !filas.length) return { filas:[], arts:[], sinCab:true };
+  const cab = (filas[0] || []).map(normEnc);
+  const mapa = {};
+  cab.forEach(function(c, i){ if(COL_ART[c] !== undefined) mapa[COL_ART[c]] = i; });
+  if(mapa.sku === undefined || mapa.nom === undefined)
+    return { filas:[], arts:[], sinCab:true };
+
+  /* v66 · sin prototipo: una categoría llamada «constructor» encontraba la
+     función heredada de Object y se colaba como si existiera */
+  const catsHay = Object.create(null);
+  DB.categorias.forEach(function(c){ catsHay[normEnc(c)] = c; });
+  const skusHay = Object.create(null);
+  DB.productos.forEach(function(p){ skusHay[String(p.sku).toUpperCase()] = p; });
+
+  /* v66 · LO QUE EL ARCHIVO TRAE Y LO QUE NO.
+
+     Ésta es la corrección de fondo. Antes daba lo mismo que una columna no
+     estuviera a que estuviera vacía: en los dos casos se leía cero, y ese
+     cero se escribía encima del catálogo. Un conteo de inventario de tres
+     columnas —código, nombre, existencia— ponía en cero el precio y el costo
+     de la tienda entera, y de paso la pasaba a exenta.
+
+     Ahora se anota qué columnas trae el archivo, y al actualizar sólo se
+     tocan ésas. Lo que el archivo no menciona, se queda como está. */
+  const trae = {
+    precio: mapa.precio !== undefined,
+    costo:  mapa.costo  !== undefined,
+    iva:    mapa.iva    !== undefined,
+    ico:    mapa.ico    !== undefined,
+    /* la categoría elegida en la pantalla es «para las filas que no la
+       traigan», o sea para las que van a entrar. A un artículo que ya está
+       clasificado no se le cambia de categoría por un desplegable que dice
+       otra cosa: para eso el archivo tiene que traer la columna. */
+    cat:    mapa.cat    !== undefined,
+    exi:    mapa.exi !== undefined || mapa.talla !== undefined || mapa.color !== undefined
+  };
+
+  const dame = function(f, k){ return mapa[k] === undefined ? '' : String(f[mapa[k]] || '').trim(); };
+  const vistas = {};      /* código + talla + color, para cazar repetidos */
+  const porSku = {};
+  const out = [];
+
+  filas.slice(1).forEach(function(f, i){
+    const r = { n:i + 2 };
+    if(!f.join('').trim()) return;                    /* renglón en blanco */
+    r.sku   = dame(f, 'sku').toUpperCase();
+    r.nom   = dame(f, 'nom');
+    r.cat   = dame(f, 'cat') || opt.cat || '';
+    r.talla = dame(f, 'talla');
+    r.color = dame(f, 'color');
+    r.ico   = dame(f, 'ico').slice(0, 4);
+    const exiT = dame(f, 'exi'), preT = dame(f, 'precio'), cosT = dame(f, 'costo');
+    r.exi    = exiT === '' ? 0 : Math.round(pila(exiT));
+    r.precio = preT === '' ? 0 : pila(preT);
+    r.costo  = cosT === '' ? 0 : pila(cosT);
+    /* v64 · La columna del IVA manda cuando dice algo. Cuando viene vacía
+       decide el botón de la pantalla, que se ve y se puede cambiar antes de
+       importar: una columna en blanco no debería definir a espaldas de nadie
+       si una pieza se cobra con impuesto o sin él. */
+    const ivaT = normEnc(dame(f, 'iva'));
+    r.exento = (ivaT === 'no' || ivaT === 'exento' || ivaT === 'nogravado' || ivaT === '0') ? true
+             : (ivaT === 'si' || ivaT === 'gravado' || ivaT === 'sí' || ivaT === '1') ? false
+             : (opt.exento === true);
+
+    if(!r.sku){ r.mal = 'Falta el código de la pieza'; out.push(r); return; }
+    if(r.sku.length > 16){ r.mal = 'El código no puede pasar de 16 caracteres'; out.push(r); return; }
+    if(!r.nom || r.nom.length < 3){ r.mal = 'Falta el nombre, o es muy corto'; out.push(r); return; }
+    if(r.nom.length > 60) r.nom = r.nom.slice(0, 60);
+    if(r.cat.length > 40) r.cat = r.cat.slice(0, 40);
+    if(!r.cat){ r.mal = 'Falta la categoría'; out.push(r); return; }
+    if(!catsHay[normEnc(r.cat)] && !opt.crearCat){
+      r.mal = 'La categoría «' + r.cat + '» no existe'; out.push(r); return; }
+    r.cat = catsHay[normEnc(r.cat)] || r.cat;
+    /* v64 · El precio puede venir en blanco: el catálogo se monta primero y
+       los precios llegan después. Lo que no se acepta es un precio negativo,
+       que no es «todavía no lo sé» sino un error de tecleo. */
+    if(r.precio < 0){ r.mal = 'El precio no puede ser negativo'; out.push(r); return; }
+    r.sinPrecio = !(r.precio > 0);
+    if(r.costo < 0){ r.mal = 'El costo no puede ser negativo'; out.push(r); return; }
+    if(r.precio > 0 && r.costo > r.precio){
+      r.mal = 'El costo (' + fN(r.costo) + ') es mayor que el precio ('
+        + fN(r.precio) + '): esa venta daría pérdida'; out.push(r); return; }
+    if(!(r.exi >= 0)){ r.mal = 'La existencia no puede ser negativa'; out.push(r); return; }
+
+    const llave = r.sku + '\u00a7' + r.talla + '\u00a7' + r.color;
+    if(vistas[llave]){
+      r.mal = 'Repetida: ya viene en la línea ' + vistas[llave]; out.push(r); return; }
+    vistas[llave] = r.n;
+
+    /* el código manda: las filas que lo comparten son el mismo artículo */
+    if(!porSku[r.sku]) porSku[r.sku] = [];
+    porSku[r.sku].push(r);
+    /* v66 · Un artículo DE BAJA no está «ya en el catálogo» para quien mira
+       la caja: no se ve y no se puede vender. Después de vaciar, TODO lo que
+       tiene ventas queda así. Si el archivo lo trae de vuelta, vuelve —aunque
+       esté puesto «agregar sólo los nuevos»—, porque dejarlo fuera es
+       justamente lo que dejaba la tienda sin nada que vender. */
+    const _ya = skusHay[r.sku];
+    r.tipo = !_ya ? 'nuevo'
+           : (_ya.activo === false) ? 'revive'
+           : opt.actualiza ? 'actualiza' : 'omite';
+    out.push(r);
+  });
+
+  /* Un mismo código no puede traer dos nombres ni dos precios distintos: el
+     código es la llave, y si el archivo se contradice no hay manera de saber
+     cuál de los dos es el bueno. Cuando eso pasa se cae el código ENTERO, no
+     sólo la fila que discrepa: quedarse con la primera sería adivinar, y el
+     precio equivocado se cobraría en la caja sin que nadie lo note. */
+  Object.keys(porSku).forEach(function(sku){
+    const g = porSku[sku].filter(function(r){ return !r.mal; });
+    if(g.length < 2) return;
+    const noms = {}, pres = {};
+    g.forEach(function(r){ noms[r.nom] = 1;
+      /* los ceros no cuentan como «otro precio»: son el precio que falta */
+      if(r.precio > 0) pres[Math.round(r.precio * 100)] = 1; });
+    const dosNom = Object.keys(noms).length > 1;
+    const dosPre = Object.keys(pres).length > 1;
+    if(!dosNom && !dosPre) return;
+    const que = dosNom
+      ? 'dos nombres distintos (' + Object.keys(noms).slice(0, 2).join(' / ') + ')'
+      : 'dos precios distintos (' + Object.keys(pres).slice(0, 2)
+          .map(function(c){ return fN(c / 100); }).join(' / ') + ')';
+    g.forEach(function(r){
+      r.mal = 'El código ' + sku + ' trae ' + que + ': corríjalo y vuelva a cargarlo';
+      r.tipo = undefined;
+    });
+  });
+
+  /* y las variantes de un mismo código tienen que ser todas del mismo tipo:
+     o todas con talla, o ninguna */
+  const arts = [];
+  Object.keys(porSku).forEach(function(sku){
+    const g = porSku[sku].filter(function(r){ return !r.mal && r.tipo !== 'omite'; });
+    if(!g.length) return;
+    /* si una fila del código trae el precio y las otras no, vale el que hay */
+    const conPre = g.find(function(r){ return r.precio > 0; });
+    const ya = skusHay[sku];
+    /* v66 · lo que se va a perder al actualizar, para poder avisarlo antes:
+       las variantes que el artículo tiene hoy y el archivo no menciona */
+    let pierde = [];
+    if(ya && trae.exi){
+      const vienen = {};
+      g.forEach(function(r){ vienen[claveVar(r.talla, r.color)] = 1; });
+      pierde = vars(ya).filter(function(v){
+        return !esVarVacia(v) && +v.e > 0 && !vienen[claveVar(v.t || '', v.c || '')]; });
+    }
+    arts.push({ sku:sku, nom:g[0].nom, cat:g[0].cat, ico:g[0].ico || '📦',
+                costo:g[0].costo, precio:conPre ? conPre.precio : 0,
+                exento:g[0].exento, tipo:g[0].tipo, trae:trae,
+                revive: !!(ya && ya.activo === false),
+                antes: ya ? {precio:+ya.precio||0, exi:exi(ya)} : null,
+                pierde: pierde.map(function(v){
+                  return { t:v.t||'', c:v.c||'', e:+v.e||0 }; }),
+                variantes:g.map(function(r){
+                  return { t:r.talla, c:r.color, e:r.exi }; }) });
+  });
+  return { filas:out, arts:arts, sinCab:false };
+}
+
 function parseMasivo(txt){
   const filas=[],vistos={};
   txt.split(/\r?\n/).forEach((ln,i)=>{
@@ -5269,6 +5596,8 @@ function buscaCli(){
 document.addEventListener('click',e=>{
   if(e.target.closest('#m_dz')&&e.target.id!=='m_file'&&!e.target.closest('button')){
     const f=$('#m_file'); if(f) f.click(); return; }
+  if(e.target.closest('#ai_dz')&&e.target.id!=='ai_file'&&!e.target.closest('button')){
+    const f=$('#ai_file'); if(f) f.click(); return; }
   const pz=e.target.closest('.dzp');
   if(pz&&!e.target.closest('button')){ const f=pz.querySelector('input[type=file]'); if(f) f.click(); return; }
   const b=e.target.closest('button'); if(!b)return;
@@ -5418,6 +5747,10 @@ document.addEventListener('click',e=>{
     const ta=b.dataset.t||'', co=b.dataset.c||'';
     const v=varDe(p, ta, co);
     const disp=v?Math.max(0,+v.e||0):0;
+    /* v64 · un artículo sin precio está a medio cargar: entró en la carga
+       masiva para no frenar el inventario, pero cobrarlo sería regalarlo */
+    if(faltaPrecio(p)) return aviso('«'+p.nom+'» todavía no tiene precio. Póngaselo en '
+      + 'Configuración · Artículos y vuelva a intentarlo.', true);
     const k=p.id+'|'+ta+'|'+co, ya=VTA.lineas.find(l=>l.k===k);
     if(ya){if(ya.cant<disp)ya.cant++;else aviso('No hay más existencia.',true);}
     else VTA.lineas.push({k,id:p.id,sku:p.sku,nom:p.nom,talla:ta,color:co,
@@ -5759,6 +6092,51 @@ document.addEventListener('change',e=>{
       else { const vp=DB.vpend.find(x=>x.id===PSEL); if(vp) vp._print=d; }
       aviso('Comprobante adjuntado.'); pinta(); });
     e.target.value=''; return;
+  }
+  if(id==='ai_cat'){ AICAT = e.target.value;
+    if(AIPREV) AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
+    pinta(); return; }
+  if(id==='ai_file'){
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    const esExcel = /\.xlsx$/i.test(f.name);
+    if(esExcel && !hayXLSX())
+      return aviso('Este navegador no puede abrir archivos de Excel. Guárdelo como CSV '
+        + 'desde Excel («Guardar como» · CSV) y vuelva a intentarlo.', true);
+    if(f.size > 1024 * 1024 * 20)
+      return aviso('Ese archivo pesa más de 20 MB. Un inventario no debería: '
+        + 'quítele las imágenes y las hojas que no hagan falta.', true);
+    (esExcel
+      ? filasDeExcel(f)
+      : new Promise(function(res, rej){
+          const r = new FileReader();
+          r.onload = function(){ res(filasDeTexto(String(r.result || ''))); };
+          r.onerror = function(){ rej(new Error('No se pudo leer el archivo.')); };
+          r.readAsText(f, 'UTF-8');
+        })
+    ).then(function(filas){
+      AIFILE = f.name; AIFILAS = filas;
+      AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
+      /* v66 · un aviso verde diciendo «archivo leído» cuando lo que se subió
+         fue una foto es peor que no avisar nada: la persona se queda
+         tranquila y el error está catorce renglones más abajo. */
+      if(!filas.length)
+        aviso('Ese archivo no trae ninguna fila. ¿Está seguro de que es el del '
+          + 'inventario?', true);
+      else if(AIPREV.sinCab)
+        aviso('Se leyó el archivo, pero no trae las columnas del inventario. '
+          + 'Descargue el modelo y compárelo con el suyo.', true);
+      else
+        aviso('Archivo leído: ' + Math.max(0, filas.length - 1) + ' filas de artículos. '
+          + 'Revise abajo antes de importar.');
+      pinta();
+    }).catch(function(err){
+      AIFILE = ''; AIFILAS = []; AIPREV = null;
+      aviso('No se pudo leer ese archivo: ' + (err && err.message ? err.message : 'formato desconocido'), true);
+      pinta();
+    });
+    return;
   }
   if(id==='a_banco'){ REI.banco=e.target.value; return; }
   if(id==='cl_op'){VTA.nuevo.op=e.target.value;pinta();return;}
@@ -6628,6 +7006,193 @@ function leeFoto(file, cb){
   r.readAsDataURL(file);
 }
 
+/* ==========================================================================
+   LEER UN EXCEL SIN MANDARLO A NINGUNA PARTE
+
+   Un .xlsx es un archivo comprimido con varias hojas adentro, escritas en
+   XML. El navegador sabe descomprimir desde hace años —`DecompressionStream`—
+   así que no hace falta ninguna librería de fuera ni subir el archivo a
+   ningún servidor: el inventario de la tienda no sale de esta computadora.
+
+   Lo que sigue abre el comprimido, saca las hojas y las lee. Son unas cuantas
+   líneas, pero son las mismas para siempre: el formato no cambia.
+   ========================================================================== */
+function hayXLSX(){ try{ return typeof DecompressionStream === 'function'; }catch(e){ return false; } }
+
+/* v66 · Un comprimido puede mentir sobre lo que trae adentro: 5 MB de ceros
+   se convierten en varios gigas al abrirlos, y el límite de 20 MB del archivo
+   no protege de eso. Se abre por pedazos y se corta si se pasa. */
+const TOPE_INFLADO = 64 * 1024 * 1024;
+async function inflaTrozo(bytes, metodo){
+  if(metodo === 0) return bytes;                       /* guardado sin comprimir */
+  const ds = new DecompressionStream('deflate-raw');
+  const lector = new Response(new Blob([bytes]).stream().pipeThrough(ds)).body.getReader();
+  const trozos = []; let total = 0;
+  for(;;){
+    const paso = await lector.read();
+    if(paso.done) break;
+    total += paso.value.length;
+    if(total > TOPE_INFLADO){
+      try{ await lector.cancel(); }catch(e){}
+      throw new Error('Ese archivo trae adentro mucho más de lo que dice. '
+        + 'Ábralo en Excel y vuelva a guardarlo.');
+    }
+    trozos.push(paso.value);
+  }
+  const out = new Uint8Array(total); let p = 0;
+  trozos.forEach(function(t){ out.set(t, p); p += t.length; });
+  return out;
+}
+
+/* Abre el comprimido y devuelve {nombre: texto} de lo que haga falta. */
+async function abreZip(buf){
+  const b = new Uint8Array(buf), dv = new DataView(b.buffer);
+  /* el índice del comprimido está AL FINAL, y hay que buscarlo hacia atrás */
+  let fin = -1;
+  for(let i = b.length - 22; i >= Math.max(0, b.length - 66000); i--){
+    if(dv.getUint32(i, true) === 0x06054b50){ fin = i; break; }
+  }
+  if(fin < 0) throw new Error('Ese archivo no parece un Excel.');
+  const cuantos = dv.getUint16(fin + 10, true);
+  let p = dv.getUint32(fin + 16, true);
+  const salida = {};
+  for(let n = 0; n < cuantos; n++){
+    if(dv.getUint32(p, true) !== 0x02014b50) break;
+    const metodo = dv.getUint16(p + 10, true);
+    const compr  = dv.getUint32(p + 20, true);
+    const lNom   = dv.getUint16(p + 28, true);
+    const lExtra = dv.getUint16(p + 30, true);
+    const lCom   = dv.getUint16(p + 32, true);
+    const dondeL = dv.getUint32(p + 42, true);
+    const nombre = new TextDecoder().decode(b.subarray(p + 46, p + 46 + lNom));
+    p += 46 + lNom + lExtra + lCom;
+    /* sólo se abre lo que se va a leer: una hoja de cálculo puede traer
+       imágenes de varios megas que aquí no pintan nada */
+    if(!/^xl\/(worksheets\/sheet\d+\.xml|sharedStrings\.xml|workbook\.xml)$/.test(nombre)) continue;
+    const lNom2   = dv.getUint16(dondeL + 26, true);
+    const lExtra2 = dv.getUint16(dondeL + 28, true);
+    const ini = dondeL + 30 + lNom2 + lExtra2;
+    salida[nombre] = new TextDecoder().decode(
+      await inflaTrozo(b.subarray(ini, ini + compr), metodo));
+  }
+  return salida;
+}
+
+/* Las celdas de texto no guardan el texto: guardan un número que apunta a
+   esta tabla común, que es como Excel evita repetir «Ropa de Dama» mil veces. */
+function textosComunes(xml){
+  if(!xml) return [];
+  const out = [];
+  /* v66 · hay exportadores que escriben `<si/>` cuando el texto es vacío. Si
+     no se cuentan, todos los nombres del archivo salen corridos un puesto. */
+  const trozos = xml.replace(/<si\s*\/>/g, '<si></si>').split('<si>').slice(1);
+  trozos.forEach(function(t){
+    const cuerpo = t.split('</si>')[0];
+    let txt = '';
+    const m = cuerpo.match(/<t[^>]*>([\s\S]*?)<\/t>/g) || [];
+    m.forEach(function(x){ txt += x.replace(/<[^>]+>/g, ''); });
+    out.push(desescapaXML(txt));
+  });
+  return out;
+}
+function desescapaXML(t){
+  /* Los emojis van más allá del alfabeto viejo de 16 bits: 👚 es el 128090, y
+     `fromCharCode` lo cortaría en dos dejando un signo raro. `fromCodePoint`
+     lo arma completo. Y Excel los escribe de las dos formas —en decimal y en
+     hexadecimal—, según quién haya guardado el archivo. */
+  const uno = function(n){
+    try{ return (n >= 0 && n <= 0x10FFFF) ? String.fromCodePoint(n) : ''; }
+    catch(e){ return ''; }
+  };
+  return String(t || '').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/&quot;/g,'"').replace(/&apos;/g,"'")
+    .replace(/&#x([0-9a-fA-F]+);/g, function(_,d){ return uno(parseInt(d, 16)); })
+    .replace(/&#(\d+);/g, function(_,d){ return uno(+d); })
+    .replace(/&amp;/g,'&');
+}
+/* «C» es la columna 3, «AB» la 28: la numeración de las hojas de cálculo.
+   Excel llega hasta la XFD, que es la 16.384. Lo que venga más allá no es una
+   columna: es basura, y si se toma en serio hace crecer el arreglo hasta
+   comerse la memoria de la máquina. Se devuelve −1 y se descarta la celda. */
+const TOPE_COL = 16384;
+function colDeRef(ref){
+  const m = String(ref || '').match(/^([A-Z]+)/);
+  if(!m) return -1;
+  if(m[1].length > 3) return -1;              /* nada real pasa de tres letras */
+  let n = 0;
+  for(let i = 0; i < m[1].length; i++) n = n * 26 + (m[1].charCodeAt(i) - 64);
+  return (n >= 1 && n <= TOPE_COL) ? n - 1 : -1;
+}
+/* Una hoja se convierte en una lista de listas de texto. */
+const TOPE_FILAS = 20000;
+function hojaAFilas(xml, comunes){
+  const filas = [];
+  (xml.split('<row').slice(1)).forEach(function(bloque){
+    if(filas.length >= TOPE_FILAS) return;
+    const cuerpo = bloque.split('</row>')[0];
+    /* v66 · las celdas se juntan en un diccionario y sólo al final se arma la
+       fila, hasta la última que de verdad trae algo.
+
+       Antes se escribía directo en el arreglo por número de columna: una sola
+       celda suelta en la XFD —cosa que pasa sola cuando alguien selecciona
+       filas enteras para pintarles el borde— dejaba una fila de 16.384
+       casillas y un bucle de relleno igual de largo. Medido: casi seis
+       segundos con sesenta filas. */
+    const celdas = {}; let ultima = -1;
+    /* y hay programas que escriben `<c>` sin decir en qué columna va: entonces
+       manda el orden de aparición, que es lo que Excel hace también. Antes
+       todas caían en la columna 0, pisándose unas a otras. */
+    let seguida = 0;
+    (cuerpo.split(/<c(?=[ />])/).slice(1)).forEach(function(cel){
+      const cab = cel.split('>')[0];
+      const ref = (cab.match(/r="([A-Z]+\d+)"/) || [])[1] || '';
+      const tipo = (cab.match(/t="([^"]+)"/) || [])[1] || 'n';
+      let val = '';
+      if(tipo === 'inlineStr'){
+        const m = cel.match(/<t[^>]*>([\s\S]*?)<\/t>/);
+        val = m ? desescapaXML(m[1]) : '';
+      }else{
+        const m = cel.match(/<v>([\s\S]*?)<\/v>/);
+        const crudo = m ? m[1] : '';
+        val = (tipo === 's') ? (comunes[+crudo] !== undefined ? comunes[+crudo] : '')
+                             : desescapaXML(crudo);
+      }
+      const col = ref ? colDeRef(ref) : seguida;
+      if(col < 0 || col >= TOPE_COL) return;         /* celda fuera de la hoja */
+      seguida = col + 1;
+      const txt = String(val).trim();
+      celdas[col] = txt;
+      if(txt !== '' && col > ultima) ultima = col;
+    });
+    const fila = [];
+    for(let i = 0; i <= ultima; i++) fila.push(celdas[i] === undefined ? '' : celdas[i]);
+    filas.push(fila);
+  });
+  /* Una hoja de Excel arrastra cientos de renglones vacíos que sólo tienen
+     formato —bordes, listas desplegables— y que el archivo guarda igual. Si
+     no se cortan, la vista previa diría «305 renglones leídos» cuando la
+     tienda cargó cinco, y eso no le sirve a nadie. */
+  while(filas.length && !filas[filas.length - 1].join('').trim()) filas.pop();
+  return filas;
+}
+/* De un .xlsx a las filas de la hoja que traiga el inventario. Se busca por
+   el encabezado, no por el orden: así da igual dónde haya quedado la hoja. */
+async function filasDeExcel(file){
+  const z = await abreZip(await file.arrayBuffer());
+  const comunes = textosComunes(z['xl/sharedStrings.xml']);
+  const hojas = Object.keys(z).filter(function(k){ return /worksheets\/sheet\d+\.xml$/.test(k); })
+    .sort(function(a,b){ return (+a.match(/(\d+)/)[1]) - (+b.match(/(\d+)/)[1]); });
+  if(!hojas.length) throw new Error('Ese Excel no trae ninguna hoja.');
+  let mejor = null;
+  for(let i = 0; i < hojas.length; i++){
+    const filas = hojaAFilas(z[hojas[i]], comunes);
+    const cab = (filas[0] || []).map(function(x){ return normEnc(x); });
+    if(cab.indexOf('codigo') >= 0){ mejor = filas; break; }
+    if(!mejor && filas.length > 1) mejor = filas;
+  }
+  return mejor || [];
+}
+
 /* ---------- puesta en marcha ---------- */
 function pasos(){
   const t = tasaEn(hoy);
@@ -6953,11 +7518,25 @@ function selCat(id, val){
   return '<select id="'+id+'"><option value="">Elija la categoría</option>'
     + DB.categorias.map(c=>'<option value="'+esc(c)+'"'+(val===c?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select>';
 }
-function margen(p){ return p.costo>0 ? Math.round((p.precio-p.costo)/p.precio*1000)/10 : null; }
+/* v66 · sin precio no hay margen que calcular: dividir entre cero daba
+   «−∞ %» en rojo en la pantalla de una tienda */
+function margen(p){
+  return (p && p.costo > 0 && p.precio > 0)
+    ? Math.round((p.precio - p.costo) / p.precio * 1000) / 10 : null;
+}
 
 function cfgProd(){
+  /* v63 · dos maneras de cargar el catálogo: una por una, o el archivo
+     completo. Se separan en pestañas para que quien viene a corregir un
+     precio no se tropiece con la carga masiva, y al revés. */
+  let hh = '<div class="subtabs sub2">'
+    + '<button data-psub="uno" class="'+(PSUB==='uno'?'on':'')+'">Uno por uno</button>'
+    + '<button data-psub="masiva" class="'+(PSUB==='masiva'?'on':'')+'">Carga masiva</button>'
+    + '</div>';
+  if(PSUB === 'masiva') return hh + cfgProdMasiva();
+
   const ed = PRED ? DB.productos.find(p=>p.id===PRED) : null;
-  let h = '<div class="card'+(ed?' editando':'')+'"><h2>'+(ed?'Modificar «'+esc(ed.nom)+'»':'Agregar artículo')+'</h2>'
+  let h = hh + '<div class="card'+(ed?' editando':'')+'"><h2>'+(ed?'Modificar «'+esc(ed.nom)+'»':'Agregar artículo')+'</h2>'
     + '<p class="cap">El costo no sale en ningún recibo: sirve para el margen y para calcular la comisión del vendedor.</p>'
     + '<div class="fila">'
     + '<div><label class="f">Código</label><input id="np_sku" value="'+esc(pbufVal('sku', ed?ed.sku:''))+'" placeholder="Escriba el código" maxlength="16"></div>'
@@ -7064,8 +7643,14 @@ function cfgProd(){
   if(!DB.productos.length) h += '<div class="vacio"><div class="vi">📦</div>Todavía no hay artículos cargados.</div>';
   else{
     const act = DB.productos.filter(p=>p.activo!==false);
-    const val = act.reduce((a,p)=>a+exi(p)*p.precio,0);
-    const cst = act.reduce((a,p)=>a+exi(p)*(p.costo||0),0);
+    /* v66 · el margen del inventario se calcula sólo sobre lo que TIENE
+       precio. Si no, los artículos recién cargados aportan cero al valor y su
+       costo completo al costo, y la cifra que Edwin mira para decidir sale
+       falsa justo el día de la carga. */
+    const conP = act.filter(p=>!faltaPrecio(p));
+    const val = conP.reduce((a,p)=>a+exi(p)*p.precio,0);
+    const cst = conP.reduce((a,p)=>a+exi(p)*(p.costo||0),0);
+    const _sp = act.filter(faltaPrecio).length;
     h += '<div class="hero"><div class="h dest"><span class="k">Artículos activos</span><span class="v">'+act.length+'</span>'
        + '<span class="s">de '+DB.productos.length+' en el catálogo</span></div>'
        + '<div class="h"><span class="k">Unidades en existencia</span><span class="v">'+act.reduce((a,p)=>a+exi(p),0)+'</span>'
@@ -7073,13 +7658,20 @@ function cfgProd(){
        + '<div class="h"><span class="k">Inventario a precio de venta</span><span class="v">'+fN(val)+' <small>USD</small></span>'
        + '<span class="s">costó '+fN(cst)+'</span></div>'
        + '<div class="h"><span class="k">Margen del inventario</span><span class="v">'
-       + (val>0?fN((val-cst)/val*100,1):'—')+' <small>%</small></span><span class="s">sobre el precio de venta</span></div>'
+       + (val>0?fN((val-cst)/val*100,1):'—')+' <small>%</small></span><span class="s">'
+       + (_sp ? 'sin contar '+_sp+' que no '+(_sp===1?'tiene':'tienen')+' precio'
+              : 'sobre el precio de venta')+'</span></div>'
        /* v58 · cuántos artículos están esperando su foto */
        + (function(){ const sf = act.filter(faltaFoto).length;
            return '<div class="h"><span class="k">Sin foto</span><span class="v">'+sf+'</span>'
              + '<span class="s">'+(sf ? 'se venden igual, pero conviene cargarlas' : 'todos tienen su foto')+'</span></div>'; })()
+       /* v64 · los que entraron sin precio: se ven, pero no se venden */
+       + (function(){ const sp = act.filter(faltaPrecio).length;
+           return sp ? '<div class="h"><span class="k">Sin precio</span><span class="v">'+sp+'</span>'
+             + '<span class="s">no se pueden vender hasta ponérselo</span></div>' : ''; })()
        + '</div>';
-    h += '<table class="dat" style="margin-top:16px"><thead><tr><th></th><th>Artículo</th><th>Categoría</th>'
+    h += '<div class="tabwrap" style="margin-top:16px"><table class="dat"><thead><tr><th></th>'
+       + '<th>Artículo</th><th>Categoría</th>'
        + '<th class="n">Costo</th><th class="n">Precio</th><th class="n">Margen</th><th class="n">Existencia</th>'
        + '<th>Estado</th><th></th></tr></thead><tbody>';
     DB.productos.forEach(p=>{
@@ -7090,13 +7682,16 @@ function cfgProd(){
              : '<span class="sinfoto">'+icoSeguro(p)+'</span>') + '</td>'
         + '<td><b>'+esc(p.nom)+'</b>'
         + (faltaFoto(p) ? ' <span class="chip avi">falta foto</span>' : '')
+        + (faltaPrecio(p) ? ' <span class="chip mal">falta precio</span>' : '')
         + '<div class="mini">'+esc(p.sku)
         + (vsp.length ? ' · ' + vsp.map(v=>esc(nombreVar(v.t, v.c))+' ('+v.e+')').join(' · ') : '')
         + '</div></td>'
         + '<td class="mini">'+esc(p.cat)+'</td>'
         + '<td class="n">'+(p.costo?fN(p.costo):'—')+'</td>'
-        + '<td class="n"><b>'+fN(p.precio)+'</b></td>'
-        + '<td class="n">'+(mg===null?'<span class="mini">sin costo</span>'
+        + '<td class="n">'+(faltaPrecio(p) ? '<span class="chip mal">falta</span>'
+            : '<b>'+fN(p.precio)+'</b>')+'</td>'
+        + '<td class="n">'+(mg===null
+            ? '<span class="mini">'+(faltaPrecio(p) ? 'sin precio' : 'sin costo')+'</span>'
             :'<span class="chip '+(mg>=40?'ok':mg>=20?'avi':'mal')+'">'+fN(mg,1)+' %</span>')+'</td>'
         + '<td class="n">'+(ex<=0?'<b style="color:var(--mal)">0</b>':ex)+'</td>'
         + '<td>'+(p.activo===false?'<span class="chip">de baja</span>':'<span class="chip ok">activo</span>')+'</td>'
@@ -7104,7 +7699,7 @@ function cfgProd(){
         + '<button class="b sm gh" data-pedit="'+p.id+'">Modificar</button> '
         + '<button class="b sm gh" data-ptog="'+p.id+'">'+(p.activo===false?'Reactivar':'Dar de baja')+'</button></td></tr>';
     });
-    h += '</tbody></table>'
+    h += '</tbody></table></div>'
        + '<div class="nota">Un artículo no se borra: se da de baja. Así las ventas viejas conservan su nombre y su precio. '
        + 'Un artículo de baja no aparece en la caja aunque tenga existencia.</div>';
   }
@@ -7387,6 +7982,306 @@ function gerResp(){
   return h;
 }
 
+/* ==========================================================================
+   LA PANTALLA DE LA CARGA MASIVA
+   ========================================================================== */
+function cfgProdMasiva(){
+  let h = '<div class="card"><h2>Cargar el inventario desde un archivo</h2>'
+    + '<p class="cap">El <b>código de la pieza</b> es la llave de todo: amarra el artículo '
+    + 'con su existencia y con cada venta. Dos filas con el mismo código son el mismo '
+    + 'artículo en dos variantes; dos códigos distintos son dos artículos.</p>'
+
+    + '<div class="nota"><b>La foto no hace falta para cargar.</b> El archivo no la lleva: '
+    + 'monte el inventario completo ahora y póngales la foto después, con calma. Cada '
+    + 'artículo que entre sin ella queda marcado «falta foto» en el catálogo, con su '
+    + 'contador, para saber cuántas quedan.</div>'
+
+    + '<div class="acc" style="margin:16px 0 4px">'
+    + '<button class="b gh" id="ai_modelo">Descargar el modelo del archivo</button>'
+    + '<span class="mini" style="align-self:center">Trae las columnas, dos ejemplos y '
+    + 'sus categorías ya escritas.</span></div>'
+
+    /* v66 · la zona es la etiqueta del campo, no un div suelto: así se llega
+       con el teclado y el lector de pantalla la anuncia. Y en el teléfono no
+       se arrastra nada, así que la frase grande es la que sirve ahí. */
+    + '<label class="dz" id="ai_dz" for="ai_file"><div class="di">📗</div>'
+    + '<b class="soloancho">Arrastre aquí el archivo del inventario</b>'
+    + '<b class="soloangosto">Toque para elegir el archivo</b>'
+    + '<span class="soloancho">o haga clic para elegirlo · Excel (.xlsx)'
+    + (hayXLSX() ? '' : ' —este navegador no lo puede abrir: guárdelo como CSV—')
+    + ' o CSV</span>'
+    + '<span class="soloangosto">Excel (.xlsx) o CSV'
+    + (hayXLSX() ? '' : ' —este navegador no abre Excel: guárdelo como CSV—')+'</span>'
+    + '<input type="file" id="ai_file" class="ocultofoco" accept=".xlsx,.csv,.txt,text/csv,text/plain,'
+    + 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>'
+    + (AIFILE ? '<div class="print" style="margin-top:12px"><div class="pn"><b>'+esc(AIFILE)+'</b>'
+        + '<div class="mininota">'+Math.max(0, AIFILAS.length-1)+' '
+        + (AIFILAS.length===2?'fila de artículos':'filas de artículos')
+        + ' · revise el resultado abajo</div></div>'
+        + '<button class="b sm gh" id="ai_quita">Quitar</button></div>' : '');
+
+  h += '<div class="fila" style="margin-top:18px">'
+    + '<div><label class="f" for="ai_cat">Categoría para las filas que no la traigan</label>'
+    + '<select id="ai_cat"><option value="">— la trae el archivo —</option>'
+    + DB.categorias.map(function(c){
+        return '<option'+(AICAT===c?' selected':'')+'>'+esc(c)+'</option>'; }).join('')
+    + '</select></div></div>'
+
+    + '<div style="margin-top:14px"><label class="f">Qué hacer con lo que ya está</label>'
+    + '<div class="segm">'
+    + [['no','Agregar sólo los nuevos'],['si','Agregar y actualizar los que ya están']]
+        .map(function(o){ const on = (AIACT ? 'si' : 'no') === o[0];
+          return '<button class="sg'+(on?' on':'')+'" role="radio" aria-checked="'+(on?'true':'false')
+            + '" data-aiact="'+o[0]+'">'
+            + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div><div class="ayuda">Actualizar cambia el nombre, la categoría, el costo, el precio '
+    + 'y <b>reemplaza la existencia</b> por la del archivo. La foto que ya tenga el artículo '
+    + 'no se toca.</div></div>'
+
+    + '<div style="margin-top:14px"><label class="f">Las filas que no digan si llevan IVA</label>'
+    + '<div class="segm">'
+    + [['si','Entran exentas (sin IVA)'],['no','Entran gravadas (con IVA)']]
+        .map(function(o){ const on = (AIEXE ? 'si' : 'no') === o[0];
+          return '<button class="sg'+(on?' on':'')+'" role="radio" aria-checked="'+(on?'true':'false')
+            + '" data-aiexe="'+o[0]+'">'
+            + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div><div class="ayuda">Sólo decide las filas con la columna <b>iva</b> vacía. '
+    + 'La que diga «si» o «no» manda ella, fila por fila.</div></div>'
+
+    + '<div style="margin-top:14px"><div class="f">Categorías que no existan</div>'
+    + '<div class="segm">'
+    + [['no','Rechazar esas filas'],['si','Crearlas al importar']]
+        .map(function(o){ const on = (AICREA ? 'si' : 'no') === o[0];
+          return '<button class="sg'+(on?' on':'')+'" role="radio" aria-checked="'+(on?'true':'false')
+            + '" data-aicrea="'+o[0]+'">'
+            + '<span class="tick">'+(on?'✓':'')+'</span>'+o[1]+'</button>'; }).join('')
+    + '</div><div class="ayuda">Las categorías que se creen quedan en la tienda para siempre '
+    + 'y salen en la caja y en los reportes. Se escriben tal como vengan en el archivo, '
+    + 'con sus mayúsculas y sus acentos.</div></div>'
+
+    + '<div class="acc" style="margin-top:16px">'
+    + '<button class="b gh" id="ai_prev">Revisar antes de importar</button></div>';
+
+  if(AIPREV) h += vistaPreviaArts();
+  h += '</div>';
+  h += bloqueVaciar();
+  return h;
+}
+
+/* ==========================================================================
+   EMPEZAR EL CATÁLOGO DESDE CERO
+
+   Va en su propia tarjeta, al final y separado de todo lo demás, porque no
+   es un paso de la carga: es una decisión aparte que no se deshace.
+   ========================================================================== */
+function bloqueVaciar(){
+  const pl = planVaciado();
+  if(!pl.total) return '';
+
+  let h = '<div class="card peligro"><h2>Empezar el catálogo desde cero</h2>'
+    + '<p class="cap">Para montar el inventario de nuevo, sin arrastrar lo que hay '
+    + 'cargado hoy. Las ventas, los clientes, las categorías y los cierres <b>no se '
+    + 'tocan</b>: esto vacía el catálogo, no la tienda.</p>';
+
+  if(!AIVAC){
+    h += '<div class="hero" style="margin-top:14px">'
+      + '<div class="h"><span class="k">Artículos en el catálogo</span><span class="v">'
+      + pl.total+'</span><span class="s">activos y de baja</span></div>'
+      + '<div class="h"><span class="k">Se borran</span><span class="v">'+pl.borrar.length+'</span>'
+      + '<span class="s">nunca se vendieron</span></div>'
+      + '<div class="h"><span class="k">Se dan de baja</span><span class="v">'+pl.aBajar+'</span>'
+      + '<span class="s">'+(pl.baja.length
+          ? pl.baja.length+' tienen ventas que conservar'
+          : 'ninguno tiene ventas')+'</span></div>'
+      + '</div>'
+      + '<div class="acc" style="margin-top:14px">'
+      + '<button class="b gh" id="ai_vac1">Vaciar el catálogo…</button></div>';
+    return h + '</div>';
+  }
+
+  /* segundo paso: se enseña la lista, uno por uno, antes de la clave */
+  h += '<div class="nota rj" style="margin-top:14px"><b>Esto no se puede deshacer.</b> '
+    + 'Antes de seguir baje un respaldo: es lo único que permite volver atrás si algo '
+    + 'sale mal. <button class="b sm gh" data-goto="ger|resp">Ir a bajar el respaldo</button></div>';
+
+  if(pl.borrar.length){
+    h += '<div style="margin-top:16px"><label class="f">Se borran del todo ('
+      + pl.borrar.length+') · nunca se vendieron</label>'
+      + '<div class="tabwrap"><table class="dat"><thead><tr><th>Código</th><th>Artículo</th>'
+      + '<th>Categoría</th><th class="n">Existencia</th></tr></thead><tbody>'
+      + pl.borrar.slice(0, 200).map(function(p){
+          return '<tr><td><b>'+esc(p.sku)+'</b></td><td>'+esc(p.nom)+'</td>'
+            + '<td class="mini">'+esc(p.cat)+'</td><td class="n">'+exi(p)+'</td></tr>'; }).join('')
+      + '</tbody></table></div>'
+      + (pl.borrar.length > 200 ? '<div class="mininota">Se muestran los 200 primeros.</div>' : '')
+      + '</div>';
+  }
+  if(pl.baja.length){
+    h += '<div style="margin-top:16px"><label class="f">Se dan de baja ('
+      + pl.baja.length+') · tienen ventas registradas</label>'
+      + '<div class="ayuda">Todos éstos se vendieron alguna vez. Salen del catálogo activo '
+      + 'y no se pueden volver a vender, pero sus ventas conservan el nombre y el precio '
+      + 'que tenían. Si el archivo nuevo trae el mismo código, vuelven solos a la venta.</div>'
+      + '<div class="tabwrap"><table class="dat"><thead><tr><th>Código</th><th>Artículo</th>'
+      + '<th>Categoría</th><th>Estado</th></tr></thead><tbody>'
+      + pl.baja.slice(0, 200).map(function(p){
+          return '<tr><td><b>'+esc(p.sku)+'</b></td><td>'+esc(p.nom)+'</td>'
+            + '<td class="mini">'+esc(p.cat)+'</td>'
+            + '<td class="mini">'+(p.activo === false ? 'ya estaba de baja' : 'pasa a de baja')+'</td></tr>';
+        }).join('')
+      + '</tbody></table></div>'
+      + (pl.baja.length > 200 ? '<div class="mininota">Se muestran los 200 primeros.</div>' : '')
+      + '</div>';
+  }
+
+  h += '<div class="acc" style="margin-top:16px">'
+    + '<button class="b mal" id="ai_vac2">Sí, vaciar el catálogo</button>'
+    + '<button class="b gh" id="ai_vacx">Cancelar</button></div>';
+  return h + '</div>';
+}
+
+function vistaPreviaArts(){
+  if(AIPREV.sinCab)
+    return '<div class="nota rj" style="margin-top:18px"><b>No encontré las columnas.</b> '
+      + 'El archivo tiene que traer, en la primera fila, al menos <b>codigo</b> y '
+      + '<b>nombre</b>. Descargue el modelo de arriba y compárelo con el suyo.</div>';
+
+  const f = AIPREV.filas;
+  const nue = AIPREV.arts.filter(function(a){ return a.tipo === 'nuevo'; }).length;
+  const act = AIPREV.arts.filter(function(a){ return a.tipo === 'actualiza'; }).length;
+  const err = f.filter(function(r){ return r.mal; }).length;
+  const omi = f.filter(function(r){ return r.tipo === 'omite'; }).length;
+  const uds = AIPREV.arts.reduce(function(a, x){
+    return a + x.variantes.reduce(function(b, v){ return b + v.e; }, 0); }, 0);
+  const spr = AIPREV.arts.filter(function(a){ return !(a.precio > 0); }).length;
+  const rev = AIPREV.arts.filter(function(a){ return a.revive; }).length;
+  const _tr = (AIPREV.arts[0] || {}).trae || {};
+  /* v66 · lo que se va a perder al actualizar, sumado para poder decirlo */
+  const perdidas = AIPREV.arts.reduce(function(a, x){ return a.concat(
+    (x.pierde || []).map(function(v){ return {sku:x.sku, nom:x.nom, t:v.t, c:v.c, e:v.e}; })); }, []);
+  const perdUds = perdidas.reduce(function(a, v){ return a + v.e; }, 0);
+  /* y cuántos cambian de precio, que es lo que nadie quiere descubrir después */
+  const camPre = AIPREV.arts.filter(function(a){
+    return a.antes && _tr.precio && Math.abs(a.antes.precio - a.precio) > 0.005; }).length;
+
+  let h = '<div class="hero" style="margin-top:20px">'
+    + '<div class="h dest"><span class="k">Artículos nuevos</span><span class="v">'+nue+'</span>'
+    + '<span class="s">'+uds+' unidades en todo el archivo</span></div>'
+    + '<div class="h"><span class="k">Se actualizan</span><span class="v">'+act+'</span>'
+    + '<span class="s">'+(rev ? rev+' vuelven a estar a la venta'
+        : omi ? omi+' filas de códigos que ya están, sin tocar'
+        : camPre ? camPre+' cambian de precio' : 'ya estaban en el catálogo')+'</span></div>'
+    + '<div class="h"><span class="k">Renglones con error</span><span class="v">'+err+'</span>'
+    + '<span class="s">'+(err ? 'esos no entran; el resto sí' : 'no hay ninguno')+'</span></div>'
+    + '<div class="h"><span class="k">Renglones leídos</span><span class="v">'+f.length+'</span>'
+    + '<span class="s">del archivo</span></div></div>';
+
+  /* v64 · Entrar sin precio está permitido, pero tiene una consecuencia
+     concreta que hay que decir aquí y no descubrirla en la caja. */
+  /* v66 · lo que el archivo NO trae, dicho antes y no después */
+  const faltan = [];
+  if(!_tr.precio) faltan.push('el precio');
+  if(!_tr.costo)  faltan.push('el costo');
+  if(!_tr.iva)    faltan.push('el IVA');
+  if(!_tr.exi)    faltan.push('la existencia');
+  if(act && faltan.length)
+    h += '<div class="nota"><b>Este archivo no trae ' + faltan.join(', ').replace(/, ([^,]*)$/, ' ni $1')
+      + '.</b> De los ' + act + ' que ya están en el catálogo, esos datos <b>se quedan como '
+      + 'están</b>: el archivo sólo cambia lo que trae.</div>';
+
+  if(camPre)
+    h += '<div class="nota"><b>'+camPre+' '+(camPre === 1 ? 'artículo cambia' : 'artículos cambian')
+      + ' de precio.</b> El precio nuevo es el del archivo. En la tabla se ve el de antes '
+      + 'al lado del nuevo.</div>';
+
+  if(perdidas.length)
+    h += '<div class="nota rj"><b>Se van a perder '+perdUds+' '
+      + (perdUds === 1 ? 'unidad' : 'unidades')+' en '+perdidas.length+' '
+      + (perdidas.length === 1 ? 'variante' : 'variantes')+'.</b> '
+      + 'Son tallas o colores que los artículos tienen hoy y que este archivo no menciona: '
+      + 'al actualizar la existencia, desaparecen. '
+      + perdidas.slice(0, 8).map(function(v){
+          return esc(v.sku)+' '+esc(nombreVar(v.t, v.c) || 'único')+' ('+v.e+')'; }).join(' · ')
+      + (perdidas.length > 8 ? ' y '+(perdidas.length - 8)+' más' : '')
+      + '. Si no era eso lo que quería, agréguelas al archivo antes de importar.</div>';
+
+  if(spr) h += '<div class="nota"><b>'+spr+' '+(spr === 1 ? 'artículo queda' : 'artículos quedan')
+    + ' sin precio.</b> '+(spr === 1 ? 'Queda marcado' : 'Quedan marcados')+' «falta precio» en el '
+    + 'catálogo, con su contador, y <b>no se '+(spr === 1 ? 'puede' : 'pueden')+' vender hasta que '
+    + 'se lo pongan</b>: la caja no deja cobrar cero. Todo lo demás —existencia, tallas, colores— '
+    + 'queda cargado desde ya.</div>';
+
+  /* v66 · «Qué pasa» pasa a la segunda columna. En el teléfono sólo entran
+     tres columnas, y la que da sentido a toda la pantalla quedaba fuera: se
+     leía «el costo es mayor que el precio» sin saber de qué artículo. */
+  const ant = {};
+  AIPREV.arts.forEach(function(a){ if(a.antes) ant[a.sku] = a.antes; });
+  h += '<div class="tabwrap" style="margin-top:16px"><table class="dat prev"><thead><tr>'
+    + '<th class="n">#</th><th>Código</th><th>Qué pasa</th><th>Artículo</th><th>Categoría</th>'
+    + '<th>Variante</th><th class="n">Exist.</th><th class="n">Costo</th>'
+    + '<th class="n">Precio</th><th>IVA</th></tr></thead><tbody>';
+  f.slice(0, 300).forEach(function(r){
+    const est = r.mal ? '<span class="chip mal">'+esc(r.mal)+'</span>'
+      : r.tipo === 'nuevo' ? '<span class="chip ok">se agrega</span>'
+      : r.tipo === 'revive' ? '<span class="chip acc">vuelve a la venta</span>'
+      : r.tipo === 'actualiza' ? '<span class="chip acc">se actualiza</span>'
+      : '<span class="chip">ya está · no se toca</span>';
+    const a = ant[r.sku];
+    const cambia = a && _tr.precio && r.precio > 0 && Math.abs(a.precio - r.precio) > 0.005;
+    h += '<tr'+(r.mal ? ' style="background:var(--mal-bg)"' : '')+'>'
+      + '<td class="n mini">'+r.n+'</td>'
+      + '<td><b>'+esc(r.sku || '—')+'</b></td>'
+      + '<td>'+est+'</td>'
+      + '<td>'+esc(r.nom || '—')+'</td>'
+      + '<td class="mini">'+esc(r.cat || '—')+'</td>'
+      + '<td class="mini">'+esc(nombreVar(r.talla, r.color) || 'único')+'</td>'
+      + '<td class="n">'+(r.mal ? '—' : r.exi)+'</td>'
+      + '<td class="n">'+(!_tr.costo && a ? '<span class="mini">sin cambio</span>'
+          : r.costo ? fN(r.costo) : '—')+'</td>'
+      + '<td class="n">'+(!_tr.precio && a ? '<span class="mini">sin cambio</span>'
+          : r.precio ? (cambia ? '<span class="mini">'+fN(a.precio)+' →</span> ' : '')
+              + '<b>'+fN(r.precio)+'</b>'
+          : '<span class="chip avi">falta</span>')+'</td>'
+      + '<td class="mini">'+(!_tr.iva && a ? 'sin cambio' : r.exento ? 'exento' : 'gravado')+'</td>'
+      + '</tr>';
+  });
+  h += '</tbody></table></div>';
+  if(f.length > 300) h += '<div class="nota">Se muestran los 300 primeros de '+f.length+'. '
+    + 'Se importan todos los que estén bien.</div>';
+
+  /* v66 · el aviso VA ANTES del botón. Con 400 filas el botón queda a quince
+     pantallas del resumen, y una advertencia por debajo del botón llega
+     cuando ya se pulsó. */
+  if(err) h += '<div class="nota rj">'+(err === 1 ? 'La fila' : 'Las '+err+' filas')
+    + ' en rojo <b>no '+(err === 1 ? 'va' : 'van')+' a entrar</b>. '
+    + 'Corríjalas en el archivo y vuelva a cargarlo, o importe ahora las demás y agregue '
+    + (err === 1 ? 'ésa' : 'ésas')+' a mano.</div>';
+  /* y la barra del botón queda pegada al pie, con el resumen al lado, para
+     que se decida viendo las cifras y no quince pantallas más abajo */
+  h += '<div class="acc aiacc">'
+    + (nue + act > 0
+        ? '<button class="b oro" id="ai_go">Importar '+(nue+act)+' '
+          + (nue+act === 1 ? 'artículo' : 'artículos')+'</button>'
+        : '<button class="b" disabled>No hay nada que importar</button>')
+    + '<button class="b gh" id="ai_can">Cancelar</button>'
+    + '<span class="airesum">'+nue+' nuevos · '+act+' se actualizan · '
+    + spr+' sin precio · '+err+(err === 1 ? ' con error' : ' con error')+'</span></div>';
+  return h;
+}
+
+/* El modelo, armado con las categorías que la tienda tiene de verdad. */
+function modeloArts(){
+  const cats = DB.categorias.length ? DB.categorias : ['Ropa de Dama'];
+  const cab = 'codigo;nombre;categoria;talla;color;existencia;costo;precio;iva;icono';
+  const filas = [
+    'BL-001;Blusa manga larga satinada;'+cats[0]+';S;Negro;3;12,00;28,00;si;👚',
+    'BL-001;Blusa manga larga satinada;'+cats[0]+';M;Negro;5;12,00;28,00;si;👚',
+    'BL-001;Blusa manga larga satinada;'+cats[0]+';S;Rojo;2;12,00;28,00;si;👚',
+    'LS-010;Lentes de sol cat-eye;'+(cats[1]||cats[0])+';;;6;9,50;24,00;si;🕶'
+  ];
+  return cab + '\n' + filas.join('\n') + '\n';
+}
+
 /* ---------- respaldo: bajar y restaurar ---------- */
 function bajaRespaldo(){
   DB.ultResp = hoy;
@@ -7485,7 +8380,14 @@ function vaciaMovimientos(){
   fijaBit(0);
   /* el correlativo NO se toca: esas facturas salieron de esta caja y sus
      números no pueden volver a usarse aunque se borren los movimientos */
-  DB.corr.cli = 0; DB.corr.id = 100;
+  /* v66 · reiniciar el contador sin borrar los artículos hacía que el
+     siguiente artículo naciera con un id que ya existía, y a partir de ahí la
+     caja bajaba la mercancía del artículo equivocado. Se deja por encima del
+     mayor que haya. */
+  DB.corr.cli = 0;
+  DB.corr.id = Math.max(100, (DB.productos || []).reduce(function(m, p){
+    const n = parseInt(String(p.id || '').replace(/\D/g, ''), 10);
+    return isFinite(n) && n > m ? n : m; }, 0));
   aplicaPiso();
   bitacora('datos','Movimientos vaciados','el sistema quedó sin ventas ni clientes · se borraron '
     + bitAntes + ' asientos de bitácora · la numeración sigue en '
@@ -7498,6 +8400,16 @@ function vaciaMovimientos(){
 /* ==========================================================================
    SICOM v2 · eventos de las pantallas nuevas
    ========================================================================== */
+/* v63 · el estado de la carga masiva de artículos */
+let AIRES = null;
+let PSUB = 'uno', AIFILE = '', AIFILAS = [], AIPREV = null,
+    AICAT = '', AIACT = false, AICREA = false;
+/* v64 · qué pasa con las filas que no dicen si llevan IVA. Arranca en exentas
+   porque es lo que la tienda va a cargar ahora. */
+let AIEXE = true;
+/* v65 · en qué paso va el vaciado del catálogo: falso = todavía ni se pidió */
+let AIVAC = false;
+
 let PTAL = 'no';
 /* v58 · el formulario trabaja sobre una copia: las tallas, los colores, la
    existencia de cada combinación y la foto. Sólo al guardar se vuelca al
@@ -7788,6 +8700,133 @@ document.addEventListener('click', e=>{
     DB.categorias = DB.categorias.filter(x=>x!==c);
     bitacora('prod','Categoría eliminada', c);
     aviso('Categoría eliminada.'); pinta(); return;
+  }
+
+  /* ---------------- carga masiva de artículos ---------------- */
+  if(b.dataset.psub){ pbufOlvida(); PRED = null; PSUB = b.dataset.psub; pinta(); return; }
+  if(b.dataset.aiact){ AIACT = b.dataset.aiact === 'si';
+    if(AIPREV) AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
+    pinta(); return; }
+  if(b.dataset.aiexe){ AIEXE = b.dataset.aiexe === 'si';
+    if(AIPREV) AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
+    pinta(); return; }
+  if(b.dataset.aicrea){ AICREA = b.dataset.aicrea === 'si';
+    if(AIPREV) AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
+    pinta(); return; }
+  if(b.id === 'ai_quita'){ AIFILE = ''; AIFILAS = []; AIPREV = null; pinta(); return; }
+  if(b.id === 'ai_vac1'){ AIVAC = true; pinta(); return; }
+  if(b.id === 'ai_vacx'){ AIVAC = false; pinta(); return; }
+  if(b.id === 'ai_vac2'){
+    /* Una venta A MEDIO COBRAR guarda el id del artículo en el carrito; si se
+       borra el artículo debajo, esa venta queda apuntando al vacío.
+
+       Una venta YA REGISTRADA es otra cosa: sus líneas son historia congelada
+       —traen el nombre y el precio de ese momento— y siguen en pantalla
+       mientras se ve el recibo. Esa no estorba, y confundirlas dejaría a la
+       tienda sin poder vaciar el catálogo después de cada venta. */
+    if(typeof VTA !== 'undefined' && VTA && VTA.lineas && VTA.lineas.length && !VTA.hecha)
+      return aviso('Hay una venta abierta con artículos. Termínela o cancélela antes '
+        + 'de vaciar el catálogo.', true);
+    const pl = planVaciado();
+    if(!pl.total) return aviso('El catálogo ya está vacío.', true);
+    if(!pideClaveAdmin('vaciar el catálogo')) return;
+    const hecho = conTx('vaciar el catálogo', function(){
+      /* v66 · se filtra por el objeto, no por el id. Un respaldo viejo puede
+         traer artículos sin `id`, y entonces `idsBorrar[undefined]` marcaba
+         para borrar a TODOS los que no tenían id —incluidos los que la propia
+         pantalla acababa de prometer que se conservarían. */
+      DB.productos = DB.productos.filter(function(p){ return pl.borrar.indexOf(p) < 0; });
+      let dados = 0;
+      DB.productos.forEach(function(p){
+        if(p.activo !== false){ p.activo = false; dados++; } });
+      bitacora('prod', 'Catálogo vaciado para empezar de cero',
+        pl.borrar.length + ' artículos borrados (nunca se vendieron) · '
+        + dados + ' dados de baja (tienen ventas) · '
+        + DB.productos.length + ' quedan en el histórico');
+      AIRES = {borrados:pl.borrar.length, bajas:dados};
+      return true;
+    });
+    if(!hecho) return;
+    AIVAC = false; PRED = null; AIPREV = null;
+    try{ pbufOlvida(); }catch(e){}
+    aviso(AIRES.borrados + ' artículos borrados y ' + AIRES.bajas + ' dados de baja. '
+      + 'El catálogo está listo para cargarlo de nuevo.');
+    pinta(); return;
+  }
+  if(b.id === 'ai_can'){ AIPREV = null; pinta(); return; }
+  if(b.id === 'ai_modelo'){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + modeloArts()],
+      {type:'text/csv;charset=utf-8'}));
+    a.download = 'sicom-modelo-inventario.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    aviso('Modelo descargado. Ábralo en Excel, llénelo y súbalo aquí.');
+    return;
+  }
+  if(b.id === 'ai_prev'){
+    if(!AIFILAS.length) return aviso('Primero cargue el archivo del inventario.', true);
+    AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
+    pinta(); return;
+  }
+  if(b.id === 'ai_go'){
+    if(!AIPREV || !AIPREV.arts.length) return aviso('No hay nada que importar.', true);
+    /* v66 · el mismo cerrojo que ya tenía el vaciado. Importar reescribe
+       precios y existencias por debajo de un carrito ya armado: la cajera
+       cobraría un precio viejo de una talla que acaba de desaparecer. */
+    if(typeof VTA !== 'undefined' && VTA && VTA.lineas && VTA.lineas.length && !VTA.hecha)
+      return aviso('Hay una venta abierta con artículos. Termínela o cancélela antes '
+        + 'de cargar el inventario.', true);
+    const arts = AIPREV.arts.slice();
+    const hecho = conTx('importar el inventario', function(){
+      let nue = 0, act = 0, cats = 0, uds = 0, revividos = 0;
+      arts.forEach(function(a){
+        if(AICREA && DB.categorias.indexOf(a.cat) < 0){ DB.categorias.push(a.cat); cats++; }
+        a.variantes.forEach(function(v){ uds += v.e; });
+        const ya = DB.productos.find(function(p){
+          return String(p.sku).toUpperCase() === a.sku; });
+        if(ya){
+          /* v66 · EL ARCHIVO SÓLO CAMBIA LO QUE TRAE.
+             La foto nunca se toca —el archivo no la lleva y perderla obligaría
+             a fotografiarlo todo de nuevo— y ahora tampoco se tocan el precio,
+             el costo, el IVA ni el ícono cuando el archivo no trae esa
+             columna. Un conteo de existencias es un conteo de existencias, no
+             una lista de precios nueva. */
+          const t = a.trae || {};
+          if(ya.activo === false){ ya.activo = true; revividos++; }
+          ya.nom = a.nom;
+          if(t.cat)    ya.cat = a.cat;
+          if(t.ico)    ya.ico = a.ico || ya.ico;
+          if(t.costo)  ya.costo = a.costo;
+          if(t.precio) ya.precio = a.precio;
+          if(t.iva)    ya.exento = a.exento;
+          if(t.exi){
+            ya.var = a.variantes.map(function(v){ return {t:v.t, c:v.c, e:v.e}; });
+            delete ya.tallas; delete ya.exi;
+          }
+          act++;
+        }else{
+          DB.productos.push({ id:nid('p'), sku:a.sku, nom:a.nom, cat:a.cat,
+            ico:a.ico || '📦', costo:a.costo, precio:a.precio, activo:true,
+            exento:a.exento,
+            var:a.variantes.map(function(v){ return {t:v.t, c:v.c, e:v.e}; }) });
+          nue++;
+        }
+      });
+      bitacora('prod', 'Inventario cargado desde un archivo',
+        nue + ' artículos nuevos · ' + act + ' actualizados · ' + uds + ' unidades'
+        + (revividos ? ' · ' + revividos + ' reactivados' : '')
+        + (cats ? ' · ' + cats + ' categorías creadas' : '')
+        + (AIFILE ? ' · archivo ' + AIFILE : ''));
+      AIRES = {nue:nue, act:act, uds:uds, cats:cats, revividos:revividos};
+      return true;
+    });
+    if(!hecho) return;
+    AIPREV = null; AIFILAS = []; AIFILE = '';
+    aviso(AIRES.nue + ' artículos agregados y ' + AIRES.act + ' actualizados'
+      + (AIRES.revividos ? ' (' + AIRES.revividos + ' vuelven a estar a la venta)' : '')
+      + ' · ' + AIRES.uds + ' unidades. Las fotos se cargan después, una por una.');
+    PSUB = 'uno'; pinta(); return;
   }
 
   /* ---------------- artículos ---------------- */
