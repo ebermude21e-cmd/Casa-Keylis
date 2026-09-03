@@ -6357,7 +6357,18 @@ function guardar(){
        dejó en el disco la última vez. Se lee lo que dejó la otra, se le mete
        encima lo que esta acaba de hacer, y se guarda el resultado. Nadie ve
        nada porque no hay nada que decidir. */
-    if(!rebasaSobreDisco()) { trancaOtra(); return false; }
+    if(!rebasaSobreDisco()){
+      /* v72 · La otra pestaña escribió y su documento todavía no se ve desde
+         aquí. Antes se trancaba la caja; ahora se aplaza la escritura unas
+         centésimas y se le devuelve el turno al navegador, que es lo único
+         que hace llegar el documento. La venta ya está en la memoria de esta
+         pantalla: se graba un parpadeo después, junto con lo de la otra.
+
+         Si tras varios intentos el documento sigue sin aparecer, entonces sí
+         se tranca: eso ya no es una carrera de milisegundos. */
+      if(programaGuardado()) return true;
+      trancaOtra(); return false;
+    }
     try{ s = JSON.stringify(DB); }catch(e){ return false; }
   }
   try{
@@ -6371,6 +6382,7 @@ function guardar(){
     if(selloDisco() !== TXREV + ':' + TXYO){ trancaOtra(); return false; }
     ULT_ESCRITO = s;
     ERRGUARDA = false;
+    esperaCumplida();
     sincronizaLogo();
     if(TRANCA === 'lleno') destrancaCaja();
     /* v48 · quedó firme en el navegador; ahora que suba al servidor. Si el
@@ -6386,21 +6398,78 @@ function guardar(){
   }
 }
 
+/* v72 · La escritura aplazada.
+
+   Se reintenta unas pocas veces, con muy poco tiempo entre una y otra: lo que
+   se está esperando tarda menos de un parpadeo. El tope existe para que un
+   fallo de verdad no se quede dando vueltas para siempre. */
+let ESPERAS = 0;
+let ESPERANDO = false;
+const TOPE_ESPERAS = 8;
+function programaGuardado(){
+  if(ESPERAS >= TOPE_ESPERAS) return false;
+  ESPERAS++;
+  if(ESPERANDO) return true;
+  ESPERANDO = true;
+  setTimeout(function(){
+    ESPERANDO = false;
+    try{ guardar(); }catch(e){}
+  }, 25);
+  return true;
+}
+/* En cuanto la escritura sale bien, el contador vuelve a cero: la próxima vez
+   que haga falta esperar, se empieza a contar de nuevo. */
+function esperaCumplida(){ ESPERAS = 0; }
+
 /* v67 · Lo que esta pestaña acaba de hacer, montado encima de lo que dejó la
    otra. Devuelve false sólo si de verdad no se pudo leer el disco, y entonces
    sí se tranca: no unir es preferible a unir a ciegas. */
 function rebasaSobreDisco(){
   try{
-    const crudo = localStorage.getItem(CLAVE);
+    /* v69 · LA REVISIÓN SE PREGUNTA ANTES DE LEER, NO DESPUÉS.
+
+       Iba al revés: se leía el documento y después se anotaba la revisión. Si
+       la otra pestaña volvía a guardar entre esas dos líneas, ésta se quedaba
+       con el documento viejo y la revisión nueva —o sea, creyéndose al día con
+       algo que nunca leyó—. La próxima guardada ya no se pondría al día,
+       porque las revisiones coinciden, y escribiría encima.
+
+       Preguntando antes, si alguien escribe en el medio la revisión del disco
+       queda por delante de la anotada y la próxima guardada lo nota. Se
+       prefiere ponerse al día de más que de menos: repetirlo no cuesta nada. */
+    const rev = revEnDisco();
+    let crudo = localStorage.getItem(CLAVE);
     if(!crudo) return false;
+    /* v70 · EL AVISO PUEDE LLEGAR ANTES QUE LO QUE ANUNCIA.
+
+       Guardar son dos escrituras: primero el documento, después la revisión.
+       La otra pestaña se entera por la revisión, y cuando las dos corren en
+       procesos distintos del navegador esas dos escrituras no siempre se ven
+       en el mismo orden: puede llegar el aviso y, al buscar el documento,
+       encontrarse todavía el viejo.
+
+       Si lo que hay en el disco es exactamente lo último que escribió ESTA
+       pestaña, entonces no ha llegado nada nuevo y el aviso venía adelantado.
+       Unir aquí sería unir con nada, anotar la revisión sería declararse al
+       día con algo que no se leyó, y guardar después borraría del disco la
+       venta de la otra pestaña. Se devuelve `false` y se deja la sospecha
+       levantada.
+
+       v72 · Aquí la v71 se puso a esperar dando vueltas, y no podía funcionar:
+       cada pestaña tiene su propia copia en memoria de lo guardado, y esa copia
+       se actualiza por la cola de eventos del navegador. Un bucle que da
+       vueltas bloquea justamente la cola por la que tenía que llegar el
+       documento. Cuanto más esperaba, menos posible era que llegara.
+
+       Ahora se devuelve `false` sin más, y quien llamó decide: guardar() aplaza
+       la escritura y le devuelve el turno al navegador. */
+    if(ULT_ESCRITO !== null && crudo === ULT_ESCRITO) return false;
     const otra = normaliza(JSON.parse(crudo));
     const base = ULT_ESCRITO ? normaliza(JSON.parse(ULT_ESCRITO)) : null;
     const r = funde(base, DB, otra);
     if(!r || !r.doc) return false;
     DB = normaliza(r.doc);
-    /* esta pestaña se pone al día con la revisión que hay en el disco: lo que
-       viene ahora es una escritura legítima encima de ella, no un pisotón */
-    TXREV = revEnDisco();
+    TXREV = rev;
     TXAJENA = false;
     ULT_ESCRITO = crudo;
     if(TRANCA === 'otra') destrancaCaja();
@@ -6513,6 +6582,19 @@ function faltaExistencia(){
    no puede resolver; a velocidad humana, cualquiera de las dos la detecta.
    La única solución completa es un servidor. */
 window.addEventListener('storage', function(e){
+  /* v72 · El aviso del DOCUMENTO.
+
+     Guardar son dos escrituras —el documento y la revisión— y llegan por
+     separado. Escuchando sólo la revisión, esta pestaña se enteraba de que
+     algo pasó antes de poder ver QUÉ pasó. Escuchando también el documento se
+     entera en el momento exacto en que ya lo puede leer, sin adivinar ni
+     esperar por reloj. */
+  if(e.key === CLAVE){
+    if(ESPERANDO || ESPERAS > 0){ try{ guardar(); }catch(_){} return; }
+    if(!otraEscribio()) return;
+    if(rebasaSobreDisco()){ try{ pinta(); }catch(_){} }
+    return;
+  }
   if(e.key !== CLAVE_REV) return;
   const q = (String(e.newValue || '').split(':')[1]) || '';
   if(q === TXYO) return;              /* es nuestra propia escritura rebotando */
@@ -6543,7 +6625,11 @@ window.addEventListener('storage', function(e){
     try{ pinta(); }catch(e){}
     return;
   }
-  trancaOtra();
+  /* v70 · No se pudo unir todavía —lo más probable es que el aviso haya
+     llegado antes que el documento—. NO se tranca la caja por eso: la
+     sospecha queda puesta y la próxima guardada se pone al día sola. Trancar
+     aquí sería volver al cartel que se quitó, y por una carrera de
+     milisegundos que se resuelve sola. */
 });
 
 /* ---------- el logo, aparte ----------
@@ -6826,8 +6912,13 @@ const LLAVE_LISTA = {
   tasas:      function(t){ return 't:' + (t.fecha || ''); },
   cierres:    function(c){ return 'z:' + (c.fecha || ''); },
   correos:    function(c){ return 'm:' + (c.fecha||'') + '|' + (c.venta||'') + '|' + (c.mail||''); },
-  cuentas:    function(c){ return 'k:' + (c.cod || c.id || canonF(c)); },
-  modelos:    function(m){ return 'd:' + (m.k || m.id || m.nom || canonF(m)); },
+  /* v68 · el código de la cuenta y el del modelo se llaman los dos `c`.
+     Antes se buscaba `cod`/`id` y `k`/`id` —campos que no existen— así que la
+     llave caía al objeto entero: renombrar una cuenta en una computadora la
+     convertía en «otra cuenta» y al unir quedaban las dos, con el mismo
+     código. Un código repetido en el plan rompe los asientos. */
+  cuentas:    function(c){ return 'k:' + (c.c || canonF(c)); },
+  modelos:    function(m){ return 'd:' + (m.c || canonF(m)); },
   accionista: function(a){ return 'a:' + canonF(a); }
 };
 const LISTAS_FUN = Object.keys(LLAVE_LISTA);
