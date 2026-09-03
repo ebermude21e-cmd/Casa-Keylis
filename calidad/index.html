@@ -6343,7 +6343,23 @@ function guardar(){
   /* si nada cambió no se toca el disco: así navegar entre pantallas no le
      mueve la revisión a la otra pestaña */
   if(s === ULT_ESCRITO) return true;
-  if(otraEscribio()){ trancaOtra(); return false; }
+  if(otraEscribio()){
+    /* v67 · ANTES SE TRANCABA LA CAJA.
+
+       SICOM abierto en dos pestañas: la que guardaba de segunda se encontraba
+       con que la revisión del disco ya no era la suya y tapaba la pantalla
+       con «Otra pestaña guardó cambios». No había nada que perder —las dos
+       pestañas son el mismo navegador y el mismo disco— pero el sistema no
+       sabía unir, así que paraba.
+
+       Ahora sí sabe. Y para este caso el punto de partida es perfecto:
+       `ULT_ESCRITO` es, palabra por palabra, el documento que ESTA pestaña
+       dejó en el disco la última vez. Se lee lo que dejó la otra, se le mete
+       encima lo que esta acaba de hacer, y se guarda el resultado. Nadie ve
+       nada porque no hay nada que decidir. */
+    if(!rebasaSobreDisco()) { trancaOtra(); return false; }
+    try{ s = JSON.stringify(DB); }catch(e){ return false; }
+  }
   try{
     localStorage.setItem(CLAVE, s);
     /* ahora sí: lo que quedó en disco es lo que el testigo cuenta */
@@ -6368,6 +6384,49 @@ function guardar(){
     trancaLleno();
     return false;
   }
+}
+
+/* v67 · Lo que esta pestaña acaba de hacer, montado encima de lo que dejó la
+   otra. Devuelve false sólo si de verdad no se pudo leer el disco, y entonces
+   sí se tranca: no unir es preferible a unir a ciegas. */
+function rebasaSobreDisco(){
+  try{
+    const crudo = localStorage.getItem(CLAVE);
+    if(!crudo) return false;
+    const otra = normaliza(JSON.parse(crudo));
+    const base = ULT_ESCRITO ? normaliza(JSON.parse(ULT_ESCRITO)) : null;
+    const r = funde(base, DB, otra);
+    if(!r || !r.doc) return false;
+    DB = normaliza(r.doc);
+    /* esta pestaña se pone al día con la revisión que hay en el disco: lo que
+       viene ahora es una escritura legítima encima de ella, no un pisotón */
+    TXREV = revEnDisco();
+    TXAJENA = false;
+    ULT_ESCRITO = crudo;
+    if(TRANCA === 'otra') destrancaCaja();
+    anotaFusion(r, 'la otra pestaña');
+    return true;
+  }catch(e){ return false; }
+}
+
+/* Que la cajera no vea nada no quiere decir que no quede rastro. Cada fusión
+   deja su asiento, con lo que se unió y con lo que hubo que decidir. */
+function anotaFusion(r, dedonde){
+  try{
+    const partes = [];
+    if(r.ventas > 0) partes.push(r.ventas + (r.ventas === 1 ? ' venta' : ' ventas'));
+    partes.push('se unió lo de ' + dedonde);
+    if(r.sinBase) partes.push('sin punto de partida: las existencias se tomaron por lo menor');
+    (r.notas || []).slice(0, 6).forEach(function(n){ partes.push(n); });
+    if(!DB.bitacora) DB.bitacora = [];
+    const prev = DB.bitacora.length ? DB.bitacora[DB.bitacora.length-1].h : '000000000000';
+    const ts = new Date().toISOString();
+    const u = (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })();
+    const det = partes.join(' · ');
+    const h = hash(prev + ts + u + 'nube' + 'Trabajo unido' + det);
+    DB.bitacora.push({ ts:ts, u:u, modulo:'nube', accion:'Trabajo unido', detalle:det,
+                       prev:prev, h:h });
+  }catch(e){}
 }
 
 /* v56 · el cartel de la base ilegible. No ofrece «seguir igual»: seguir es
@@ -6395,7 +6454,14 @@ function trancaRota(){
 function conTx(etq, fn){
   /* v56 · antes de mover un centavo, con qué fecha se está trabajando */
   try{ refrescaHoy(); }catch(e){}
-  if(otraEscribio()){ trancaOtra(); return false; }
+  /* v67 · aquí también se trancaba. Y aquí importaba más que en ningún otro
+     sitio: `conTx` es por donde pasa registrar una venta. Con SICOM abierto en
+     dos pestañas, la segunda no podía cobrar.
+
+     Se une antes de empezar, no después: así la operación arranca sobre el
+     estado bueno —con la existencia que de verdad queda en el estante después
+     de lo que vendió la otra pestaña— y no sobre una foto vieja. */
+  if(otraEscribio() && !rebasaSobreDisco()){ trancaOtra(); return false; }
   let foto;
   try{ foto = JSON.stringify(DB); }
   catch(e){ trancaFallo(etq, 'no se pudo tomar el respaldo previo'); return false; }
@@ -6463,6 +6529,20 @@ window.addEventListener('storage', function(e){
   if(rv <= TXREV) return;
   TXAVISO = Math.max(TXAVISO, rv);    /* hasta dónde nos consta que alguien llegó */
   TXAJENA = true;                     /* alguien más escribió: esta copia quedó vieja */
+  /* v67 · ÉSTE ES EL CARTEL QUE APARECÍA SOLO.
+
+     No hacía falta tocar nada: bastaba con que la otra pestaña guardara para
+     que a ésta se le tapara la pantalla en mitad de lo que estuviera
+     haciendo. Era, además, el aviso más difícil de entender, porque llegaba
+     sin que la persona hubiera hecho nada.
+
+     Ahora esta pestaña se pone al día en el momento, en silencio: recoge lo
+     que acaba de escribir la otra y sigue. La venta a medio armar no se toca
+     —vive fuera del documento— así que la cajera no pierde el carrito. */
+  if(rebasaSobreDisco()){
+    try{ pinta(); }catch(e){}
+    return;
+  }
   trancaOtra();
 });
 
@@ -6627,6 +6707,30 @@ function pesoDatos(){ try{ return (localStorage.getItem(CLAVE)||'').length; }cat
    ========================================================================== */
 
 const CLAVE_BIT = CLAVE + '.bitn';   /* cuántos asientos llegó a tener la bitácora */
+/* v67 · la copia que antes caía sola en la carpeta de Descargas */
+const CLAVE_RESCATE = CLAVE + '.rescate';
+function hayRescate(){
+  try{
+    const j = localStorage.getItem(CLAVE_RESCATE);
+    if(!j) return null;
+    const d = JSON.parse(j);
+    return (d && d.datos) ? d : null;
+  }catch(e){ return null; }
+}
+function bajaRescate(){
+  const r = hayRescate();
+  if(!r) return aviso('No hay ninguna copia guardada.', true);
+  try{
+    const b = new Blob([JSON.stringify(r)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'sicom-copia-antes-de-unir-'
+      + String(r.cuando || '').slice(0,19).replace(/[:T]/g,'-') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    aviso('Copia descargada.');
+  }catch(e){ aviso('No se pudo descargar la copia.', true); }
+}
 
 function contBit(){ try{ return Math.max(0, +(localStorage.getItem(CLAVE_BIT) || 0) || 0); }catch(e){ return 0; } }
 function subeBit(n){
@@ -6682,6 +6786,332 @@ function hash(txt){
   }
   return (h1.toString(16).padStart(8,'0') + h2.toString(16).padStart(8,'0')).slice(0,12);
 }
+/* ==========================================================================
+   FUNDIR DOS VERDADES
+
+   Cuando dos copias del sistema trabajan a la vez y cada una registró algo
+   que la otra no tiene, hay dos verdades. Antes se elegía una y se avisaba;
+   ahora se unen.
+
+   Para unirlas hace falta un tercer documento: el punto del que las dos
+   partieron. Con él se sabe qué cambió cada una, en vez de adivinar cuál está
+   más al día. Sin él también se puede unir, pero con más prudencia: no se
+   inventa existencia que nadie contó.
+
+   Todo lo de aquí abajo son funciones puras —entran tres documentos, sale
+   uno— para poder probarlas de verdad, una por una.
+   ========================================================================== */
+
+/* Dos objetos son el mismo si dicen lo mismo, aunque tengan las llaves en
+   distinto orden: dos navegadores arman el mismo artículo de dos maneras. */
+function canonF(x){
+  if(x === null || typeof x !== 'object') return JSON.stringify(x === undefined ? null : x);
+  if(Array.isArray(x)) return '[' + x.map(canonF).join(',') + ']';
+  const k = Object.keys(x).sort();
+  return '{' + k.map(function(n){ return JSON.stringify(n) + ':' + canonF(x[n]); }).join(',') + '}';
+}
+function clon(x){ try{ return JSON.parse(JSON.stringify(x)); }catch(e){ return x; } }
+
+/* QUIÉN ES QUIÉN EN CADA LISTA.
+
+   Sin esto no hay fusión posible: para saber si una venta de allá es la misma
+   que una de aquí hay que saber por dónde se reconoce. */
+const LLAVE_LISTA = {
+  ventas:     function(v){ return 'n:' + (v.num || ''); },
+  vpend:      function(v){ return 'p:' + (v.num || v.id || canonF(v)); },
+  clientes:   function(c){ return 'c:' + (c.id || c.doc || canonF(c)); },
+  productos:  function(p){ return p.id ? ('i:' + p.id)
+                                       : ('s:' + String(p.sku || '').toUpperCase()); },
+  categorias: function(c){ return 'g:' + String(c); },
+  tasas:      function(t){ return 't:' + (t.fecha || ''); },
+  cierres:    function(c){ return 'z:' + (c.fecha || ''); },
+  correos:    function(c){ return 'm:' + (c.fecha||'') + '|' + (c.venta||'') + '|' + (c.mail||''); },
+  cuentas:    function(c){ return 'k:' + (c.cod || c.id || canonF(c)); },
+  modelos:    function(m){ return 'd:' + (m.k || m.id || m.nom || canonF(m)); },
+  accionista: function(a){ return 'a:' + canonF(a); }
+};
+const LISTAS_FUN = Object.keys(LLAVE_LISTA);
+/* LAS QUE SÓLO CRECEN.
+
+   En SICOM una venta no se borra: se anula, y sigue en la lista con su marca.
+   Lo mismo el cierre de un día, el correo enviado, el movimiento del
+   accionista y el vuelto pendiente —que cuando se paga queda con saldo cero,
+   no desaparece—. Son los libros de la tienda.
+
+   Eso cambia la regla al unir. En una lista normal, que algo esté en el punto
+   de partida y no esté del otro lado quiere decir «lo borraron allá», y se
+   respeta. En éstas no puede querer decir eso, porque nadie borra: quiere
+   decir que ese documento viene de otra rama y nunca lo tuvo. Respetar ahí un
+   borrado que nadie hizo haría desaparecer una venta cobrada. */
+const SOLO_SUMAN = { ventas:1, vpend:1, cierres:1, correos:1, accionista:1 };
+/* lo que es un valor suelto y no una lista */
+const OBJETOS_FUN = ['cfg','turno','fisc','empresa','mapaCtas'];
+
+function indiceLista(nom, arr){
+  const ix = Object.create(null);
+  const k = LLAVE_LISTA[nom];
+  (Array.isArray(arr) ? arr : []).forEach(function(x){
+    const ll = k(x);
+    if(ix[ll] === undefined) ix[ll] = x;    /* si viene repetido, manda el primero */
+  });
+  return ix;
+}
+
+/* LA EXISTENCIA NO SE COPIA: SE SUMA POR DIFERENCIAS.
+
+   Si el estante tenía 5, aquí se vendió una y allá otra, quedan 3. Quedarse
+   con el documento «más nuevo» daría 4 y el inventario mentiría desde ese
+   día. Sin punto de partida no se puede restar bien, y entonces se toma el
+   MENOR de los dos: nunca se inventa mercancía que nadie contó. */
+function fundeVar(vb, vm, vs, hayBase){
+  const mapa = function(vs2){
+    const o = Object.create(null);
+    (vs2 || []).forEach(function(v){ o[claveVar(v.t || '', v.c || '')] = v; });
+    return o;
+  };
+  const B = mapa(vb), M = mapa(vm), S = mapa(vs);
+  const claves = [];
+  [M, S].forEach(function(o){ Object.keys(o).forEach(function(k){
+    if(claves.indexOf(k) < 0) claves.push(k); }); });
+  const out = [];
+  claves.forEach(function(k){
+    const b = B[k], m = M[k], s = S[k];
+    /* una variante que las dos partes quitaron, se queda quitada */
+    if(!m && !s) return;
+    const eb = b ? (+b.e || 0) : 0;
+    const em = m ? (+m.e || 0) : (b ? eb : 0);
+    const es = s ? (+s.e || 0) : (b ? eb : 0);
+    let e;
+    if(!hayBase)            e = Math.min(em, es);
+    else if(!m)             e = es;                    /* sólo la tiene el servidor */
+    else if(!s)             e = em;                    /* sólo la tiene esta máquina */
+    else                    e = eb + (em - eb) + (es - eb);
+    const ref = s || m;
+    out.push({ t: ref.t || '', c: ref.c || '', e: Math.max(0, Math.round(e)) });
+  });
+  return out;
+}
+
+/* DOS QUE CAMBIARON LO MISMO.
+
+   Se compara campo por campo contra el punto de partida. El que sólo cambió
+   una parte, gana esa parte. El que cambiaron las dos se queda con lo del
+   servidor —que es lo que las demás máquinas ya están viendo— y se anota. */
+function esObjetoLlano(x){
+  return !!x && typeof x === 'object' && !Array.isArray(x);
+}
+function fundeObjeto(nom, b, m, sv, notas, hayBase){
+  if(m === undefined || m === null) return clon(sv);
+  if(sv === undefined || sv === null) return clon(m);
+  /* v67 · NO TODO LO QUE SE FUNDE ES UN OBJETO.
+
+     `turno` es el id de la cajera: un texto. Recorrerle las llaves da los
+     índices de las letras y no se le puede escribir encima, así que siempre
+     ganaba el servidor en silencio y el cambio de cajera de esta máquina se
+     perdía. Un valor suelto se decide como cualquier campo: gana el que
+     cambió, y si cambiaron los dos, el del servidor. */
+  if(!esObjetoLlano(m) || !esObjetoLlano(sv)){
+    const cm = canonF(m), cs = canonF(sv), cb = canonF(b);
+    if(cm === cs) return clon(sv);
+    if(hayBase && b !== undefined && cb === cm) return clon(sv);
+    if(hayBase && b !== undefined && cb === cs) return clon(m);
+    notas.push('«' + nom + '» cambió en las dos: se dejó lo del servidor');
+    return clon(sv);
+  }
+  const out = clon(sv);
+  const llaves = [];
+  [m, sv].forEach(function(o){ Object.keys(o || {}).forEach(function(k){
+    if(llaves.indexOf(k) < 0) llaves.push(k); }); });
+  llaves.forEach(function(k){
+    const vm = m[k], vs = sv[k], vb = b ? b[k] : undefined;
+    /* la existencia tiene su propia aritmética */
+    if(k === 'var'){ out.var = fundeVar(vb, vm, vs, hayBase && !!b); return; }
+    /* la foto no es dinero: gana la que exista, y si las dos, la del servidor */
+    if(k === 'foto' || k === 'logo'){ out[k] = vs || vm; return; }
+    const cm = canonF(vm), cs = canonF(vs), cb = canonF(vb);
+    if(cm === cs) return;                       /* iguales, nada que decidir */
+    if(hayBase && b && cb === cm){ return; }    /* sólo cambió el servidor */
+    if(hayBase && b && cb === cs){ out[k] = clon(vm); return; }  /* sólo cambió aquí */
+    if(vs === undefined){ out[k] = clon(vm); return; }
+    if(vm === undefined) return;
+    notas.push('«' + nom + '» cambió en las dos: se dejó lo del servidor');
+  });
+  return out;
+}
+
+function fundeLista(nom, base, mio, suyo, notas, hayBase){
+  const k = LLAVE_LISTA[nom];
+  const B = indiceLista(nom, base), M = indiceLista(nom, mio), S = indiceLista(nom, suyo);
+  const out = [];
+  const puesto = Object.create(null);
+  const pon = function(ll, x){ if(puesto[ll]) return; puesto[ll] = true; out.push(x); };
+
+  /* primero lo del servidor, en su orden: es lo que las demás máquinas ya ven */
+  (suyo || []).forEach(function(x){
+    const ll = k(x);
+    const m = M[ll], b = B[ll];
+    if(m === undefined){
+      /* aquí no está. ¿Lo borré yo, o nunca lo vi? */
+      if(!SOLO_SUMAN[nom] && hayBase && b !== undefined && canonF(b) === canonF(x)) return;
+      pon(ll, clon(x)); return;
+    }
+    const cm = canonF(m), cs = canonF(x), cb = b === undefined ? null : canonF(b);
+    /* LA EXISTENCIA NO SE PUEDE ATAJAR.
+
+       Si las dos computadoras vendieron la MISMA talla, las dos quedaron con
+       el mismo número y los dos documentos son idénticos. Un atajo que diga
+       «son iguales, no hay nada que decidir» daría 4 donde la verdad es 3, y
+       el inventario mentiría desde ese día sin que nadie lo note. Por eso un
+       artículo con punto de partida pasa siempre por la resta. */
+    if(nom === 'productos' && hayBase && cb !== null && cb !== cm){
+      pon(ll, fundeObjeto(nom, b, m, x, notas, hayBase)); return; }
+    if(cm === cs){ pon(ll, clon(x)); return; }
+    if(hayBase && cb !== null && cb === cm){ pon(ll, clon(x)); return; }   /* cambió allá */
+    if(hayBase && cb !== null && cb === cs){ pon(ll, clon(m)); return; }   /* cambió aquí */
+    pon(ll, fundeObjeto(nom, b, m, x, notas, hayBase));
+  });
+
+  /* y después lo que sólo está aquí */
+  (mio || []).forEach(function(x){
+    const ll = k(x);
+    if(puesto[ll]) return;
+    const s = S[ll], b = B[ll];
+    if(s !== undefined) return;                 /* ya se resolvió arriba */
+    if(!SOLO_SUMAN[nom] && hayBase && b !== undefined && canonF(b) === canonF(x)) return;
+    pon(ll, clon(x));
+  });
+  return out;
+}
+
+/* LAS VENTAS NO SE PIERDEN, NI SIQUIERA CUANDO CHOCAN DE NÚMERO.
+
+   Dos máquinas sin internet a la vez pueden emitir las dos la V-00008. No se
+   descarta ninguna: la de esta máquina se renumera detrás de la última que
+   haya, y los dos números quedan escritos en la bitácora. Un número repetido
+   se arregla; una venta perdida, no. */
+function chocanVentas(base, mio, suyo, hayBase){
+  const S = indiceLista('ventas', suyo);
+  const B = indiceLista('ventas', base);
+  const choques = [];
+  (mio || []).forEach(function(v){
+    const ll = 'n:' + (v.num || '');
+    const s = S[ll];
+    if(!s) return;
+    if(canonF(s) === canonF(v)) return;                       /* es la misma venta */
+    if(hayBase && B[ll] !== undefined && canonF(B[ll]) === canonF(v)) return;
+    if(hayBase && B[ll] !== undefined && canonF(B[ll]) === canonF(s)) return;
+    choques.push(v);
+  });
+  return choques;
+}
+
+/* LA BITÁCORA · tronco común y las dos ramas
+
+   La cadena del servidor se deja tal cual —es la que ya está publicada— y los
+   asientos que sólo existen aquí se vuelven a encadenar detrás. Se reencadena
+   porque cada eslabón guarda la huella del anterior: pegarlos sin recalcular
+   dejaría la cadena rota y el verificador acusando una manipulación que nadie
+   hizo. */
+function selloAsiento(a){
+  return (a.ts||'') + '|' + (a.u||'') + '|' + (a.modulo||'') + '|'
+       + (a.accion||'') + '|' + (a.detalle||'');
+}
+function fundeBitacora(bm, bs, corte){
+  const tronco = (bs || []).map(clon);
+  const yaEsta = Object.create(null);
+  tronco.forEach(function(a){ yaEsta[selloAsiento(a)] = true; });
+  let prev = tronco.length ? tronco[tronco.length-1].h
+           : ((corte && corte.sello) ? corte.sello : '000000000000');
+  (bm || []).forEach(function(a){
+    if(yaEsta[selloAsiento(a)]) return;
+    const h = hash(prev + (a.ts||'') + (a.u||'') + (a.modulo||'') + (a.accion||'') + (a.detalle||''));
+    tronco.push({ ts:a.ts, u:a.u, modulo:a.modulo, accion:a.accion, detalle:a.detalle,
+                  prev: prev, h: h });
+    yaEsta[selloAsiento(a)] = true;
+    prev = h;
+  });
+  return tronco;
+}
+
+/* EL MOTOR.
+
+   Entran tres documentos: de dónde partieron las dos («base»), lo que hay en
+   esta computadora («mio») y lo que hay en el servidor o en la otra pestaña
+   («suyo»). Sale uno solo, con todo lo que hizo cada quien.
+
+   `base` puede venir vacío: entonces se une igual, pero sin restar
+   existencias, que es lo único que no se puede adivinar. */
+function funde(base, mio, suyo){
+  const notas = [];
+  const hayBase = !!base;
+  const out = clon(suyo) || {};
+  if(!mio) return { doc: out, notas: notas, ventas: 0, sinBase: !hayBase };
+
+  /* las ventas que chocan de número se renumeran ANTES de unir las listas */
+  const choques = chocanVentas(base ? base.ventas : null, mio.ventas, suyo.ventas, hayBase);
+  let mioV = mio;
+  if(choques.length){
+    mioV = clon(mio);
+    let tope = 0;
+    [(suyo.ventas||[]), (mioV.ventas||[])].forEach(function(L){
+      L.forEach(function(v){
+        const n = parseInt(String(v.num||'').replace(/\D/g,''), 10);
+        if(isFinite(n) && n > tope) tope = n;
+      });
+    });
+    const porNum = {};
+    choques.forEach(function(v){ porNum[v.num] = true; });
+    (mioV.ventas || []).forEach(function(v){
+      if(!porNum[v.num]) return;
+      const viejo = v.num;
+      tope++;
+      v.num = 'V-' + String(tope).padStart(5, '0');
+      v.numAntes = viejo;
+      notas.push('la venta ' + viejo + ' existía en las dos con contenido distinto: '
+        + 'la de esta computadora pasó a ser la ' + v.num);
+    });
+  }
+
+  const antesV = (suyo.ventas || []).length;
+
+  LISTAS_FUN.forEach(function(nom){
+    if(!Array.isArray(mioV[nom]) && !Array.isArray(suyo[nom])) return;
+    out[nom] = fundeLista(nom, base ? base[nom] : null,
+                          mioV[nom] || [], suyo[nom] || [], notas, hayBase);
+  });
+
+  OBJETOS_FUN.forEach(function(nom){
+    if(mioV[nom] === undefined && suyo[nom] === undefined) return;
+    out[nom] = fundeObjeto(nom, base ? base[nom] : null, mioV[nom], suyo[nom], notas, hayBase);
+  });
+
+  /* el corte de la bitácora: el que haya archivado más */
+  const cm = mioV.bitCorte || null, cs = suyo.bitCorte || null;
+  out.bitCorte = (((cm && cm.n) || 0) > ((cs && cs.n) || 0)) ? clon(cm) : clon(cs);
+  out.bitacora = fundeBitacora(mioV.bitacora, suyo.bitacora, out.bitCorte);
+
+  /* los correlativos, el mayor de los tres: una factura emitida aquí ya está
+     impresa y en manos de una clienta */
+  out.corr = clon(suyo.corr) || {};
+  Object.keys(mioV.corr || {}).forEach(function(k){
+    const a = (+((mioV.corr||{})[k])) || 0, b = (+(out.corr[k])) || 0;
+    out.corr[k] = Math.max(a, b);
+  });
+
+  /* el efectivo del fondo es dinero contado a mano: se suma por diferencias */
+  const fb = hayBase ? ((+base.fondoUSD) || 0) : null;
+  const fm = (+mioV.fondoUSD) || 0, fs = (+suyo.fondoUSD) || 0;
+  out.fondoUSD = (fb === null) ? Math.min(fm, fs)
+               : Math.round((fb + (fm - fb) + (fs - fb)) * 100) / 100;
+
+  /* la marca de puesta en marcha nunca vuelve atrás */
+  out.instalado = !!(mioV.instalado || suyo.instalado);
+
+  return { doc: out, notas: notas,
+           ventas: ((out.ventas || []).length) - antesV,
+           sinBase: !hayBase };
+}
+
 function bitacora(modulo, accion, detalle){
   if(!DB.bitacora) DB.bitacora = [];
   const prev = DB.bitacora.length ? DB.bitacora[DB.bitacora.length-1].h : '000000000000';
@@ -7957,7 +8387,22 @@ function gerAud(){
 
 function gerResp(){
   const kb = Math.round(pesoDatos()/1024);
-  let h = '<div class="card"><h2>Respaldo de la información</h2>'
+  /* v67 · la copia que el sistema guarda solo cuando tiene que unir el
+     trabajo de dos computadoras. Antes caía en la carpeta de Descargas sin
+     avisar; ahora vive aquí y sólo se baja si alguien la necesita. */
+  const _rc = hayRescate();
+  let h = (_rc ? '<div class="card"><h2>Copia guardada antes de unir el trabajo</h2>'
+      + '<p class="cap">El sistema encontró trabajo hecho en otra computadora y lo unió con lo de '
+      + 'ésta. Antes de unir guardó esta copia de cómo estaba aquí. <b>No hace falta hacer nada '
+      + 'con ella</b>: está por si alguna vez hay que revisar qué había antes.</p>'
+      + '<div class="print"><div class="pn"><b>'
+      + esc(String(_rc.cuando || '').slice(0,10).split('-').reverse().join('/'))
+      + ' · ' + esc(String(_rc.cuando || '').slice(11,16)) + '</b>'
+      + '<div class="mininota">'+((_rc.datos && _rc.datos.ventas || []).length)+' ventas · '
+      + ((_rc.datos && _rc.datos.productos || []).length)+' artículos, tal como estaban aquí</div></div>'
+      + '<button class="b sm gh" id="rs_rescate">Bajarla</button>'
+      + '<button class="b sm gh" id="rs_rescatex">Descartarla</button></div></div>' : '')
+    + '<div class="card"><h2>Respaldo de la información</h2>'
     + '<p class="cap">Todo lo que ve en el sistema vive en este navegador. Si se borra el historial del navegador, se borra el sistema. '
     + 'Baje un respaldo con frecuencia y guárdelo fuera de la computadora.</p>'
     + '<div class="hero"><div class="h dest"><span class="k">Tamaño de los datos</span><span class="v">'+kb+' <small>KB</small></span>'
@@ -8714,6 +9159,12 @@ document.addEventListener('click', e=>{
     if(AIPREV) AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
     pinta(); return; }
   if(b.id === 'ai_quita'){ AIFILE = ''; AIFILAS = []; AIPREV = null; pinta(); return; }
+  if(b.id === 'rs_rescate'){ bajaRescate(); return; }
+  if(b.id === 'rs_rescatex'){
+    if(!confirm('Se borra la copia guardada. Sólo hágalo si ya no le hace falta.')) return;
+    try{ localStorage.removeItem(CLAVE_RESCATE); }catch(e){}
+    aviso('Copia descartada.'); pinta(); return;
+  }
   if(b.id === 'ai_vac1'){ AIVAC = true; pinta(); return; }
   if(b.id === 'ai_vacx'){ AIVAC = false; pinta(); return; }
   if(b.id === 'ai_vac2'){
@@ -11959,12 +12410,42 @@ window.NUBE = (function(){
      idéntico a lo último que el servidor aceptó, hay trabajo sin subir, y da
      igual cuántas veces se recargue. */
   const CLAVE_SUBIDO = CLAVE_NUBE + '.huella';
+  /* v67 · EL ÚLTIMO DOCUMENTO EN EL QUE LAS DOS ESTUVIERON DE ACUERDO.
+
+     Es lo que permite saber qué cambió cada quien en vez de adivinar quién
+     tiene razón. Se guarda sin las fotos: son lo que ocupa, no cambian el
+     resultado de ninguna cuenta, y al unir se resuelven solas —gana la que
+     exista. */
+  const CLAVE_ACUERDO = CLAVE_NUBE + '.acuerdo';
+  function sinFotos(d){
+    const c = JSON.parse(JSON.stringify(d));
+    try{
+      (c.productos || []).forEach(function(p){ if(p.foto) p.foto = '#'; });
+      if(c.empresa && c.empresa.logo) c.empresa.logo = '#';
+    }catch(e){}
+    return c;
+  }
+  function guardaAcuerdo(d){
+    try{ localStorage.setItem(CLAVE_ACUERDO, JSON.stringify(sinFotos(d || DB))); }
+    catch(e){ try{ localStorage.removeItem(CLAVE_ACUERDO); }catch(_){} }
+  }
+  function baseAcordada(){
+    try{
+      const j = localStorage.getItem(CLAVE_ACUERDO);
+      if(!j) return null;
+      const d = JSON.parse(j);
+      return (d && typeof d === 'object') ? d : null;
+    }catch(e){ return null; }
+  }
   let REBOTE = false;    /* para que el reintento inmediato no se vuelva un bucle */
   function huellaDoc(){
     try{ return hash(JSON.stringify(DB)); }catch(e){ return ''; }
   }
   function fijaSubido(){
     try{ localStorage.setItem(CLAVE_SUBIDO, huellaDoc()); }catch(e){}
+    /* lo que el servidor acaba de aceptar es, por definición, el punto en el
+       que las dos partes están de acuerdo */
+    guardaAcuerdo(DB);
   }
   function haySinSubir(){
     try{
@@ -12307,7 +12788,27 @@ window.NUBE = (function(){
          que no registró nada se crea con trabajo pendiente. Antes de trabar
          la caja se mira el contenido. */
       if(!forzar && (pendiente || tieneAlgoSinSubir(vMia)) && !nadaQuePerder(d.doc)){
+        /* v67 · AQUÍ SE TRANCABA LA CAJA Y SE DESCARGABA UN ARCHIVO.
+
+           Las dos máquinas hicieron cosas distintas. Antes el sistema no
+           sabía unirlas, así que elegía: bajaba un respaldo de lo local,
+           tapaba la pantalla y le pedía a la persona que decidiera. Para
+           quien sólo quería entrar a vender, eso es un muro.
+
+           Ahora se unen. El punto de partida es el último documento en el que
+           las dos estuvieron de acuerdo, que se guarda en cada subida y en
+           cada adopción. Se funde, se sube el resultado y se sigue
+           trabajando. La copia de rescate se hace igual —queda en el
+           navegador, a la vista en Gerencial— y la fusión deja su asiento en
+           la bitácora. */
         respaldoDeEmergencia();
+        const r = fundeConServidor(d.doc, vServ);
+        if(r){
+          escucha();
+          return;
+        }
+        /* Sólo si ni siquiera se pudo unir —el documento del servidor llegó
+           ilegible— se para. Eso no es un desencuentro: es un error. */
         pon('conflicto');
         trancaNube(vServ, vMia);
         escucha();
@@ -12391,11 +12892,12 @@ window.NUBE = (function(){
       guardar();
       pendiente = false;
       pon('al-dia');
-      try{
-        pinta();
-        aviso('Datos al día con el servidor · revisión ' + ver
-              + (equipo ? ' · desde ' + equipo : ''));
-      }catch(e){}
+      /* v67 · Ponerse al día con el servidor es lo normal, no una novedad:
+         pasa cada vez que se abre el sistema. Anunciarlo —y de paso decir
+         desde qué equipo vino— no le sirve a la cajera y suena a que alguien
+         anduvo metido en sus cosas. El semáforo de la cinta ya lo dice, y la
+         bitácora lo guarda para quien quiera revisarlo. */
+      try{ pinta(); }catch(e){}
       /* v56 · LO QUE HAY AQUÍ ES LO DEL SERVIDOR: queda anotado.
 
          Se anota AL FINAL, después de pintar, no antes. Pintar normaliza
@@ -12651,6 +13153,11 @@ window.NUBE = (function(){
            haya en memoria ahora: entre el envío y la respuesta la cajera pudo
            registrar otra venta, y esa sí sigue pendiente */
         try{ localStorage.setItem(CLAVE_SUBIDO, hash(JSON.stringify(doc))); }catch(e){}
+        /* v67 · y el punto de acuerdo, sobre EL MISMO documento que se subió.
+           Si se guardara el de memoria, una venta registrada entre el envío y
+           la respuesta entraría en el punto de partida como si el servidor ya
+           la tuviera, y en la próxima fusión se daría por acordada. */
+        guardaAcuerdo(doc);
         pendiente = haySinSubir();
         pon(pendiente ? 'pendiente' : 'al-dia');
         /* Entre que se armó el envío y llegó la respuesta pudo cambiar algo
@@ -12683,10 +13190,21 @@ window.NUBE = (function(){
         pendiente = false;
         adopta(d.doc, +d.version || 0, d.equipo, d.actualizado);
       }else{
-        /* el servidor va adelante y aquí hay trabajo que allá no está */
+        /* v67 · LA OTRA PUERTA POR LA QUE SALÍA EL MISMO CARTEL.
+
+           Ésta es, además, la que más se ve en la tienda: no hace falta ni
+           volver a entrar. Basta con que la otra computadora haya subido algo
+           mientras ésta tenía una venta esperando —y el servidor rechaza la
+           subida porque va por delante.
+
+           Aquí también se une en vez de parar. Es el mismo camino que en
+           `sincroniza`, con el documento que el propio servidor devolvió al
+           rechazar. */
         respaldoDeEmergencia();
-        pon('conflicto', d.motivo || '');
-        trancaNube(+d.version || 0, base);
+        if(!fundeConServidor(d.doc, +d.version || 0)){
+          pon('conflicto', d.motivo || '');
+          trancaNube(+d.version || 0, base);
+        }
       }
     }catch(e){
       if(sinRed(e)){
@@ -12751,20 +13269,27 @@ window.NUBE = (function(){
   }
 
   /* ---------- cuando no se puede seguir sin decidir ---------- */
+  /* v67 · LA COPIA DE RESCATE YA NO CAE EN LA CARPETA DE DESCARGAS.
+
+     Un archivo que aparece solo en Descargas, con un nombre que nadie
+     entiende, mientras la cajera está por cobrar, no protege a nadie: asusta.
+     Y quien lo recibía no sabía qué hacer con él.
+
+     La copia se sigue haciendo —es lo que permite volver si algo salió mal—
+     pero se queda guardada dentro del navegador, y Gerencial · Datos y
+     respaldo la muestra con su fecha, para bajarla si de verdad hace falta.
+     Se quitó la interrupción, no la constancia. */
   function respaldoDeEmergencia(){
-    /* Antes de que nada pise nada, lo local queda en un archivo. Si algo se
-       hizo mal, esto es lo que permite volver. */
     try{
-      const paq = { sistema:'SICOM', version:3, motivo:'respaldo automático por desencuentro',
+      const paq = { sistema:'SICOM', version:3, motivo:'copia guardada antes de unir el trabajo',
+                    cuando: new Date().toISOString(),
                     empresa: DB.empresa.nom, rif: DB.empresa.rif, datos: DB };
-      const b = new Blob([JSON.stringify(paq)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
-      a.download = 'sicom-antes-de-sincronizar-' +
-        new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.json';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
-    }catch(e){}
+      localStorage.setItem(CLAVE_RESCATE, JSON.stringify(paq));
+    }catch(e){
+      /* si no cabe, se quita la anterior y se intenta una vez más: vale más
+         la de ahora que la de la semana pasada */
+      try{ localStorage.removeItem(CLAVE_RESCATE); }catch(_){}
+    }
   }
 
   /* Dos documentos se comparan por su contenido, no por el orden en que
@@ -12873,6 +13398,38 @@ window.NUBE = (function(){
         if(((+ca[llaves[i]]) || 0) > ((+cs[llaves[i]]) || 0)) return false;
       }
 
+      return true;
+    }catch(e){ return false; }
+  }
+
+  /* v67 · Une lo de esta computadora con lo del servidor y sube el resultado.
+     Devuelve true si se pudo; false sólo si el documento del servidor no se
+     pudo ni leer. */
+  function fundeConServidor(docServ, vServ){
+    try{
+      const base = baseAcordada();
+      const suyo = normaliza(JSON.parse(JSON.stringify(docServ)));
+      const r = funde(base, DB, suyo);
+      if(!r || !r.doc) return false;
+      ADOPTANDO = true;
+      try{
+        DB = normaliza(r.doc);
+        try{ aplicaPiso(); }catch(e){}
+        anotaFusion(r, 'la otra computadora');
+        /* el testigo cuenta lo que hay: la cadena unida trae los asientos de
+           las dos, así que nunca es menos de lo que había */
+        try{ subeBit(((DB.bitacora || []).length) + ((DB.bitCorte || {}).n || 0)); }catch(e){}
+        fijaVer(vServ);
+        ULT_ESCRITO = null;              /* que guardar() escriba de verdad */
+        guardar();
+      } finally { ADOPTANDO = false; }
+      olvidaHuellas();
+      pendiente = true;
+      pon('pendiente');
+      setTimeout(function(){
+        if(haySinSubir()) sube(verLocal());
+      }, 120);
+      try{ pinta(); }catch(e){}
       return true;
     }catch(e){ return false; }
   }
