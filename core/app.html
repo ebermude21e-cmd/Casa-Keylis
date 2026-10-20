@@ -1410,6 +1410,13 @@ try{
      corren en la regresión nocturna. Incrustar una copia sería tener dos
      versiones del puente y enterarse de que se separaron en una venta.
      ========================================================================== -->
+<!-- La biblioteca de Supabase, servida desde este mismo dominio y no desde
+     un CDN. Se bajaba de jsdelivr en cada arranque, y una computadora que
+     no alcance ese dominio —filtro de red, antivirus, DNS— se queda sin
+     sistema con un aviso que dice «Sin conexion con el servidor»: manda a
+     buscar el problema donde no esta. Ahora viaja con la pagina.
+     La actualiza .github/workflows/biblioteca.yml, a mano y con version. -->
+<script src="supabase.js"></script>
 <script src="core_puente.js"></script>
 <script src="core_transporte.js"></script>
 
@@ -12775,7 +12782,11 @@ window.NUBE = (function(){
   async function arranca(){
     let mod;
     try{
-      mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      // Ya viene cargada con la pagina. Antes se pedia aqui a un CDN, y en
+      // version «@2» sin fijar: dos motivos distintos de que el sistema
+      // dejara de abrir sin que nadie hubiera tocado nada.
+      mod = globalThis.supabase;
+      if (!mod || !mod.createClient) throw new Error('la biblioteca no cargo');
     }catch(e){
       /* Sin librería no se puede comprobar ninguna clave. Antes esto abría el
          sistema de par en par; ahora no. Se entra solo si esta computadora ya
