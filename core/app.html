@@ -1316,6 +1316,46 @@ window.SICOM_LLAVE_LOGO   = 'sicom.casakeylis.v2'
 <body class="conpuerta">
 
 <!-- ====================================================================
+     EL VELO
+
+     El sistema arranca con un documento vacío porque el del servidor
+     todavía no llegó, y pinta lo que corresponde a una instalación nueva:
+     la puesta en marcha de la empresa. Un instante después llega lo de
+     verdad y lo reemplaza. Ese parpadeo no es un error de dibujo: es la
+     pantalla diciendo, por medio segundo, que la empresa no está
+     configurada. Quien lo vea de reojo va a creer que perdió los datos.
+
+     El velo tapa ese medio segundo. Se levanta cuando el semáforo pasa a
+     cualquier estado que no sea «arrancando» o «bajando» —haya llegado el
+     documento o haya fallado—, y hay un tope de quince segundos por si
+     algo se queda a medias: una pantalla tapada para siempre sería peor
+     que el parpadeo.
+     ==================================================================== -->
+<div id="velo" aria-hidden="true">
+  <div class="velomarca">SICOM</div>
+  <div class="velotxt">Poniéndose al día con el servidor…</div>
+</div>
+<style>
+#velo{ position:fixed; inset:0; z-index:9000; display:none;
+       flex-direction:column; align-items:center; justify-content:center; gap:10px;
+       background:var(--page); }
+html[data-cargando="si"] #velo{ display:flex; }
+#velo .velomarca{ font:600 26px/1 Fraunces,Georgia,serif; letter-spacing:.04em;
+                  color:var(--marron); }
+#velo .velotxt{ font-size:13px; color:var(--muted); }
+</style>
+<script>
+/* Se pone antes de que el sistema dibuje nada. Si por lo que sea el
+   semáforo nunca cambia, el tope lo quita igual. */
+try{
+  document.documentElement.setAttribute('data-cargando','si');
+  setTimeout(function(){
+    document.documentElement.setAttribute('data-cargando','no');
+  }, 15000);
+}catch(e){}
+</script>
+
+<!-- ====================================================================
      LA PUERTA
      Está aquí, en el HTML, y no la crea nadie: ya está tapando la pantalla
      cuando el navegador dibuja el primer pixel. El conector solo la QUITA,
@@ -12650,6 +12690,14 @@ window.NUBE = (function(){
     pintaSemaforo();
   }
   function pintaSemaforo(){
+    /* El velo se levanta aquí y en ningún otro sitio. Es el único punto por
+       el que pasan todos los finales —llegó el documento, no hay sesión, no
+       cargó el conector, se cayó la red, el servidor dijo que no— así que
+       no hay camino que deje la pantalla tapada. */
+    try{
+      if(ESTADO !== 'arrancando' && ESTADO !== 'bajando')
+        document.documentElement.setAttribute('data-cargando', 'no');
+    }catch(e){}
     /* v57 · el chip de la sesión se repinta AQUÍ, con el semáforo.
 
        Antes sólo se pintaba al repintar la pantalla entera, y la sesión
