@@ -12556,6 +12556,7 @@ window.NUBE = (function(){
      refrescando el mismo permiso, y tarde o temprano una le quita el turno
      a la otra.
      --------------------------------------------------------------------- */
+  let VELO_TOPE = null; /* el tope del velo; ver pintaSemaforo */
   let NUC    = null;   /* el transporte, armado una sola vez */
   let ESPEJO = {};     /* lo que el servidor tenía cuando se cargó */
   let YO     = null;   /* quién abrió la sesión, según el servidor */
@@ -12690,13 +12691,36 @@ window.NUBE = (function(){
     pintaSemaforo();
   }
   function pintaSemaforo(){
-    /* El velo se levanta aquí y en ningún otro sitio. Es el único punto por
-       el que pasan todos los finales —llegó el documento, no hay sesión, no
-       cargó el conector, se cayó la red, el servidor dijo que no— así que
-       no hay camino que deje la pantalla tapada. */
+    /* EL VELO, DESDE UN SOLO SITIO.
+
+       Se tapa mientras el sistema está esperando al servidor —«arrancando»
+       o «bajando»— y se destapa en cualquier otro estado. Por aquí pasan
+       todos los finales, así que ningún camino deja la pantalla cubierta:
+       ni «no hay sesión», ni «no cargó el conector», ni «se cayó la red»,
+       ni «el servidor dijo que no».
+
+       Importa que TAPE, no sólo que destape: el parpadeo de verdad no está
+       al abrir la página sino justo después de entrar con la clave. Ahí la
+       puerta se cierra, queda a la vista el documento vacío —que es una
+       empresa sin configurar— y un segundo después llega lo del servidor y
+       lo reemplaza. Entre una cosa y la otra es cuando se ve la puesta en
+       marcha que no corresponde. */
     try{
-      if(ESTADO !== 'arrancando' && ESTADO !== 'bajando')
-        document.documentElement.setAttribute('data-cargando', 'no');
+      const html = document.documentElement;
+      if(ESTADO === 'arrancando' || ESTADO === 'bajando'){
+        if(html.getAttribute('data-cargando') !== 'si'){
+          html.setAttribute('data-cargando', 'si');
+          /* Un tope cada vez que se tapa, no uno solo al principio: una
+             pantalla tapada para siempre sería peor que el parpadeo. */
+          clearTimeout(VELO_TOPE);
+          VELO_TOPE = setTimeout(function(){
+            try{ html.setAttribute('data-cargando', 'no'); }catch(e){}
+          }, 15000);
+        }
+      }else{
+        clearTimeout(VELO_TOPE);
+        html.setAttribute('data-cargando', 'no');
+      }
     }catch(e){}
     /* v57 · el chip de la sesión se repinta AQUÍ, con el semáforo.
 
