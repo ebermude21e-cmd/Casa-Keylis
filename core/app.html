@@ -2687,12 +2687,28 @@ function pasoCliente(){
   return h;
 }
 
+/* ---------- LOS CANALES, EN DOS FORMAS ----------
+
+   El núcleo manda cada canal como una ficha: { nom, activo }. Es a
+   propósito — un canal que se deja de usar se archiva en vez de borrarse, y
+   así las ventas viejas siguen apuntando a algo que existe. Los documentos
+   guardados en el navegador lo traían como texto suelto.
+
+   La pantalla estaba escrita para el texto suelto, de modo que con los datos
+   del servidor el selector de la caja mostraba «[object Object]» en vez del
+   nombre del canal, y agregar uno nuevo reventaba al comparar. Desde aquí se
+   habla siempre por el nombre, venga como venga. */
+function canalNom(c){ return typeof c === 'string' ? c : String((c && c.nom) || ''); }
+function canalVivo(c){ return typeof c === 'string' ? true : !!(c && c.activo !== false); }
+function canalesVivos(){ return (DB.cfg.canales || []).filter(canalVivo); }
+
 /* 2 · CANAL */
 function pasoCanal(){
   const vends=DB.cfg.vendedores.filter(v=>v.activo), zonas=DB.cfg.zonas.filter(z=>z.activo);
   let h='<div class="g2"><div class="card"><h2>¿Por dónde llegó la venta?</h2>'
     +'<p class="cap">Los canales se administran en Configuración.</p>'
-    +'<div class="opcs">'+DB.cfg.canales.map(c=>'<button class="opc'+(VTA.canal===c?' on':'')+'" data-canal="'+esc(c)+'"><b>'+esc(c)+'</b></button>').join('')+'</div>'
+    +'<div class="opcs">'+canalesVivos().map(c=>{const n=canalNom(c);
+        return '<button class="opc'+(VTA.canal===n?' on':'')+'" data-canal="'+esc(n)+'"><b>'+esc(n)+'</b></button>';}).join('')+'</div>'
     +'<h2 style="margin-top:26px">¿Quién vendió?</h2><p class="cap">La comisión se calcula sobre el margen.</p>'
     +'<div class="opcs"><button class="opc'+(VTA.vendedorId==='sin'?' on':'')+'" data-vend="sin"><b>Autoservicio</b><span>sin vendedor</span></button>'
     +vends.map(v=>'<button class="opc'+(VTA.vendedorId===v.id?' on':'')+'" data-vend="'+v.id+'"><b>'+esc(nomComp(v))+'</b><span>comisión '+fN(v.com,0)+' % del margen</span></button>').join('')+'</div>'
@@ -5606,7 +5622,8 @@ function vistaCfg(){
       +'<div style="display:flex;align-items:flex-end"><button class="b oro" id="nc_g">Agregar canal</button></div></div>'
       +'<div class="lineas" style="margin-top:20px">';
     DB.cfg.canales.forEach((c,i)=>{
-      h+='<div class="lin"><div class="li"><b>'+esc(c)+'</b></div>'
+      h+='<div class="lin"><div class="li"><b>'+esc(canalNom(c))+'</b>'
+        +(canalVivo(c)?'':'<div class="mini">archivado · no se le ofrece a la cajera</div>')+'</div>'
         +'<button class="x" data-cdel="'+i+'" title="Quitar">×</button></div>';});
     h+='</div>'+(DB.cfg.canales.length<2?'<div class="nota rj">Debe quedar al menos un canal.</div>':'')+'</div>';
   }
@@ -6072,13 +6089,13 @@ document.addEventListener('click',e=>{
     pinta();return;}
   if(b.id==='nc_g'){const n=$('#nc_nom').value.trim();
     if(n.length<3)return aviso('Escriba el nombre del canal.',true);
-    if(DB.cfg.canales.some(c=>c.toLowerCase()===n.toLowerCase()))return aviso('Ese canal ya existe.',true);
-    DB.cfg.canales.push(n);
+    if(DB.cfg.canales.some(c=>canalNom(c).toLowerCase()===n.toLowerCase()))return aviso('Ese canal ya existe.',true);
+    DB.cfg.canales.push({nom:n, activo:true});
     bitacora('cfg','Canal agregado', n);
     aviso('Canal agregado.');pinta();return;}
   if(b.dataset.cdel!==undefined&&b.dataset.cdel!==''){
     if(DB.cfg.canales.length<=1)return aviso('Debe quedar al menos un canal.',true);
-    const cn = DB.cfg.canales[+b.dataset.cdel];
+    const cn = canalNom(DB.cfg.canales[+b.dataset.cdel]);
     /* borrar una categoría con artículos está protegido desde siempre; borrar
        un canal usado por ventas viejas no lo estaba, y esas ventas quedan
        apuntando a algo que ya no se puede volver a elegir */
