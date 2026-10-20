@@ -12557,6 +12557,7 @@ window.NUBE = (function(){
      a la otra.
      --------------------------------------------------------------------- */
   let VELO_TOPE = null; /* el tope del velo; ver pintaSemaforo */
+  let PRIMERA   = true;  /* la primera carga decide con qué pantalla abre */
   let NUC    = null;   /* el transporte, armado una sola vez */
   let ESPEJO = {};     /* lo que el servidor tenía cuando se cargó */
   let YO     = null;   /* quién abrió la sesión, según el servidor */
@@ -13012,6 +13013,27 @@ window.NUBE = (function(){
        correlativo, reajusta el testigo de la bitácora y repinta. Se le pasa
        lo que armó el puente. */
     adopta(r.DB, 0, 'núcleo', LEIDO);
+
+    /* LA PANTALLA CON LA QUE ABRE EL SISTEMA
+
+       La decide la empresa y viaja en el documento (`cfg.abreEn`). El
+       arranque la lee al principio, pero al principio el documento todavía
+       no ha llegado: lo que hay es uno vacío, y sobre un documento vacío se
+       elige la de por defecto. Por eso el sistema abría siempre en Ventas
+       aunque la empresa tuviera puesta la de bienvenida.
+
+       Se aplica aquí, cuando el documento ya está, y SÓLO la primera vez:
+       una recarga a media venta no puede sacar a la cajera de donde está. */
+    if(PRIMERA){
+      PRIMERA = false;
+      try{
+        if(DB.instalado && (DB.cfg.abreEn === 'home' || DB.cfg.abreEn === 'vta')){
+          TAB = DB.cfg.abreEn;
+          pinta();
+        }
+      }catch(e){}
+    }
+
     pon('solo-lectura');
     escucha();
   }
