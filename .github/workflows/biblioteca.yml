@@ -54,10 +54,13 @@ jobs:
           set -euo pipefail
           git config user.name  'tarea de la biblioteca'
           git config user.email 'noreply@github.com'
-          if git diff --quiet -- core/supabase.js; then
+          # `git diff` no ve los archivos que todavia no estan seguidos, asi
+          # que la primera vez decia «no cambio nada» y no guardaba nada. Se
+          # agrega primero y se compara contra lo agregado.
+          git add core/supabase.js
+          if git diff --cached --quiet; then
             echo 'ya estaba guardada esta misma version'
             exit 0
           fi
-          git add core/supabase.js
           git commit -m "biblioteca: supabase-js ${{ inputs.version }}, servida desde el dominio"
           git push
