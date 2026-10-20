@@ -1,0 +1,63 @@
+#  SICOM · LA BIBLIOTECA DE SUPABASE, GUARDADA AQUI
+#
+#  El sistema la bajaba de un CDN en cada arranque. Una computadora que no
+#  alcance ese dominio —filtro de red, antivirus, DNS— se queda sin sistema,
+#  y el aviso que ve el usuario dice «Sin conexion con el servidor», que no
+#  es lo que pasa y manda a buscar el problema donde no esta.
+#
+#  Guardarla aqui quita a un tercero del camino del arranque: si la pagina
+#  cargo, la biblioteca carga.
+#
+#  Esta tarea no corre sola. Se dispara a mano el dia que haya que subir de
+#  version, y la version va escrita aqui, a la vista, no en una etiqueta
+#  flotante que cambia cuando ellos publican.
+
+name: traer la biblioteca
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'version de supabase-js'
+        required: true
+        default: '2.45.4'
+
+permissions:
+  contents: write
+
+jobs:
+  traer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bajarla y comprobarla
+        run: |
+          set -euo pipefail
+          v='${{ inputs.version }}'
+          url="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@$v/dist/umd/supabase.js"
+          echo "bajando $url"
+          curl -sS --fail --max-time 60 "$url" -o core/supabase.js
+
+          bytes=$(wc -c < core/supabase.js)
+          echo "bytes: $bytes"
+          # Una biblioteca de verdad pesa mas de 50 KB. Menos que eso es una
+          # pagina de error guardada con nombre de biblioteca.
+          [ "$bytes" -gt 50000 ] || { echo 'vino demasiado pequena; no se guarda'; exit 1; }
+          grep -q 'createClient' core/supabase.js || { echo 'no trae createClient'; exit 1; }
+          grep -q 'cdn.jsdelivr.net' core/supabase.js && { echo 'sigue pidiendo cosas afuera'; exit 1; }
+
+          echo "huella: $(sha256sum core/supabase.js | cut -c1-12)"
+
+      - name: guardarla
+        run: |
+          set -euo pipefail
+          git config user.name  'tarea de la biblioteca'
+          git config user.email 'noreply@github.com'
+          if git diff --quiet -- core/supabase.js; then
+            echo 'ya estaba guardada esta misma version'
+            exit 0
+          fi
+          git add core/supabase.js
+          git commit -m "biblioteca: supabase-js ${{ inputs.version }}, servida desde el dominio"
+          git push
