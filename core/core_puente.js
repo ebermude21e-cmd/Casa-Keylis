@@ -32,6 +32,32 @@ function nulo(x){ const s = txt(x); return s === '' ? null : s; }
 function bo(x, d){ return x === undefined || x === null ? (d === true) : x === true; }
 function orden(a, b){ return a < b ? -1 : a > b ? 1 : 0; }
 
+/* El orden de las tallas.
+
+   El servidor devuelve las variantes en el orden que le da la gana, así que
+   la pantalla las ordena aquí. Alfabéticamente, «L, M, S, XL» —que es lo que
+   salía antes— no es una lista de tallas: es un error de lectura esperando a
+   que alguien despache la talla equivocada. Las tallas de ropa tienen un
+   orden propio y es el único que una vendedora reconoce.
+
+   Lo que no esté en la lista (un número de calzado, un color suelto) va
+   después, en orden natural: 36 antes que 37, y «37» antes que «37.5». */
+const TALLAS = ['XXS','XS','S','M','L','XL','XXL','XXXL','UNICA','ÚNICA','U'];
+function ordenTalla(a, b){
+  const ta = txt(a.t).trim().toUpperCase(), tb = txt(b.t).trim().toUpperCase();
+  const ia = TALLAS.indexOf(ta), ib = TALLAS.indexOf(tb);
+  if(ia >= 0 || ib >= 0){
+    if(ia < 0) return 1;              /* lo conocido primero */
+    if(ib < 0) return -1;
+    if(ia !== ib) return ia - ib;
+  }else{
+    const na = parseFloat(ta), nb = parseFloat(tb);
+    if(!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+    if(ta !== tb) return orden(ta, tb);
+  }
+  return orden(txt(a.c), txt(b.c));   /* a igual talla, por color */
+}
+
 /* Los códigos contables no son datos: se derivan del método de pago y del
    origen del movimiento. Guardarlos sería guardar dos veces lo mismo, y que
    una de las dos copias pueda mentir. */
@@ -345,8 +371,7 @@ function aEstado(T){
                  precio: n4(p.precio), costo: n4(p.costo),
                  activo: p.activo !== false, exento: p.exento === true,
                  foto: p.foto || '',
-                 var: (varPorProd[p.id] || []).slice()
-                        .sort(function(a,b){ return orden(a.t+'§'+a.c, b.t+'§'+b.c); }) };
+                 var: (varPorProd[p.id] || []).slice().sort(ordenTalla) };
       }),
 
     tasas: L('tasas').slice().sort(function(a,b){ return orden(a.fecha,b.fecha); })
