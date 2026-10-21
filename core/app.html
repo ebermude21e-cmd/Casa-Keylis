@@ -8425,9 +8425,9 @@ function gerEnlaces(){
       'sin-sesion':'Nadie inició sesión en este equipo. Lo que se registre queda aquí y sube '
                  + 'cuando alguien entre con su clave.',
       'al-dia':'Todo lo de este equipo está guardado en el servidor.',
-      'solo-lectura':'La pantalla está leyendo del núcleo. Todavía no escribe en él: '
-                   + 'la configuración y las operaciones se conectan en el paso siguiente. '
-                   + 'Nada de lo que se haga aquí queda guardado.',
+      'no-es-config':'La pantalla intentó guardar por la vía de la configuración algo '
+                   + 'que pertenece al libro contable. El servidor no lo recibió. Las ventas, '
+                   + 'devoluciones y cierres van por sus propias operaciones.',
       'pendiente':'Hay cambios de este equipo que todavía no subieron.',
       'sin-red':'Sin internet. Lo pendiente sube solo cuando vuelva la señal.',
       'conflicto':'Otra computadora guardó después. Hay que ponerse al día antes de seguir.',
@@ -8447,8 +8447,8 @@ function gerEnlaces(){
       + (q ? '<button class="b gh" id="nube_salir">Cerrar la sesión</button>' : '')
       + '</div>'
       + '<div class="nota">Los datos de la empresa viven en el servidor. Este navegador '
-      + 'guarda una copia de trabajo para poder vender sin internet, y la sube en cuanto '
-      + 'vuelve la señal.</div></div>';
+      + 'no guarda ninguno: lo que se ve se pidió al entrar y vuelve al servidor al '
+      + 'guardar.</div></div>';
   }
 
   /* El logo se cambia en Configuración, no aquí. Se deja el atajo porque es
@@ -12616,10 +12616,10 @@ window.NUBE = (function(){
     'bajando':      ['Poniéndose al día…',   'esp'],
     'subiendo':     ['Guardando en el servidor…', 'esp'],
     'al-dia':       ['Al día con el servidor',    'ok'],
-    /* Paso 1: la pantalla lee del núcleo y todavía no escribe. Se dice
-       con todas sus letras y en verde: no es una avería, es dónde va el
-       desarrollo. Lo que no puede pasar es que parezca que guardó. */
-    'solo-lectura': ['Leyendo del núcleo · no guarda', 'avi'],
+    /* La pantalla mandó por el guardado de configuración algo que pertenece
+       al libro contable. No es el servidor ni la red: es un error de la
+       pantalla, y reintentarlo no lo arregla. */
+    'no-es-config': ['Eso no se guarda aquí',    'mal'],
     'pendiente':    ['Por subir',            'avi'],
     'sin-red':      ['Sin internet · se sube al volver', 'avi'],
     'conflicto':    ['Otra computadora guardó',   'mal'],
@@ -13062,7 +13062,11 @@ window.NUBE = (function(){
       }catch(e){}
     }
 
-    pon('solo-lectura');
+    /* Lo que acaba de llegar es, por definición, el punto en el que las dos
+       partes están de acuerdo: se deja marcado como tal. */
+    fijaSubido();
+    pendiente = false;
+    pon('al-dia');
     escucha();
   }
 
@@ -13348,24 +13352,67 @@ window.NUBE = (function(){
 
   async function sube(base){
     /* ====================================================================
-       PASO 1 · SE LEE DEL NÚCLEO, TODAVÍA NO SE ESCRIBE
+       PASO 2 · LA CONFIGURACIÓN SE GUARDA; EL LIBRO TODAVÍA NO
 
-       La escritura del núcleo es de dos clases y ninguna es esta:
+       La escritura del núcleo es de dos clases y aquí va una sola:
 
-         · la configuración —dieciocho tablas— va por `guarda_config`, que
-           compara contra el espejo y manda sólo lo que cambió;
+         · la configuración —dieciocho tablas— por `guarda_config`, que
+           compara contra el espejo y manda SÓLO lo que cambió. Eso es lo
+           que hace esta función.
 
-         · el libro contable no se guarda: se mueve con sus diecisiete
-           operaciones, que son las que numeran, descuentan y asientan.
-
-       Mientras esas dos no estén conectadas, subir el documento entero
-       sería volver al modelo viejo contra la base nueva. Así que no se
-       sube: se dice que no se sube. Una pantalla que miente sobre lo que
-       guardó es peor que una que no guarda.
+         · el libro contable no se guarda nunca: se mueve con sus diecisiete
+           operaciones, que son las que numeran, descuentan y asientan. El
+           transporte lo comprueba antes de salir a la red y se niega si la
+           pantalla intenta colar una venta por aquí. No es una molestia: es
+           lo que hace que un error de la pantalla se vea el día que ocurre
+           y no el día del cierre.
        ==================================================================== */
+    if(!sb || !sesion || SIN_CONECTOR){ pendiente = true; return false; }
+
+    /* Una sola subida en vuelo. La que llega mientras otra va de camino no
+       se pierde: queda pendiente y el reintento la recoge con el documento
+       ya completo, que es más de lo que lograría encolarla. */
+    if(subiendo){ pendiente = true; return false; }
+
+    subiendo = true;
+    pon('subiendo');
+
+    let r;
+    try{
+      r = await nucleo().guarda(DB, ESPEJO);
+    }catch(e){
+      subiendo  = false;
+      pendiente = true;
+      const m = String((e && e.message) || '');
+      if(/no se guarda por configuracion/.test(m)){
+        /* Esto no lo arregla reintentar: es la pantalla la que está
+           mandando por la puerta equivocada. Se queda en rojo, con el
+           detalle a la vista, hasta que alguien lo corrija. */
+        pon('no-es-config', m);
+      }else if(sinRed(e)){
+        pon('sin-red', m);
+        programaReintento();
+      }else{
+        pon('sin-permiso', m);
+        programaReintento();
+      }
+      return false;
+    }
+
+    /* El espejo nuevo lo arma el transporte por el MISMO camino del
+       guardado. Adoptarlo aquí es lo que hace que el próximo cambio mande
+       sólo lo que de verdad cambió y no el documento entero otra vez. */
+    ESPEJO    = r.espejo || ESPEJO;
+    subiendo  = false;
     pendiente = false;
-    pon('solo-lectura');
-    return false;
+
+    /* La huella que se guarda es la del documento COMPLETO. Hoy eso es
+       cierto porque el libro contable no cambia desde esta pantalla; el día
+       que entren las operaciones (paso 3), `fijaSubido` tiene que correr
+       después de ellas también y no sólo aquí. */
+    fijaSubido();
+    pon('al-dia');
+    return true;
   }
 
   function sinRed(e){
@@ -13607,6 +13654,20 @@ window.NUBE = (function(){
   return {
     arranca: arranca,
     esCalidad: function(){ return CALIDAD; },
+
+    /* QUÉ SE MANDARÍA SI SE GUARDARA AHORA.
+
+       No sale a la red: compara el documento contra el espejo y devuelve
+       { cambios, sobran, cuantos }. Sirve para dos cosas distintas y las dos
+       hacen falta: para que la pantalla pueda decir qué va a pasar antes de
+       que pase, y para que la regresión pueda exigir lo que de otro modo no
+       tendría cómo mirar —que una carga sin tocar nada no tenga NADA que
+       guardar—. Si esa cuenta no diera cero, el primer guardado del día
+       borraría del servidor lo que la pantalla no supo representar. */
+    plan: function(){
+      try{ return nucleo().planifica(DB, ESPEJO); }
+      catch(e){ return { cambios:{}, sobran:[], cuantos:-1, error:String(e && e.message || e) }; }
+    },
     franja: franjaCalidad,
     marcaSucio: marcaSucio,
     /* v56 · «Comprobar contra el servidor» ya NO apaga la marca de pendiente.
