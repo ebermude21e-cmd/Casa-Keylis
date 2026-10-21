@@ -3016,7 +3016,13 @@ function pasoVuelto(){
 }
 
 /* registrar */
-function registrar(){
+/* Una venta en vuelo a la vez. El botón sigue en pantalla mientras el
+   servidor contesta, y un segundo clic —o el doble clic de quien no está
+   seguro de haber pulsado— mandaría la misma venta dos veces, con dos
+   números de factura y el inventario descontado dos veces. */
+let REGISTRANDO = false;
+async function registrar(){
+  if(REGISTRANDO) return;
   if(trancaTasa('registrar la venta')) return;
   if(TRANCA){ return aviso('Resuelva primero el aviso que está en pantalla.', true); }
   /* el botón ya valida, pero el botón no es la última palabra: quien escribe
@@ -3038,92 +3044,138 @@ function registrar(){
      cifra vieja, no se podía volver a cerrar, y esa plata no la contaba
      ningún arqueo, ni el de ese día ni el del siguiente. */
   const _cerrado = DB.cierres.find(c=>c.fecha === hoy) || null;
-  const _cliAntes = VTA.cli;
-  const _ok = conTx('registrar la venta', function(){ return registraVenta(); });
-  if(!_ok){ VTA.cli = _cliAntes; return; }
+
+  /* ====================================================================
+     PASO 3 · NO SE VENDE SIN SERVIDOR
+
+     Antes la venta se escribía aquí: esta pantalla se ponía el número de
+     factura, descontaba el estante y asentaba en la bitácora, y lo que
+     quedaba se mandaba al servidor después. Mientras hubo un solo
+     navegador funcionó; con dos cajas abiertas, las dos emiten la misma
+     factura y ninguna de las dos se entera.
+
+     Ahora la venta la hace el servidor, entera o no la hace: numera,
+     descuenta, cobra, asienta y firma. Esta pantalla sólo arma el pedido,
+     lo manda y vuelve a pedir el documento.
+
+     Y si no hay servidor, NO SE VENDE. Es decisión del dueño y es la
+     correcta: una venta a medias en un navegador —cobrada aquí, sin
+     factura allá— es exactamente el problema que este sistema vino a
+     terminar. La cajera ve el aviso y espera.
+     ==================================================================== */
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return aviso('No hay conexión con el servidor y sin servidor no se registra una venta. '
+               + 'No cobre todavía: en cuanto vuelva la conexión, el botón funciona y la '
+               + 'venta queda completa.', true);
+
+  REGISTRANDO = true;
+  try{ pinta(); }catch(e){}
+
+  let r;
+  try{
+    r = await NUBE.vende(cargaVenta());
+  }catch(e){
+    REGISTRANDO = false;
+    /* El transporte antepone el nombre de la operación; a la cajera no le
+       dice nada y le tapa lo que sí le dice. */
+    const m = String((e && e.message) || '').replace(/^registra_venta:\s*/, '');
+    try{ pinta(); }catch(_){}
+    return aviso('La venta NO quedó registrada. ' + (m || 'El servidor no respondió.')
+               + ' Nada se cobró ni salió del inventario: puede corregir y volver a '
+               + 'intentarlo.', true);
+  }
+  REGISTRANDO = false;
+
+  /* Lo que viene ahora ya no se decide aquí: el documento que acaba de
+     llegar del servidor es el bueno. Sólo se recoge el número y se apunta
+     a la clienta tal como quedó registrada. */
+  const t = tasaVigente();
+  const resta = vueltoResta();
+  if(r && r.cliente_id){
+    const _nc = (DB.clientes || []).find(x => x.id === r.cliente_id);
+    if(_nc) VTA.cli = _nc;
+  }
+  const _c = cliActual() || {};
+  VTA.hecha = { num:(r && r.num) || '', fecha:hoy, tasa:t ? t.bcv : null,
+                pend:resta > 0.005 ? r2(resta) : 0, cajera:DB.turno,
+                repId:VTA.repId, pagoRep:pagoRep(), mail:_c.mail || '' };
+  /* el recibo lo registró la misma operación: no hace falta un segundo paso */
+  VTA.correoEnviado = true;
+
   aviso('Venta ' + VTA.hecha.num + ' registrada · recibo enviado a ' + (VTA.hecha.mail || '')
     + (_cerrado ? ' · OJO: el cierre de hoy ya estaba firmado y quedó marcado como afectado' : ''));
   VTA.paso='correo'; pinta();
 }
 
-/* el cuerpo de la venta: solo toca DB, no avisa ni pinta. Quien decide si
-   quedó hecha es conTx, después de que el disco lo confirme. */
-function registraVenta(){
-  const t=tasaVigente(); let c=cliActual();
-  if(c&&c.nuevo){
-    const nc={id:'c'+(++DB.corr.cli),doc:c.doc,nom:c.nom.trim(),ape:c.ape.trim(),gen:c.gen,op:c.op,tel:c.tel,
-              mail:c.mail.trim(),compras:0,monto:0,ultima:null};
-    DB.clientes.push(nc); VTA.cli=nc; c=nc;
+/* EL PEDIDO DE LA VENTA · esto es lo único que esta pantalla decide.
+
+   Arma, sin tocar nada, lo que se le manda a `registra_venta`. Todo lo
+   demás —el número de factura, lo que sale del estante, el asiento de la
+   bitácora, la firma— lo decide el servidor, y a propósito: lo que la
+   pantalla propone, el servidor lo comprueba.
+
+   Hay un detalle que cuesta caro si se hace al revés: LA CLIENTA. Si lleva
+   identificador, el servidor exige que exista y la usa; si no lo lleva, la
+   crea. Mandar siempre los datos sin identificador crearía una clienta
+   nueva en cada compra y el histórico de la misma señora quedaría repartido
+   entre cinco fichas. */
+function cargaVenta(){
+  const t = tasaVigente();
+  const c = cliActual() || {};
+  const d = desgVenta();
+  const resta = vueltoResta();
+
+  function dinero(x){
+    return { metodo: x.met, moneda: x.mon, monto: x.monto,
+             ref: x.ref || '', banco: x.banco || '',
+             fuente: x.fuente || 'empresa' };
   }
-  VTA.lineas.forEach(l=>{const p=DB.productos.find(x=>x.id===l.id); if(!p)return;
-    const v=varDe(p, l.talla||'', l.color||'');
-    if(v) v.e = Math.max(0, (+v.e||0) - l.cant);});
-  const num='V-'+String(++DB.corr.venta).padStart(5,'0');
-  subePiso(DB.corr.venta);
-  c.compras=(c.compras||0)+1; c.monto=Math.round(((c.monto||0)+totalVenta())*100)/100; c.ultima=hoy;
 
-  VTA.cobros.filter(x=>x.fuente==='accionista').forEach(x=>{
-    const usd=x.mon==='BS'&&t?x.monto/t.bcv:x.monto;
-    DB.accionista.push({fecha:hoy,tipo:'cobro',concepto:'Cobro venta '+num+' recibido en su cuenta',
-      usd:-Math.round(usd*100)/100,ref:x.ref,venta:num,op:'acc_cob'});});
-  VTA.vueltos.filter(x=>x.fuente==='accionista').forEach(x=>{
-    const usd=x.mon==='BS'&&t?x.monto/t.bcv:x.monto;
-    DB.accionista.push({fecha:hoy,tipo:'vuelto',concepto:'Vuelto venta '+num+' con fondos del accionista',
-      usd:Math.round(usd*100)/100,ref:x.ref,venta:num,op:'acc_vue'});});
+  return {
+    cliente: c.nuevo
+      ? { doc:c.doc, nom:(c.nom || '').trim(), ape:(c.ape || '').trim(),
+          genero:c.gen, operadora:c.op, tel:c.tel, mail:(c.mail || '').trim() }
+      : { id: c.id },
+    canal:         VTA.canal,
+    cajera_id:     DB.turno,
+    vendedor_id:   VTA.vendedorId === 'sin' ? null : VTA.vendedorId,
+    repartidor_id: VTA.repId || null,
+    zona_id:       VTA.zonaId || null,
+    entrega:       VTA.entrega,
+    deliv:         montoDeliv(),
+    total:         totalVenta(),
+    tasa:          t ? t.bcv : null,
+    pend:          resta > 0.005 ? r2(resta) : 0,
 
-  const resta=vueltoResta();
-  if(resta>0.005) DB.vpend.push({id:nid('vp'),tipo:'vuelto',venta:num,fecha:hoy,cliId:c.id,
-    usd:resta,saldo:resta,entregas:[],cajera:DB.turno,op:'vue_pend'});
+    /* Se manda la alícuota que SE COBRÓ, no la que está configurada: con el
+       IVA apagado la venta no lleva ni un centavo de impuesto, y guardar
+       `16` haría que el margen descontara después un IVA que nunca existió. */
+    fis: { alicuota: ivaActivo() ? (+fisc().alic || 0) : 0,
+           base:     d.base,
+           iva:      d.iva,
+           exento:   d.exento,
+           igtf_pct: fisc().igtfPct,
+           igtf:     igtfVenta(),
+           cobrado:  totalCobrar() },
 
-  DB.ventas.push({num,fecha:hoy,hora:horaAhora(),cliId:c.id,canal:VTA.canal,vendedorId:VTA.vendedorId==='sin'?null:VTA.vendedorId,
-    repId:VTA.repId,entrega:VTA.entrega,deliv:montoDeliv(),cajera:DB.turno,total:totalVenta(),tasa:t?t.bcv:null,
-    /* v62 · se congela la alícuota que SE COBRÓ, no la que está configurada.
-       Con el IVA apagado la venta no llevaba ni un centavo de impuesto pero
-       guardaba `alic:16`, y después el margen le descontaba un IVA que nunca
-       existió: una venta de 100 con costo 40 decía margen 46,21 en vez de 60. */
-    fis:(function(){ const d=desgVenta(); return {alic:(ivaActivo()?(+fisc().alic||0):0), base:d.base, iva:d.iva, exento:d.exento,
-      igtfPct:fisc().igtfPct, igtf:igtfVenta(), cobrado:totalCobrar()}; })(),
-    lineas:VTA.lineas.map(l=>{const p=DB.productos.find(x=>x.id===l.id)||{};
-      /* desc = lo que de verdad salió del estante. Anular repone esto, no lo
-         que se pidió: así una venta vieja con sobreventa no infla el inventario */
-      /* v56 · `exento` se guarda CON la venta. Sin esto, devolver un artículo
-         no gravado generaba una nota de crédito con base y débito fiscal
-         negativos que nunca se causaron, porque al devolver se volvía a
-         preguntar por una condición que la línea guardada no traía. */
-      /* v58 · se guarda también el identificador del artículo y el color. El
-         identificador, porque reponer buscando por código fallaba en silencio
-         cuando alguien corregía el código después de vender. */
-      return {id:l.id,sku:l.sku,nom:l.nom,talla:l.talla,color:l.color||'',
-              cant:l.cant,desc:l.cant,precio:l.precio,
-              cat:p.cat||'',costo:p.costo||0,exento:l.exento===true};}),
-    op:'vta',
-    cobros:VTA.cobros.map(x=>Object.assign({},x,{op:'cob_'+x.met})),
-    vueltos:VTA.vueltos.map(x=>Object.assign({},x,{op:'vue_'+x.met})),
-    pend:resta>0.005?resta:0});
-  /* v61 · el cierre de un día al que se le agrega una venta DESPUÉS de
-     firmado deja de cuadrar, y hay que decirlo donde se mira: en el propio
-     cierre. Es el mismo mecanismo que ya usaban la anulación y la devolución.
+    /* Cada renglón se lleva la condición del artículo al momento de
+       venderlo: si mañana cambia el catálogo, la venta de ayer no se mueve. */
+    lineas: VTA.lineas.map(function(l){
+      const p = DB.productos.find(function(x){ return x.id === l.id; }) || {};
+      return { producto_id:l.id, sku:l.sku, nom:l.nom, categoria:p.cat || '',
+               talla:l.talla || '', color:l.color || '', cant:l.cant,
+               precio:l.precio, costo:p.costo || 0, exento:l.exento === true };
+    }),
 
-     Antes no se decía en ninguna parte: el esperado subía, el cierre firmado
-     se quedaba con la cifra vieja, no se podía volver a cerrar, y esa plata
-     no la contaba ningún arqueo, ni el de ese día ni el del siguiente. */
-  const _cie = DB.cierres.find(c=>c.fecha === hoy);
-  if(_cie){
-    if(!_cie.afectado) _cie.afectado = [];
-    _cie.afectado.push({venta:num, usd:totalVenta(),
-                        motivo:'venta posterior al cierre', cuando:hoy});
-  }
-  VTA.hecha={num,fecha:hoy,tasa:t?t.bcv:null,pend:resta>0.005?resta:0,cajera:DB.turno,
-             repId:VTA.repId,pagoRep:pagoRep()};
-  /* el recibo sale con la misma acción: no hace falta un segundo clic */
-  DB.correos.push({fecha:hoy,cli:nomComp(c),mail:c.mail,venta:num,
-    arts:VTA.lineas.reduce((a,l)=>a+l.cant,0),tipo:'recibo',estado:'enviado'});
-  VTA.correoEnviado=true;
-  bitacora('caja','Venta registrada', num+' · '+nomComp(c)+' · USD '+fN(totalVenta())
-    +' · '+VTA.canal+' · '+VTA.cobros.length+(VTA.cobros.length===1?' cobro':' cobros')
-    +(resta>0.005?' · queda vuelto pendiente USD '+fN(resta):''));
-  VTA.hecha.mail = c.mail;
-  return true;
+    cobros:  VTA.cobros.map(dinero),
+    vueltos: VTA.vueltos.map(dinero),
+
+    /* Desde la migración 020 el servidor firma con el token y este texto
+       sólo le sirve de referencia. Se manda igual: el día que algo se
+       registre sin sesión —un trabajo del propio servidor— este es el
+       único autor que hay. */
+    usuario: (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+  };
 }
 
 /* 6 · CORREO */
@@ -13420,6 +13472,43 @@ window.NUBE = (function(){
     return !navigator.onLine || /fetch|network|Failed to fetch|timeout|ECONN/i.test(m);
   }
 
+  /* ====================================================================
+     PASO 3 · LAS OPERACIONES DEL LIBRO CONTABLE
+
+     La configuración se guarda comparando contra el espejo y mandando lo
+     que cambió. El libro no: cada movimiento tiene su operación, y la
+     operación es la que numera, descuenta y asienta. Por eso esto no pasa
+     por `sube` ni por el espejo —no hay nada que comparar— y por eso no
+     hay reintento automático: reintentar una venta que no se sabe si
+     llegó es la manera de emitir dos facturas por la misma compra. Quien
+     decide volver a intentarlo es la cajera, viendo el aviso.
+
+     Después de la operación el documento de esta pantalla ya no sirve: el
+     servidor le puso número a la factura, le bajó la existencia al
+     estante y encadenó un asiento. Se pide entero otra vez. Es más tráfico
+     del estrictamente necesario, y es a propósito: lo que se ve después de
+     vender es lo que hay en el servidor, no lo que esta pantalla creía.
+     ==================================================================== */
+  function enLinea(){
+    return !!(sb && sesion && !SIN_CONECTOR);
+  }
+
+  async function opera(nombre, carga){
+    if(!enLinea()) throw new Error('No hay conexión con el servidor.');
+    pon('subiendo');
+    let r;
+    try{
+      r = await nucleo().op[nombre](carga);
+    }catch(e){
+      /* No cambió nada allá, así que lo que hay aquí sigue siendo lo del
+         servidor: el semáforo dice la verdad diciendo que está al día. */
+      pon(sinRed(e) ? 'sin-red' : 'al-dia', e && e.message);
+      throw e;
+    }
+    await sincroniza();
+    return r;
+  }
+
   function programaReintento(){
     if(reintento) return;
     reintento = setTimeout(function(){
@@ -13664,6 +13753,16 @@ window.NUBE = (function(){
        tendría cómo mirar —que una carga sin tocar nada no tenga NADA que
        guardar—. Si esa cuenta no diera cero, el primer guardado del día
        borraría del servidor lo que la pantalla no supo representar. */
+    /* ¿Se puede vender ahora mismo? Hay servidor, hay sesión y el conector
+       está cargado. La caja pregunta antes de dejar cerrar una venta. */
+    enLinea: enLinea,
+
+    /* LA VENTA. Devuelve lo que contestó el servidor —{num, cliente_id,
+       pendiente_id, hash}— o revienta con el motivo tal como lo dio él.
+       Si revienta, no quedó nada registrado: la operación es entera o no
+       es, y eso lo garantiza la transacción de la base, no esta pantalla. */
+    vende: function(carga){ return opera('registra_venta', carga); },
+
     plan: function(){
       try{ return nucleo().planifica(DB, ESPEJO); }
       catch(e){ return { cambios:{}, sobran:[], cuantos:-1, error:String(e && e.message || e) }; }
