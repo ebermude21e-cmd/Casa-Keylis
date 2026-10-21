@@ -2,8 +2,9 @@
    SICOM · CORE · EL TRANSPORTE
    Casa Keylis Boutique Femine, C.A.
 
-   Lo único que habla con el servidor. Tres puertas publicadas y las
-   diecisiete operaciones de caja: nada más. Ninguna tabla.
+   Lo único que habla con el servidor. Doce puertas publicadas: tres para
+   leer y guardar la configuración, y nueve para las operaciones de caja.
+   Nada más. Ninguna tabla.
 
    Reparto de trabajo:
 
@@ -204,10 +205,23 @@ function crea(opciones){
     'anota_accionista', 'anota_correo'
   ];
 
+  /* La puerta publicada de cada operación lleva el prefijo `sicom_`. No es
+     adorno: `public` es el único esquema expuesto y es donde aterriza
+     cualquier extensión que se instale, así que un `devuelve` o un
+     `firma_cierre` a secas serían nombres genéricos en vía pública. Además la
+     superficie publicada del sistema se cuenta con un solo `like 'sicom_%'`,
+     y una cuenta que deja fuera nueve puertas es peor que no tenerla.
+
+     Hacia adentro del guion las operaciones siguen llamándose por su nombre
+     —`nube.op.registra_venta(...)`— porque el prefijo es de la puerta, no de
+     la operación. Si alguna vez las puertas se renombran, se cambia aquí y en
+     ningún otro sitio. */
+  function puerta(op){ return 'sicom_' + op; }
+
   const operaciones = {};
   OPERACIONES.forEach(function(op){
     operaciones[op] = async function(carga){
-      const r = await cliente.rpc(op, { p: carga });
+      const r = await cliente.rpc(puerta(op), { p: carga });
       if(r.error) throw new Error(op + ': ' + r.error.message);
       return r.data;
     };
