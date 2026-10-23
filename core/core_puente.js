@@ -275,7 +275,8 @@ function aEstado(T){
     .sort(function(a,b){ return orden(a.id, b.id); })
     .map(function(c){
       const a = acum[c.id] || { compras: 0, monto: 0, ultima: null };
-      return { id: txt(c.id), doc: txt(c.doc), nom: txt(c.nom), ape: txt(c.ape),
+      return { id: txt(c.id), tipoDoc: txt(c.tipo_doc) || 'V',
+               doc: txt(c.doc), nom: txt(c.nom), ape: txt(c.ape),
                gen: txt(c.genero) || 'X', op: txt(c.operadora), tel: txt(c.tel),
                mail: txt(c.mail),
                compras: a.compras, monto: a.monto, ultima: a.ultima };
@@ -521,7 +522,9 @@ function aFilas(DB){
     }),
 
     clientes: (DB.clientes || []).map(function(c){
-      return { id: txt(c.id), doc: txt(c.doc), nom: txt(c.nom), ape: txt(c.ape),
+      return { id: txt(c.id),
+               tipo_doc: (txt(c.tipoDoc) === 'J') ? 'J' : 'V',
+               doc: txt(c.doc), nom: txt(c.nom), ape: txt(c.ape),
                genero: txt(c.gen) || 'X', operadora: txt(c.op), tel: txt(c.tel),
                mail: txt(c.mail) };
     }),
@@ -715,7 +718,8 @@ function ventaAServidor(v, cli, usuario){
   return {
     cliente: cli && cli.id && !cli.nuevo
       ? { id: cli.id }
-      : { doc: txt((cli||{}).doc), nom: txt((cli||{}).nom).trim(),
+      : { tipo_doc: (txt((cli||{}).tipoDoc) === 'J') ? 'J' : 'V',
+          doc: txt((cli||{}).doc), nom: txt((cli||{}).nom).trim(),
           ape: txt((cli||{}).ape).trim(), genero: txt((cli||{}).gen) || 'X',
           operadora: txt((cli||{}).op), tel: txt((cli||{}).tel),
           mail: txt((cli||{}).mail).trim() },

@@ -928,10 +928,24 @@ body.enhome .barra{display:none !important}
   border-top:4px solid var(--mal)
 }
 .tranca.otra .trbox{border-top-color:var(--avi)}
+/* La decisión de la cajera sobre una venta: amarillo cuando hay que mirar
+   algo, rojo cuando el sistema no sabe qué pasó. Nunca se desvanece. */
+.tranca.decide .trbox{border-top-color:var(--avi)}
+.tranca.nosesabe .trbox{border-top-color:var(--mal)}
 .trbox h2{margin:0 0 12px;font-size:21px;color:var(--ink)}
 .trbox p{margin:0 0 12px;font-size:15px;line-height:1.55;color:var(--ink2,var(--ink))}
 .trbox p.trmini{font-size:12.5px;color:var(--muted);font-family:ui-monospace,monospace}
 .tracc{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+/* El botón mientras la venta está en el aire. No basta con desactivarlo:
+   la cajera tiene que LEER que se está mandando, o vuelve a pulsar. */
+.b.ocupado{position:relative;opacity:.9;cursor:progress}
+.b.ocupado::after{
+  content:'';display:inline-block;width:11px;height:11px;margin-left:9px;
+  vertical-align:-1px;border:2px solid currentColor;border-right-color:transparent;
+  border-radius:50%;animation:gira .7s linear infinite
+}
+@keyframes gira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.b.ocupado::after{animation:none}}
 body.trancado{overflow:hidden}
 .hpie{margin:0;font-size:12px;color:var(--muted);line-height:1.6}
 
@@ -1460,6 +1474,11 @@ function vigilaElDia(){
 }
 const OPERADORAS=['0412','0422','0414','0424','0416','0426'];
 const GENEROS=[['F','Femenino'],['M','Masculino'],['X','Prefiere no decirlo']];
+/* El tipo de documento del comprador. Dos valores y nada más: es lo que va
+   al RIF del libro de ventas del SENIAT. Una clienta que compra a nombre de
+   su empresa es «J», y su factura no puede decir «V-».
+   La misma lista cerrada está en `core.clientes_tipo_doc_check`. */
+const DOCTIPOS=[['V','Persona · V'],['J','Empresa · J']];
 const PLATAFORMAS=['Binance','Airtm','Zinli','Wallet propia · TRC20','Wallet propia · BEP20','Otra plataforma'];
 const BANCOS_US=['Bank of America','Chase','Wells Fargo','Citibank','PNC','Truist','U.S. Bank','Capital One','Otro banco'];
 const BANCOS=['Banesco','Mercantil','Provincial (BBVA)','Banco de Venezuela','Banco Nacional de Crédito',
@@ -1640,7 +1659,20 @@ const DENOM=[100,50,20,10,5,1];
    ========================================================================== */
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 function fN(n,d){d=d===undefined?2:d;return (Number(n)||0).toLocaleString('es-VE',{minimumFractionDigits:d,maximumFractionDigits:d});}
-function fFecha(iso){const p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+/* UNA FECHA QUE FALTA NO PUEDE TUMBAR LA CAJA.
+   Hacía `iso.split('-')` a pelo: con `null` lanzaba
+   «Cannot read properties of null (reading 'split')» DENTRO de `pinta()`, y
+   lo que la cajera veía era la pantalla en blanco —el mismo síntoma de R2-6,
+   por otro camino—. Lo encontró la batería de pantalla el 23/10/2026 al
+   sembrar una ficha con compras y sin fecha de última compra, que es
+   exactamente lo que deja una ficha importada o una venta anulada.
+   Un dato que falta se pinta como que falta. */
+function fFecha(iso){
+  const s = String(iso == null ? '' : iso);
+  const p = s.split('-');
+  if(p.length !== 3 || !p[0] || !p[1] || !p[2]) return '—';
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function aviso(m,mal){const t=$('#toast');t.textContent=m;t.className='toast ver'+(mal?' mal':'');
   clearTimeout(t._h);t._h=setTimeout(()=>t.className='toast',2800);}
@@ -1683,7 +1715,18 @@ function telComp(c){return c.op+'-'+c.tel;}
 function ini(c){return ((c.nom||'?')[0]+(c.ape||'')[0]||'').toUpperCase();}
 
 /* trato del correo — neutro por omisión */
-function trato(g){
+/* EL TRATO DEL CORREO.
+   Lleva un segundo argumento desde la auditoría del 23/10/2026 (R2-14): una
+   EMPRESA no se saluda como a una señora. El correo salía
+   «Hola Inversiones Keylis 911, C.A., qué alegría tenerle de vuelta — esta es
+   su compra número 4 con nosotras», y eso va al buzón de administración de la
+   empresa que acaba de comprar. Una ficha J tiene género 'X' por defecto, así
+   que caía en el trato neutro de una persona: correcto gramaticalmente y
+   equivocado del todo.
+   `emp` manda sobre el género, porque el género de una empresa no existe. */
+function trato(g, emp){
+  if(emp)      return {le:'le', cli:'cliente', gente:'empresas como la suya',
+                       bien:'Gracias por su confianza', emp:true};
   if(g==='F') return {le:'la', cli:'clienta', gente:'mujeres como usted', bien:'Bienvenida de nuevo'};
   if(g==='M') return {le:'lo', cli:'cliente', gente:'personas como usted', bien:'Bienvenido de nuevo'};
   return           {le:'le', cli:'cliente',  gente:'personas como usted', bien:'Le damos la bienvenida'};
@@ -1945,14 +1988,30 @@ function selBanco(id,val,extra,o){
    está leída la configuración: aquí todavía no existe DB. */
 let TAB='vta', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
 let VTA=null;
+/* La ficha en blanco de una clienta por dar de alta, en UN solo sitio. La
+   escribían dos: `nuevaVenta` y, desde R2-9, el botón «No es esta persona».
+   Dos copias del mismo objeto son dos oportunidades de que una se quede sin
+   un campo y el dato viejo sobreviva, que es exactamente el fallo que R2-9
+   venía a cerrar. */
+function nuevoCliente(){
+  return {tipoDoc:'V',nom:'',ape:'',gen:'X',op:'',tel:'',mail:'',_rsocEscrito:null};
+}
 function nuevaVenta(){
   VTA={paso:'cliente',doc:'',cli:null,
-       nuevo:{nom:'',ape:'',gen:'X',op:'',tel:'',mail:''},buscado:false,
+       nuevo:nuevoCliente(),buscado:false,otroTipo:null,
        canal:null,vendedorId:'sin',entrega:'oficina',zonaId:null,repId:null,
        q:'',cat:'Todas',lineas:[],
        cobros:[],met:'efec_usd',buf:'',ref:'',banco:'',fuente:'empresa',print:null,editC:null,
        vueltos:[],vmet:'efec_usd',vbuf:'',vref:'',vbanco:'',vfuente:'empresa',vprint:null,editV:null,
-       hecha:null,correoEnviado:false};
+       hecha:null,correoEnviado:false,
+       /* La llave se genera en el primer envío y sobrevive a los reintentos
+          de ESTA venta. Aquí nace vacía: una venta nueva es una venta nueva,
+          y tiene que poder emitir su propia factura aunque sea idéntica a la
+          anterior. */
+       llave:null,
+       /* ¿Esta venta ya salió al servidor alguna vez? Lo pone `registrar()`
+          antes de llamar, y decide si se puede cambiar de comprador. (PAN-2.) */
+       enviada:false};
 }
 nuevaVenta();
 /* ==================================================================
@@ -2058,13 +2117,41 @@ function efUSDdado(){return VTA.vueltos.filter(v=>v.met==='efec_usd').reduce((a,
 function cliActual(){
   if(VTA.cli) return VTA.cli;
   const n=VTA.nuevo;
-  if(n.nom||n.ape) return {doc:VTA.doc,nom:n.nom,ape:n.ape,gen:n.gen,op:n.op,tel:n.tel,mail:n.mail,compras:0,nuevo:true};
+  /* `_rsocEscrito` viaja con la ficha, porque `cliListo()` y `checkHTML()`
+     necesitan saber si el campo de la razón social borró algo y lo leen de
+     aquí, no de `VTA.nuevo`. Sin él, el botón se encendía sobre una razón
+     social mutilada aunque el mensaje de abajo dijera que se había quitado
+     algo. (PAN-6.) */
+  if(n.nom||n.ape) return {tipoDoc:(n.tipoDoc==='J'?'J':'V'),doc:VTA.doc,nom:n.nom,ape:n.ape,gen:n.gen,op:n.op,tel:n.tel,mail:n.mail,compras:0,nuevo:true,_rsocEscrito:n._rsocEscrito};
   return null;
+}
+/* Qué se le exige al documento según de quién sea. A una persona, la cédula
+   de siempre. A una empresa, el RIF entero CON su dígito verificador: uno
+   malo lo rechaza el portal del SENIAT y deja el libro inservible, y hasta
+   hoy pasaba sin que nadie lo mirara. (Auditoría 23/10/2026, P-06.) */
+function valDocDe(tipoDoc, doc){
+  const d = String(doc||'').replace(/\D/g,'');
+  if(tipoDoc === 'J') return valRif('J', d);
+  return valDoc(d) ? {ok:true, msg:'Cédula válida', fmt:'V-'+d}
+                   : {ok:false, msg:'La cédula lleva de seis a nueve dígitos.'};
 }
 function cliListo(){
   const c=cliActual(); if(!c) return false;
   if(!c.nuevo) return true;
-  return valDoc(VTA.doc) && nomOK(c.nom) && nomOK(c.ape)
+  if(!valDocDe(c.tipoDoc, VTA.doc).ok) return false;
+  /* Una empresa tiene razón social, no nombre y apellido. Y no tiene género
+     ni móvil propio: eso es de la persona que viene a comprar. */
+  /* UNA RAZÓN SOCIAL A LA QUE EL CAMPO LE BORRÓ ALGO NO ESTÁ LISTA (PAN-6).
+     El aviso rojo de R2-7 convivía con el borde verde, el chip verde del
+     cuadro, «Todo listo.» y el botón encendido: cuatro señales diciendo lo
+     contrario que la única que tenía razón. Es el defecto de R2-P4 ocurriendo
+     en la pantalla que R2-7 acababa de arreglar.
+     Mientras lo escrito y lo que quedó no sean lo mismo, el botón no se
+     enciende: la cajera tiene que mirar si lo que quedó es el nombre del RIF.
+     Para seguir, se vuelve a teclear lo que quedó —y entonces no se borra
+     nada— o se corrige. */
+  if(esEmpresa(c)) return rsocOK(c.nom) && valMail(c.mail).ok && !rsocMutilada(c);
+  return nomOK(c.nom) && nomOK(c.ape)
       && !valTel(c.op,c.tel) && valMail(c.mail).ok;
 }
 
@@ -2440,7 +2527,7 @@ function cierraMenuSesion(){
   if(m) m.hidden = true;
   if(b) b.setAttribute('aria-expanded', 'false');
 }
-document.addEventListener('click', e=>{
+document.addEventListener('click', async e=>{
   const abre = e.target.closest && e.target.closest('#nb_abre');
   if(abre){
     const m = document.getElementById('nb_menu');
@@ -2478,6 +2565,35 @@ function pintaMarca(){
   const ti = 'SICOM · ' + marcaDe();
   if(document.title !== ti) document.title = ti;
   const e=DB.empresa, nom=marcaDe();
+
+  /* Y EL ICONO DE LA PESTAÑA (petición del dueño, 23/10/2026).
+     El `<link rel="icon" href="data:,">` del encabezado existe para que el
+     navegador no pida un `/favicon.ico` que no está —un 404 en el registro
+     cada vez que se abre la pantalla—, pero deja la pestaña en blanco. El
+     logo ya viene del servidor con la configuración de la empresa, así que
+     no hay nada que incrustar en el código: se usa el que esté puesto.
+     Se prefiere el monograma al logo completo, por lo mismo que en la barra:
+     a 16 píxeles un logo con texto no se lee.
+     Si la empresa no tiene logo cargado, se deja el icono vacío en vez de
+     inventar uno: la pestaña en blanco es menos ruido que una letra que no
+     es de nadie. */
+  const ico = e.mono || e.logo;
+  if(ico){
+    let link = document.querySelector('link[rel="icon"]');
+    if(!link){
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    if(link.getAttribute('href') !== ico) link.setAttribute('href', ico);
+  }else{
+    /* Y SE REPONE SI SE QUITA EL LOGO (PAN-10). Antes sólo escribía: quitar
+       el logo en configuración dejaba la pestaña con el logo viejo el resto
+       de la sesión. */
+    const link = document.querySelector('link[rel="icon"]');
+    if(link && link.getAttribute('href') !== 'data:,') link.setAttribute('href', 'data:,');
+  }
+
   const box=$('#marcabox'); if(!box) return;
   /* en la barra va el monograma, no el logo completo: el nombre de la marca
      ya está escrito al lado y el texto del logo no se leería sobre oscuro */
@@ -2622,10 +2738,24 @@ function msgMail(n){
 }
 function checkHTML(){
   const n=VTA.nuevo, hay=!!VTA.cli;
-  const okDoc=valDoc(VTA.doc), okNom=hay||(nomOK(n.nom)&&nomOK(n.ape));
+  const okDoc=valDocDe(n.tipoDoc, VTA.doc).ok, okNom=hay||(nomOK(n.nom)&&nomOK(n.ape));
   const okTel=hay||(!valTel(n.op,n.tel)), okMail=hay||valMail(n.mail).ok;
-  const fila=(t,ok,txt)=>'<tr><td>'+t+'</td><td class="n">'
-    +(ok?'<span class="chip ok">'+txt+'</span>':'<span class="chip">pendiente</span>')+'</td></tr>';
+  /* El renglón en rojo puede decir POR QUÉ, no sólo «pendiente». «Pendiente»
+     sobre una razón social que la cajera acaba de escribir entera no le dice
+     nada; «revísela: se quitó lo que no cabe» le dice qué mirar. (PAN-6.) */
+  const fila=(t,ok,txt,falta)=>'<tr><td>'+t+'</td><td class="n">'
+    +(ok?'<span class="chip ok">'+txt+'</span>'
+        :'<span class="chip">'+(falta||'pendiente')+'</span>')+'</td></tr>';
+  if(esEmpresa(n)){
+    return fila('RIF de la empresa',okDoc,'J + 8 y verificador')
+      /* El chip del cuadro dice lo mismo que el botón: si el campo borró
+         algo, la razón social NO está lista, aunque lo que quedó sea válido.
+         (PAN-6.) */
+      +fila('Razón social', hay||(rsocOK(n.nom) && !rsocMutilada(n)),
+            'como en el RIF',
+            rsocMutilada(n) ? 'revísela: se quitó lo que no cabe' : 'pendiente')
+      +fila('Correo',okMail,'verificado');
+  }
   return fila('Cédula',okDoc,'6 a 9 dígitos')
     +fila('Nombre y apellido',okNom,'solo letras')
     +fila('Teléfono',okTel,'operadora + 7')
@@ -2635,6 +2765,7 @@ function refrescaValid(){
   const n=VTA.nuevo, ok=cliListo();
   const ck=$('#cl_check'); if(ck) ck.innerHTML=checkHTML();
   const t=$('#cl_telmsg'); if(t) t.innerHTML=msgTel(n);
+  const rs=$('#cl_rsocmsg'); if(rs) rs.innerHTML=msgRsoc(n.nom, n._rsocEscrito);
   const m=$('#cl_mailmsg'); if(m) m.innerHTML=msgMail(n);
   const s=$('#cl_sigue'); if(s) s.disabled=!ok;
   const e=$('#cl_estado'); if(e) e.textContent=ok?'Todo listo.':'Complete lo que está marcado en rojo.';
@@ -2644,46 +2775,153 @@ function pasoCliente(){
   const n=VTA.nuevo, vm=valMail(n.mail), vt=valTel(n.op,n.tel);
   let h='<div class="g2"><div class="card"><h2>¿Quién compra?</h2>'
     +'<p class="cap">Escriba la cédula y el sistema lo selecciona solo si ya está registrado.</p>'
-    +'<div style="max-width:320px"><label class="f">Cédula</label>'
+    +'<div style="max-width:320px"><label class="f">Cédula o RIF</label>'
     +'<input id="cl_doc" value="'+esc(VTA.doc)+'" placeholder="12458963" inputmode="numeric" maxlength="9" autocomplete="off"'
-    +' class="'+(VTA.doc?(valDoc(VTA.doc)?'bien':'mal'):'')+'">'
-    +'<div class="ayuda">Solo los números. Pruebe con <b>12458963</b>, <b>15332107</b> o uno nuevo.</div></div>';
+    /* SE PINTA SEGÚN EL TIPO, NO CON `valDoc` A SECAS (R2-15). Con «Empresa ·
+       J» elegida, un RIF con el dígito verificador malo se pintaba VERDE
+       porque este campo preguntaba por la cédula de siempre: nueve dígitos,
+       válido. El rojo del verificador salía más abajo, en otro renglón, y la
+       cajera ya había seguido. Ahora el campo pregunta lo mismo que el
+       servidor. */
+    +' class="'+(VTA.doc?(valDocDe(n.tipoDoc, VTA.doc).ok?'bien':'mal'):'')+'">'
+    +'<div class="ayuda">Solo los números. Pruebe con <b>12458963</b>, <b>15332107</b> o uno nuevo.</div>'
+    /* EL AVISO DEL DOCUMENTO, PEGADO AL CAMPO Y SIEMPRE VISIBLE. Vivía dentro
+       del bloque de alta, de modo que desaparecía justo cuando hacía falta.
+       (R2-6.) */
+    +(VTA.doc && !VTA.cli
+        ? (valDocDe(n.tipoDoc, VTA.doc).ok
+            ? '<div class="oki" style="margin-top:6px">✓ '+esc(valDocDe(n.tipoDoc, VTA.doc).fmt||'')+'</div>'
+            : '<div class="err" style="margin-top:6px">'+esc(valDocDe(n.tipoDoc, VTA.doc).msg)+'</div>')
+        : '')
+    +'</div>';
+
+  /* EL SELECTOR V/J, FUERA DEL BLOQUE DE ALTA (R2-6 y R2-8).
+     Estaba dentro de «No está registrado. Regístrelo ahora», y de ahí salían
+     dos fallas: con el número incompleto el bloque no se pintaba y el
+     selector se iba con él, sin manera de volver; y a una empresa que ya
+     estaba registrada se le decía que no lo estaba, porque la búsqueda
+     arranca en `V` y el botón para pasar a `J` sólo existía después de ese
+     anuncio. Ahora se decide antes de buscar, que es el orden natural: a
+     nombre de quién se factura, y luego el número. */
+  if(VTA.doc && !VTA.cli){
+    h+='<div style="margin-top:14px;max-width:420px"><label class="f">¿A nombre de quién se factura?</label>'
+      +'<div class="segm">'+DOCTIPOS.map(t=>'<button class="sg'+(n.tipoDoc===t[0]?' on':'')+'" data-tdoc="'+t[0]+'">'
+      +'<span class="tick">'+(n.tipoDoc===t[0]?'✓':'')+'</span>'+t[1]+'</button>').join('')+'</div></div>';
+  }
+
+  /* Y SI EL MISMO NÚMERO ESTÁ REGISTRADO CON EL OTRO TIPO, SE OFRECE (R2-8).
+     También cuando la ficha de este tipo SÍ se encontró: entonces el aviso no
+     es «no está registrado» sino «hay dos, elija». */
+  if(VTA.otroTipo){
+    const o=VTA.otroTipo, oJ=esEmpresa(o);
+    h+='<div class="nuevoc" style="margin-top:12px">'
+      +'<b>Ese número también está registrado como '+(oJ?'empresa':'persona')+'.</b>'
+      +'<div class="mini" style="margin-top:6px">'+esc(rifCliente(o))+' · '+esc(nomComp(o))+'</div>'
+      +'<div class="mini" style="margin-top:6px">Si es a '+(oJ?'la empresa':'la persona')+' a quien le '
+      +'está vendiendo, cambie el selector a <b>'+(oJ?'Empresa · J':'Persona · V')+'</b>. '
+      +'Son dos contribuyentes distintos y en el libro de ventas van en renglones distintos: '
+      +'elegir mal deja la factura a nombre de quien no compró.</div>'
+      /* Atajo, no acción principal: el segmentado de arriba es lo que la
+         cajera tiene que mirar primero, y en esta pantalla el oro es el color
+         de «haga esto». (PAN-7.) */
+      +'<button class="b gh sm" style="margin-top:10px" data-tdoc="'+(oJ?'J':'V')+'">'
+      +'Es '+(oJ?'la empresa':'la persona')+' · '+esc(nomComp(o))+'</button></div>';
+  }else if(VTA.otroRoto){
+    const o=VTA.otroRoto, oJ=esEmpresa(o);
+    h+='<div class="nuevoc" style="margin-top:12px">'
+      +'<b>Ese número está registrado como '+(oJ?'empresa':'persona')+', pero con el documento mal.</b>'
+      +'<div class="mini" style="margin-top:6px">'+esc(nomComp(o))+' · '+esc(rifCliente(o))+'</div>'
+      +'<div class="mini" style="margin-top:6px">'+esc(valDocDe(oJ?'J':'V', String(o.doc||'')).msg)+' '
+      +'No se puede facturar a esa ficha hasta corregirla: el portal del SENIAT la rechaza. '
+      +'Corríjala en <b>Base de datos → Clientas</b> y vuelva.</div></div>';
+  }
 
   if(VTA.cli){
     const c=VTA.cli;
     h+='<div class="hallado"><div class="av">'+esc(ini(c))+'</div><div style="flex:1;min-width:210px">'
       +'<b style="font-size:16px">'+esc(nomComp(c))+'</b> <span class="chip ok">ya registrado</span>'
-      +'<div class="mini" style="margin-top:5px">V-'+esc(c.doc)+' · '+esc(telComp(c))+' · '+esc(c.mail)+'</div>'
+      +'<div class="mini" style="margin-top:5px">'+esc(rifCliente(c))+' · '+esc(telComp(c))+' · '+esc(c.mail)+'</div>'
       +'<div class="mini">'+c.compras+' compras · USD '+fN(c.monto)+' acumulado · última el '+fFecha(c.ultima)+'</div>'
       +'</div>'
+      /* CORREGIR EL TIPO DE UNA FICHA QUE YA EXISTE (P-04).
+         La migración 028 estampó «V» a toda la cartera, porque antes no se
+         preguntaba. El caso que motivó el cambio —la clienta de siempre que
+         empieza a facturar a nombre de su empresa— era justo el que no
+         tenía salida: el selector sólo salía al dar de alta.
+         No se corrige desde la venta: una venta no es el sitio para mutar
+         datos maestros, y el servidor la ignora a propósito si viene con
+         identificador. Se corrige por configuración, que es el camino que
+         ya existe, y queda su renglón en la bitácora. */
       +'<div style="display:flex;flex-direction:column;gap:8px;min-width:190px">'
       +'<button class="b oro" id="cl_sigue">Continuar con '+esc(c.nom)+' →</button>'
-      +'<button class="b gh sm" id="cl_otro">No es esta persona</button></div></div>';
-  }else if(VTA.buscado&&valDoc(VTA.doc)){
-    h+='<div class="nuevoc"><b>No está registrado. Regístrelo ahora.</b>'
-      +'<div class="fila" style="margin-top:14px">'
-      +'<div><label class="f">Nombre</label><input id="cl_nom" value="'+esc(n.nom)+'" placeholder="Escriba el nombre" maxlength="40"'
-      +' class="'+(n.nom?(nomOK(n.nom)?'bien':'mal'):'')+'"><div id="cl_nommsg">'+msgNom(n.nom,'nombre')+'</div></div>'
-      +'<div><label class="f">Apellido</label><input id="cl_ape" value="'+esc(n.ape)+'" placeholder="Escriba el apellido" maxlength="40"'
-      +' class="'+(n.ape?(nomOK(n.ape)?'bien':'mal'):'')+'"><div id="cl_apemsg">'+msgNom(n.ape,'apellido')+'</div></div>'
-      +'</div>'
-      +'<div style="margin-top:14px"><label class="f">Género — define el trato del correo</label>'
-      +'<div class="segm">'+GENEROS.map(g=>'<button class="sg'+(n.gen===g[0]?' on':'')+'" data-gen="'+g[0]+'">'
-      +'<span class="tick">'+(n.gen===g[0]?'✓':'')+'</span>'+g[1]+'</button>').join('')+'</div>'
-      +'<div class="ayuda">Con «prefiere no decirlo» el correo usa trato neutro: <i>tenerle de vuelta</i>.</div></div>'
-      +'<div class="fila" style="margin-top:14px">'
-      +'<div><label class="f">Teléfono móvil</label><div class="tel">'
-      +'<select id="cl_op" class="'+(n.op?'':'mal')+'"><option value="">Código</option>'
-      +OPERADORAS.map(o=>'<option value="'+o+'"'+(n.op===o?' selected':'')+'>'+o+'</option>').join('')+'</select>'
-      +'<input id="cl_tel" value="'+esc(n.tel)+'" placeholder="Escriba los 7 dígitos" inputmode="numeric" maxlength="7"'
-      +' class="'+(n.tel?(/^\d{7}$/.test(n.tel)?'bien':'mal'):'')+'"></div>'
-      +'<div id="cl_telmsg">'+msgTel(n)+'</div></div>'
-      +'<div><label class="f">Correo electrónico</label>'
-      +'<input id="cl_mail" value="'+esc(n.mail)+'" placeholder="Escriba el correo" maxlength="70"'
-      +' class="'+(n.mail?(vm.ok?'bien':'mal'):'')+'">'
-      +'<div id="cl_mailmsg">'+msgMail(n)+'</div></div>'
-      +'</div>'
-      +'<div class="acc"><button class="b oro" id="cl_sigue"'+(cliListo()?'':' disabled')+'>Guardar y continuar →</button>'
+      +'<button class="b gh sm" id="cl_otro">No es esta persona</button>'
+      +'<button class="b gh sm" id="cl_tipo">'
+      +(esEmpresa(c) ? 'No es empresa · pasar a V' : 'Factura como empresa · pasar a J')
+      +'</button></div></div>'
+      +(esEmpresa(c) ? '' :
+        '<div class="mini" style="margin-top:6px;opacity:.75">Si esta clienta compra a nombre de su empresa, '
+        +'cámbiela a <b>J</b> y escriba su RIF: así sale en el libro de ventas.</div>');
+  }else if(VTA.buscado&&VTA.doc){
+    const emp = n.tipoDoc === 'J';
+    const vd  = valDocDe(n.tipoDoc, VTA.doc);
+    /* El selector y el aviso del documento ya se pintaron arriba, fuera de
+       este bloque: ahí no se pueden perder. (R2-6.) Y los campos del alta
+       sólo salen cuando el número sirve, porque pedir la razón social de una
+       empresa cuyo RIF todavía no cuadra es pedir dos veces lo mismo. */
+    if(!vd.ok){
+      /* Y NO SE SALE DE LA FUNCIÓN: el cuadro de «Validaciones activas» va al
+         final, y un `return` aquí lo dejaba fuera justo cuando hace falta
+         —otra pantalla a medias, el mismo defecto de R2-6 por otro camino—.
+         Se salta el formulario, no el resto. */
+      h+='<div class="nuevoc"><b>Complete el documento para poder registrarlo.</b>'
+        +'<div class="mini" style="margin-top:6px">'+esc(vd.msg)+'</div></div>'
+        +'</div>'
+        +'<div class="card peg"><h2>Validaciones activas</h2>'
+        +'<table class="dat"><tbody id="cl_check">'+checkHTML()+'</tbody></table>'
+        +'</div></div>';
+      return h;
+    }
+    h+='<div class="nuevoc"><b>No está registrado. Regístrelo ahora.</b>';
+    if(emp){
+      /* UNA EMPRESA TIENE RAZÓN SOCIAL, NO NOMBRE Y APELLIDO.
+         Es la columna «Nombre o razón social» del libro de ventas, y hasta
+         hoy se recogía con los campos de una persona, que borran los
+         dígitos y la puntuación mientras se escribe. (P-05.) */
+      h+='<div style="margin-top:14px"><label class="f">Razón social</label>'
+        +'<input id="cl_rsoc" value="'+esc(n.nom)+'" placeholder="Inversiones Keylis 911, C.A." maxlength="80"'
+        +' class="'+(n.nom?(rsocOK(n.nom)?'bien':'mal'):'')+'">'
+        +'<div id="cl_rsocmsg">'+msgRsoc(n.nom, n._rsocEscrito)+'</div></div>'
+        +'<div style="margin-top:14px"><label class="f">Correo electrónico</label>'
+        +'<input id="cl_mail" value="'+esc(n.mail)+'" placeholder="Escriba el correo" maxlength="70"'
+        +' class="'+(n.mail?(vm.ok?'bien':'mal'):'')+'">'
+        +'<div id="cl_mailmsg">'+msgMail(n)+'</div></div>'
+        +'<div class="nota">A una empresa no se le pide género ni teléfono propio: '
+        +'eso es de la persona que viene a comprar, y el recibo va al correo de la empresa.</div>';
+    }else{
+      h+='<div class="fila" style="margin-top:14px">'
+        +'<div><label class="f">Nombre</label><input id="cl_nom" value="'+esc(n.nom)+'" placeholder="Escriba el nombre" maxlength="40"'
+        +' class="'+(n.nom?(nomOK(n.nom)?'bien':'mal'):'')+'"><div id="cl_nommsg">'+msgNom(n.nom,'nombre')+'</div></div>'
+        +'<div><label class="f">Apellido</label><input id="cl_ape" value="'+esc(n.ape)+'" placeholder="Escriba el apellido" maxlength="40"'
+        +' class="'+(n.ape?(nomOK(n.ape)?'bien':'mal'):'')+'"><div id="cl_apemsg">'+msgNom(n.ape,'apellido')+'</div></div>'
+        +'</div>'
+        +'<div style="margin-top:14px"><label class="f">Género — define el trato del correo</label>'
+        +'<div class="segm">'+GENEROS.map(g=>'<button class="sg'+(n.gen===g[0]?' on':'')+'" data-gen="'+g[0]+'">'
+        +'<span class="tick">'+(n.gen===g[0]?'✓':'')+'</span>'+g[1]+'</button>').join('')+'</div>'
+        +'<div class="ayuda">Con «prefiere no decirlo» el correo usa trato neutro: <i>tenerle de vuelta</i>.</div></div>'
+        +'<div class="fila" style="margin-top:14px">'
+        +'<div><label class="f">Teléfono móvil</label><div class="tel">'
+        +'<select id="cl_op" class="'+(n.op?'':'mal')+'"><option value="">Código</option>'
+        +OPERADORAS.map(o=>'<option value="'+o+'"'+(n.op===o?' selected':'')+'>'+o+'</option>').join('')+'</select>'
+        +'<input id="cl_tel" value="'+esc(n.tel)+'" placeholder="Escriba los 7 dígitos" inputmode="numeric" maxlength="7"'
+        +' class="'+(n.tel?(/^\d{7}$/.test(n.tel)?'bien':'mal'):'')+'"></div>'
+        +'<div id="cl_telmsg">'+msgTel(n)+'</div></div>'
+        +'<div><label class="f">Correo electrónico</label>'
+        +'<input id="cl_mail" value="'+esc(n.mail)+'" placeholder="Escriba el correo" maxlength="70"'
+        +' class="'+(n.mail?(vm.ok?'bien':'mal'):'')+'">'
+        +'<div id="cl_mailmsg">'+msgMail(n)+'</div></div>'
+        +'</div>';
+    }
+    h+='<div class="acc"><button class="b oro" id="cl_sigue"'+(cliListo()?'':' disabled')+'>Guardar y continuar →</button>'
       +'<span class="mini" id="cl_estado">'+(cliListo()?'Todo listo.':'Complete lo que está marcado en rojo.')+'</span></div>'
       +'</div>';
   }
@@ -2734,7 +2972,7 @@ function pasoCanal(){
   h+='</div>';
   const c=cliActual();
   h+='<div class="card peg"><h2>Resumen</h2><table class="dat"><tbody>'
-    +'<tr><td>Cliente</td><td class="n"><b>'+esc(c?nomComp(c):'—')+'</b><div class="mini">V-'+esc(c?c.doc:'')+'</div></td></tr>'
+    +'<tr><td>Cliente</td><td class="n"><b>'+esc(c?nomComp(c):'—')+'</b><div class="mini">'+esc(c?rifCliente(c):'—')+'</div></td></tr>'
     +'<tr><td>Cajera</td><td class="n">'+esc(cajeraNom(DB.turno))+'</td></tr>'
     +'<tr><td>Canal</td><td class="n">'+(VTA.canal?esc(VTA.canal):'<span class="chip avi">falta</span>')+'</td></tr>'
     +'<tr><td>Vendedor</td><td class="n">'+(VTA.vendedorId==='sin'?'Autoservicio':esc(vendNom(VTA.vendedorId)))+'</td></tr>'
@@ -2829,17 +3067,92 @@ function precarga(cual){
   }else{
     const m=METODOS.find(x=>x.k===VTA.vmet);
     let r=Math.max(0,vueltoResta());
-    if(m.k==='efec_usd') r=Math.min(r,Math.round((DB.fondoUSD-efUSDdado())*100)/100);
+    if(m.k==='efec_usd') r=Math.min(r,efectivoEnCaja());
     VTA.vbuf = r>0.005 ? r.toFixed(2).replace('.',',') : '';
   }
 }
 /* convierte lo escrito en dólares al monto que se guarda según la moneda del método */
 function montoEn(m,usd,t){ return m.mon==='BS' ? Math.round(usd*(t?t.bcv:0)*100)/100 : Math.round(usd*100)/100; }
-/* el monto SIEMPRE se escribe en dólares; debajo va su equivalente en bolívares */
+
+/* EN QUÉ MONEDA SE TECLEA
+   =======================
+   En la moneda del método, y punto. Tres de los seis métodos son en
+   bolívares —efectivo Bs, pago móvil y punto de venta— y son el grueso de lo
+   que cobra una boutique en Caracas: la cajera tiene delante la notificación
+   del pago móvil o el voucher del punto, los dos en bolívares.
+
+   Hasta hoy el campo era SIEMPRE en dólares y lo que se guardaba era
+   `dólares × tasa`, redondeado. Con tasa 857,55, un pago móvil de Bs 1.000,00
+   exactos NO SE PODÍA REGISTRAR: lo más cerca era USD 1,17 → Bs 1.003,33
+   (3,33 de más) o USD 1,16 → Bs 994,76 (5,24 de menos). Multiplicado por las
+   transacciones de un día, eso es la diferencia de cierre que después hay que
+   hacer autorizar, y es lo que hace que el lote del banco no cuadre contra
+   los cobros. Lo encontró el agente de pantalla.
+
+   La regla del dueño —«la cajera teclea el monto cobrado a mano»— se cumplía
+   a medias: teclaba un monto, pero no el que cobró.
+
+   El cuadre de la venta sigue haciéndose en dólares a la tasa del día: lo que
+   cambia es qué cifra escribe la cajera y cuál se deduce. */
+/* CUÁNTO EFECTIVO EN DÓLARES HAY DE VERDAD EN LA GAVETA
+   =====================================================
+   El tope del vuelto en efectivo mirabā el FONDO FIJO menos lo ya entregado
+   en ESTA venta, y falla en los dos sentidos. Medido por el agente de
+   pantalla: fondo 100,00, efectivo real 173,50, y el tope que aplicaba era
+   100,00.
+
+     · hacia abajo · con 173,50 en la gaveta la pantalla decía que no alcanza
+       y obligaba a dejar un pendiente que no hacía falta;
+     · hacia arriba · tres ventas seguidas de USD 80 de vuelto pasaban las
+       tres —ninguna sola supera 100— y la gaveta quedaba corta sin aviso,
+       porque `efUSDdado()` sólo suma los vueltos de la venta en curso.
+
+   El cálculo correcto ya estaba escrito y probado dos pantallas más allá:
+   `esperadoCaja()`, que desde el Sprint 3 arrastra lo contado al cerrar ayer
+   igual que el servidor. Es el mismo número que la cajera va a contar al
+   arquear, así que es el único que tiene sentido aquí. */
+function efectivoEnCaja(){
+  try{
+    const e = esperadoCaja(hoy);
+    return Math.round((e.efec_usd.esperado - efUSDdado()) * 100) / 100;
+  }catch(err){
+    /* si algo falta para calcularlo, se cae al fondo fijo: tope más
+       conservador, nunca más permisivo */
+    return Math.round((DB.fondoUSD - efUSDdado()) * 100) / 100;
+  }
+}
+
+function monedaDe(k){ const m=METODOS.find(x=>x.k===k); return m?m.mon:'USD'; }
+function enBolivares(k){ return monedaDe(k)==='BS'; }
+
+/* De lo tecleado al monto que se guarda, en la moneda del método. */
+function montoTecleado(k,buf,t){
+  const v=pila(buf);
+  return enBolivares(k) ? Math.round(v*100)/100 : Math.round(v*100)/100;
+}
+/* Y su equivalente en dólares, que es con lo que se cuadra la factura.
+   Se llama `usdTecleado` y no `usdDe` porque ya hay un `usdDe(x, tasa)` más
+   abajo que convierte una línea de cobro guardada; dos funciones con el mismo
+   nombre y la segunda gana en silencio. */
+function usdTecleado(k,buf,t){
+  const v=pila(buf);
+  if(!enBolivares(k)) return Math.round(v*100)/100;
+  if(!t||!t.bcv) return 0;
+  return Math.round(v/t.bcv*100)/100;
+}
+/* Lo que hay que teclear para saldar X dólares por esta vía. */
+function tecleaPara(k,usd,t){
+  if(!enBolivares(k)) return Math.round(usd*100)/100;
+  if(!t||!t.bcv) return 0;
+  return Math.round(usd*t.bcv*100)/100;
+}
+/* El texto de debajo del campo: siempre dice la otra moneda. */
 function eqTexto(buf,enBs,t){const v=pila(buf);
-  if(!v) return 'Escriba el monto en dólares';
+  if(!v) return enBs?'Escriba el monto en bolívares, tal como lo recibió'
+                    :'Escriba el monto en dólares';
   if(!t) return 'No hay tasa confirmada · no se puede convertir';
-  return (enBs?'el cliente entrega ':'equivale a ')+'Bs '+fN(v*t.bcv)+'  ·  tasa '+fN(t.bcv,2);}
+  return enBs ? ('equivale a USD '+fN(Math.round(v/t.bcv*100)/100)+'  ·  tasa '+fN(t.bcv,2))
+              : ('equivale a Bs '+fN(v*t.bcv)+'  ·  tasa '+fN(t.bcv,2));}
 function pasoCobro(){
   const t=tasaVigente(),falta=faltaUSD(),vue=vueltoTotal();
   const m=METODOS.find(x=>x.k===VTA.met),enBs=m.mon==='BS';
@@ -2870,12 +3183,16 @@ function pasoCobro(){
             +'<i>=</i><b>Bs '+fN(igtfSiPaga(VTA.met)*t.bcv)+'</b>'
             +'<em>a la tasa de hoy · Bs '+fN(t.bcv,2)+'</em></span>':'')
         +'</div>' : '')
+    /* LA UNIDAD ES LA DEL MÉTODO. En pago móvil, punto de venta y efectivo
+       Bs la cajera tiene delante una cifra EN BOLÍVARES —la notificación, el
+       voucher— y hasta hoy sólo podía escribir dólares. */
     +'<div class="visor"><span class="vk">Recibe en '+m.n.toLowerCase()+'</span>'
-    +'<div class="vrow"><span class="vu">USD</span>'
+    +'<div class="vrow"><span class="vu">'+(enBs?'Bs':'USD')+'</span>'
     +'<input class="vin" id="c_monto" inputmode="decimal" autocomplete="off" placeholder="0,00" value="'+esc(VTA.buf)+'"></div>'
     +'<span class="veq" id="c_eq">'+eqTexto(VTA.buf,enBs,t)+'</span></div>'
     +'<div class="rapidos">'
-    +(falta>0.005?'<button class="ex" data-exacto="1">Todo lo que falta · USD '+fN(exactoPara(VTA.met))
+    +(falta>0.005?'<button class="ex" data-exacto="1">Todo lo que falta · '
+      +(enBs&&t?'Bs '+fN(tecleaPara(VTA.met,exactoPara(VTA.met),t)):'USD '+fN(exactoPara(VTA.met)))
       +(esDivisa(VTA.met)&&igtfSiPaga(VTA.met)>0.005?' <small>con IGTF</small>':'')+'</button>':'')
     +'<button class="gh" data-climpia="1">Borrar el monto</button></div>';
   if(m.banco){
@@ -2934,7 +3251,7 @@ function pasoCobro(){
     +(t?'<span class="sb">Bs '+fN(vue*t.bcv)+'</span>':'')+'</div>'
     +'<div class="acc"><button class="b oro" id="c_ir" style="width:100%">Continuar al vuelto →</button></div>';
   else h+='<div class="estado cuadra"><span class="et">Cuadrado</span><span class="mt">USD '+fN(totalCobrar())+'</span>'
-    +'<span class="sb">pagó exacto</span></div><div class="acc"><button class="b" id="c_reg" style="width:100%">Registrar la venta</button></div>';
+    +'<span class="sb">pagó exacto</span></div><div class="acc">'+botonRegistrar('c_reg','Registrar la venta',false)+'</div>';
   h+='</div></div>';
   return h;
 }
@@ -2948,7 +3265,7 @@ function pasoVuelto(){
   const t=tasaVigente(),tot=vueltoTotal(),resta=vueltoResta();
   const m=METODOS.find(x=>x.k===VTA.vmet),enBs=m.mon==='BS';
   const restaMon=enBs?(t?resta*t.bcv:0):resta;
-  const libre=Math.round((DB.fondoUSD-efUSDdado())*100)/100;
+  const libre=efectivoEnCaja();
   let h='<div class="vhero">'
     +'<div><span class="k">Hay que devolver</span><span class="v">USD '+fN(tot)+'</span>'
     +(t?'<span class="s">Bs '+fN(tot*t.bcv)+'</span>':'')+'</div>'
@@ -2966,14 +3283,16 @@ function pasoVuelto(){
     +'<div class="mets">'+METODOS.map(x=>'<button class="met'+(x.k===VTA.vmet?' on':'')+'" data-vmet="'+x.k+'">'
       +'<span class="ic">'+x.ic+'</span><b>'+x.n+'</b><span>'+(x.k==='efec_usd'?'fondo USD '+fN(libre):(x.mon==='BS'?'bolívares':'dólares'))+'</span></button>').join('')+'</div>';
   if(VTA.vmet==='efec_usd'&&libre<resta-0.005)
-    h+='<div class="nota rj"><b>El fondo no alcanza.</b> Quedan USD '+fN(libre)+' y hay que devolver USD '+fN(resta)
+    h+='<div class="nota rj"><b>No hay tanto efectivo en la caja.</b> Hay USD '+fN(libre)
+      +' y hay que devolver USD '+fN(resta)
       +'. Entregue lo que haya, use otra vía, o deje el resto pendiente.</div>';
   h+='<div class="visor"><span class="vk">Entrega por '+m.n.toLowerCase()+'</span>'
-    +'<div class="vrow"><span class="vu">USD</span>'
+    +'<div class="vrow"><span class="vu">'+(enBs?'Bs':'USD')+'</span>'
     +'<input class="vin" id="v_monto" inputmode="decimal" autocomplete="off" placeholder="0,00" value="'+esc(VTA.vbuf)+'"></div>'
     +'<span class="veq" id="v_eq">'+eqTexto(VTA.vbuf,enBs,t)+'</span></div>'
-    +'<div class="rapidos">'+(resta>0.005?'<button class="ex" data-vexacto="1">Todo el resto · USD '+fN(resta)+'</button>':'')
-    +(VTA.vmet==='efec_usd'&&libre>0&&libre<resta?'<button data-vr="'+libre+'">Todo el fondo · USD '+fN(libre)+'</button>':'')
+    +'<div class="rapidos">'+(resta>0.005?'<button class="ex" data-vexacto="1">Todo el resto · '
+      +(enBs&&t?'Bs '+fN(tecleaPara(VTA.vmet,resta,t)):'USD '+fN(resta))+'</button>':'')
+    +(VTA.vmet==='efec_usd'&&libre>0&&libre<resta?'<button data-vr="'+libre+'">Todo lo que hay en caja · USD '+fN(libre)+'</button>':'')
     +'<button class="gh" data-vlimpia="1">Borrar el monto</button></div>';
   if(m.banco){
     h+='<div style="margin-top:18px"><label class="f">¿Con qué fondos se paga?</label><div class="fuente">'
@@ -3004,8 +3323,10 @@ function pasoVuelto(){
     +'<span class="sb">la venta se cierra igual</span></div>';
   else if(resta<-0.005) h+='<div class="estado falta"><span class="et">Se pasó</span><span class="mt">USD '+fN(Math.abs(resta))+'</span></div>';
   else h+='<div class="estado cuadra"><span class="et">Vuelto completo</span><span class="mt">USD '+fN(tot)+'</span></div>';
-  h+='<div class="acc"><button class="b oro" id="v_reg"'+(resta<-0.005?' disabled':'')+' style="width:100%">'
-    +(resta>0.005?'Registrar, dejar USD '+fN(resta)+' pendiente y enviar el recibo':'Entregar vuelto, registrar y enviar el recibo')+'</button></div>';
+  h+='<div class="acc">'+botonRegistrar('v_reg',
+      resta>0.005?'Registrar, dejar USD '+fN(resta)+' pendiente y enviar el recibo'
+                 :'Entregar vuelto, registrar y enviar el recibo',
+      resta<-0.005)+'</div>';
   if(resta>0.005) h+='<div class="nota"><b>La caja no se traba.</b> El saldo queda como deuda con el cliente en la pestaña '
     +'<b>Vueltos</b>, con su antigüedad. Cuando se lo entregue, se cierra desde ahí y le llega un correo de confirmación.</div>';
   const dAcc=VTA.vueltos.filter(v=>v.fuente==='accionista');
@@ -3020,7 +3341,93 @@ function pasoVuelto(){
    servidor contesta, y un segundo clic —o el doble clic de quien no está
    seguro de haber pulsado— mandaría la misma venta dos veces, con dos
    números de factura y el inventario descontado dos veces. */
+/* ¿ESTE MENSAJE LO ESCRIBIÓ EL SERVIDOR PARA LA CAJERA?
+   =====================================================
+   El transporte antepone el nombre de la operación al mensaje del servidor
+   —`registra_venta: No queda suficiente de «Blusa»`—, y ese prefijo es la
+   ÚNICA señal fiable de que el texto viene del otro lado y está escrito en
+   español para quien está en la caja.
+
+   La primera versión de esto era una lista negra: tapaba lo que empezara por
+   `XxxError` o por `ERROR:`. Los agentes probaron mensaje por mensaje y
+   pasaban «CORE_NUBE is not defined», «nucleo(...).opera is not a function»,
+   «Cannot read properties of undefined (reading 'rpc')» y
+   «new row violates row-level security policy for table "cierres"». Y como el
+   mensaje no quedaba vacío, se tomaba la rama que AFIRMA que la venta no
+   quedó registrada — la mentira exacta que este sprint vino a quitar.
+
+   Lista blanca, entonces: si no trae el prefijo, no se le pone delante y se
+   dice que no se sabe. */
+function mensajeDelServidor(e, op){
+  const s = String((e && e.message) || '');
+  const pre = op + ': ';
+  if(s.indexOf(pre) !== 0) return '';
+  let m = s.slice(pre.length).trim();
+  /* y aunque traiga el prefijo, lo que venga de PostgreSQL en inglés tampoco */
+  if(!m || /^[A-Z][A-Za-z]*Error\b/.test(m) || /^ERROR:/.test(m) ||
+     /violates|constraint|permission denied|does not exist|Failed to fetch/i.test(m)) return '';
+  if(!/[.!?]$/.test(m)) m += '.';
+  return m;
+}
+
 let REGISTRANDO = false;
+
+/* EL BOTÓN DICE QUE SE ESTÁ MANDANDO.
+   ==================================
+   `REGISTRANDO` existía desde el Sprint 3 y evitaba el doble envío, pero
+   NADIE lo pintaba: la cajera pulsaba, no pasaba nada visible durante uno o
+   dos segundos, y volvía a pulsar. El segundo clic no hacía daño —se
+   descarta— pero la cajera no lo sabía, y con la respuesta perdida eso es
+   exactamente el camino a la segunda factura.
+
+   Los cuatro botones de registrar —los dos de la tarjeta y los dos de la
+   barra de abajo— pasan por aquí, de modo que no puede quedar uno sin
+   enterarse. */
+function botonRegistrar(id, rotulo, apagado){
+  const ocupado = REGISTRANDO === true;
+  return '<button class="b' + (/^v_/.test(id) ? ' oro' : '') + (ocupado ? ' ocupado' : '')
+       + '" id="' + id + '"' + ((apagado || ocupado) ? ' disabled' : '')
+       + (ocupado ? ' aria-busy="true"' : '')
+       + (/^(c_reg|v_reg)$/.test(id) ? ' style="width:100%"' : '') + '>'
+       + esc(ocupado ? 'Registrando… no vuelva a pulsar' : rotulo) + '</button>';
+}
+
+/* LA LLAVE DE LA VENTA
+   ====================
+   Una llave por intento de venta, aleatoria, generada AQUÍ y guardada en VTA.
+   Si el primer envío se cae sin respuesta, el reintento manda LA MISMA y el
+   servidor devuelve la factura que ya emitió en vez de emitir otra.
+
+   Reproducido en la auditoría del 21/10/2026 antes de que esto existiera: el
+   mismo pedido, carácter por carácter, dos veces, dio V-00005 y V-00006. Dos
+   facturas, dos descargos de inventario, dos asientos y un correlativo fiscal
+   duplicado ante el SENIAT. Y la pantalla, mientras tanto, afirmaba «la venta
+   NO quedó registrada», que es justo lo que no sabe.
+
+   ALEATORIA Y NO DERIVADA DEL CONTENIDO, a propósito: dos ventas idénticas
+   —la misma clienta llevándose dos veces la misma blusa el mismo día— son dos
+   ventas, y una llave calculada del pedido las haría una sola. El servidor
+   comprueba aparte que la llave repetida traiga el mismo pedido.
+
+   La llave se tira al terminar la venta, en nuevaVenta(). */
+function nuevaLlave(){
+  try{
+    if(window.crypto && crypto.randomUUID) return 'v' + crypto.randomUUID();
+  }catch(e){}
+  /* sin randomUUID —navegador viejo o sin https— se arma a mano: 128 bits */
+  let s = 'v';
+  try{
+    const a = new Uint8Array(16); crypto.getRandomValues(a);
+    for(const b of a) s += b.toString(16).padStart(2,'0');
+    return s;
+  }catch(e){}
+  return 'v' + Date.now().toString(16) + Math.random().toString(16).slice(2,14);
+}
+function llaveVenta(){
+  if(!VTA.llave) VTA.llave = nuevaLlave();
+  return VTA.llave;
+}
+
 async function registrar(){
   if(REGISTRANDO) return;
   if(trancaTasa('registrar la venta')) return;
@@ -3063,12 +3470,25 @@ async function registrar(){
      factura allá— es exactamente el problema que este sistema vino a
      terminar. La cajera ve el aviso y espera.
      ==================================================================== */
+  /* `NUBE.enLinea()` no mira la red: mira si se construyó el cliente y si hay
+     objeto de sesión, y las dos cosas siguen siendo ciertas con el cable
+     arrancado. El caso real —internet que se va a media tarde con la página
+     ya abierta— pasaba de largo. `navigator.onLine` sí lo ve, y es el que
+     distingue «no hay sesión» de «no hay red». */
   if(typeof NUBE === 'undefined' || !NUBE.enLinea())
-    return aviso('No hay conexión con el servidor y sin servidor no se registra una venta. '
-               + 'No cobre todavía: en cuanto vuelva la conexión, el botón funciona y la '
+    return aviso('No hay sesión con el servidor y sin servidor no se registra una venta. '
+               + 'No cobre todavía: vuelva a entrar con su clave y el botón funciona.', true);
+  if(navigator && navigator.onLine === false)
+    return aviso('Este equipo se quedó sin internet y sin servidor no se registra una venta. '
+               + 'No cobre todavía: en cuanto vuelva la señal, el botón funciona y la '
                + 'venta queda completa.', true);
 
   REGISTRANDO = true;
+  /* SE ANOTA QUE ESTA VENTA YA SALIÓ AL SERVIDOR, antes de que salga.
+     No es contabilidad: es lo único que distingue «esta venta no se ha
+     enviado nunca» de «se envió y no sabemos qué pasó». La segunda no se
+     puede tocar sin pensarlo, y hasta ahora nada lo marcaba. (PAN-2.) */
+  VTA.enviada = true;
   try{ pinta(); }catch(e){}
 
   let r;
@@ -3078,11 +3498,43 @@ async function registrar(){
     REGISTRANDO = false;
     /* El transporte antepone el nombre de la operación; a la cajera no le
        dice nada y le tapa lo que sí le dice. */
-    const m = String((e && e.message) || '').replace(/^registra_venta:\s*/, '');
+    const m = mensajeDelServidor(e, 'registra_venta');
+
     try{ pinta(); }catch(_){}
-    return aviso('La venta NO quedó registrada. ' + (m || 'El servidor no respondió.')
-               + ' Nada se cobró ni salió del inventario: puede corregir y volver a '
-               + 'intentarlo.', true);
+
+    /* AQUÍ ESTÁ LA DIFERENCIA, y es la que costaba facturas. Si el servidor
+       RESPONDIÓ rechazando —hay un mensaje en español—, la venta no quedó y
+       se puede corregir. Si NO respondió, la pantalla NO SABE si quedó: la
+       petición pudo llegar y perderse la respuesta. Afirmar que no quedó era
+       falso y empujaba al reintento, y el reintento emitía la segunda
+       factura.
+
+       Ahora el reintento es seguro, porque va con la misma llave: el servidor
+       devuelve la factura que ya emitió. Así que se dice la verdad y se
+       invita a reintentar, que es lo correcto. */
+    /* La llave reutilizada sobre un pedido distinto no es un rechazo normal:
+       significa que la venta ANTERIOR sí salió, y que esta cajera tocó algo
+       después de que se perdiera la respuesta. Decirle «no quedó registrada ·
+       puede corregir» es falso tres veces, y corregir es justo lo que la deja
+       atascada para siempre. Lo encontraron los dos agentes. */
+    if(/ya se usó para otra venta/.test(m)){
+      const _n = (m.match(/\(([A-Z]-\d+)\)/) || [])[1] || '';
+      return decision('Esta venta YA SALIÓ' + (_n ? ' como ' + _n : ''),
+        'El intento anterior sí llegó. Lo que tiene en pantalla <b>ya se cobró y ya '
+        + 'salió del inventario</b>, así que no la registre otra vez. '
+        + 'Búsquela en <b>Ventas del día</b>. Si de verdad es una venta nueva, '
+        + 'empiece otra desde el principio.',
+        [{k:'irVentas', t:'Ver las ventas del día', oro:true},
+         {k:'ok',       t:'Cerrar'}]);
+    }
+    if(m) return decision('La venta NO quedó registrada',
+      esc(m) + ' <b>Nada se cobró ni salió del inventario</b>: puede corregir y volver '
+      + 'a intentarlo.');
+    return decision('NO SE SABE si la venta quedó registrada',
+      'El servidor no respondió. Vuelva a pulsar <b>«Registrar la venta»</b>: si ya '
+      + 'estaba, el sistema le devuelve la misma factura y no se cobra ni se descuenta '
+      + 'dos veces. No cobre de nuevo ni entregue la mercancía hasta que salga el número.',
+      [{k:'ok', t:'Volver a la venta', oro:true}], 'nosesabe');
   }
   REGISTRANDO = false;
 
@@ -3091,9 +3543,35 @@ async function registrar(){
      a la clienta tal como quedó registrada. */
   const t = tasaVigente();
   const resta = vueltoResta();
+  /* LA FICHA QUEDA POBLADA AUNQUE LA RELECTURA HAYA FALLADO (PAN-1).
+     El servidor devuelve `cliente_id`, pero la ficha sólo está en
+     `DB.clientes` si la relectura posterior la trajo; y `sincroniza()` se
+     come el fallo de `carga()` y vuelve normal, así que aquí se llegaba con
+     el documento sin refrescar y `VTA.cli` en null. Entonces `pasoCorreo()`
+     —que lee `c.gen`, `nomComp(c)`, `c.mail` sin guarda— reventaba DESPUÉS
+     de que la venta hubiera salido: la factura emitida, el estante
+     descontado, el toast diciendo «Venta V-09992 registrada», y la pantalla
+     congelada en «4 Cobro» sin repintar. Volver a Ventas reventaba otra vez.
+     Sólo se salía recargando la página, con la cajera sin saber si cobrar.
+     Lo midió el agente de pantalla con clics reales (PAN-1).
+     Si la ficha no está, se arma una con lo que se mandó y lo que el servidor
+     contestó: no es la ficha completa —no trae el histórico— pero es la
+     verdad de esta venta, y es lo que la pantalla necesita para pintar. */
   if(r && r.cliente_id){
     const _nc = (DB.clientes || []).find(x => x.id === r.cliente_id);
-    if(_nc) VTA.cli = _nc;
+    if(_nc){
+      VTA.cli = _nc;
+    }else if(!VTA.cli){
+      const _env = (cargaVenta() || {}).cliente || {};
+      VTA.cli = { id: r.cliente_id,
+                  tipoDoc: _env.tipo_doc === 'J' ? 'J' : 'V',
+                  doc: _env.doc || VTA.doc || '',
+                  nom: _env.nom || '', ape: _env.ape || '',
+                  genero: _env.genero || 'X', gen: _env.genero || 'X',
+                  operadora: _env.operadora || '', op: _env.operadora || '',
+                  tel: _env.tel || '', mail: _env.mail || '',
+                  compras: 0, monto: 0, ultima: null, _sinRelectura: true };
+    }
   }
   const _c = cliActual() || {};
   VTA.hecha = { num:(r && r.num) || '', fecha:hoy, tasa:t ? t.bcv : null,
@@ -3102,8 +3580,28 @@ async function registrar(){
   /* el recibo lo registró la misma operación: no hace falta un segundo paso */
   VTA.correoEnviado = true;
 
-  aviso('Venta ' + VTA.hecha.num + ' registrada · recibo enviado a ' + (VTA.hecha.mail || '')
-    + (_cerrado ? ' · OJO: el cierre de hoy ya estaba firmado y quedó marcado como afectado' : ''));
+  /* Si el servidor dice que la venta YA ESTABA, es que el intento anterior sí
+     llegó y lo que se perdió fue la respuesta. No se cobró ni se descontó dos
+     veces: es la misma factura. Hay que decirlo con esas palabras, porque la
+     cajera acaba de leer que no se sabía. */
+  /* Las dos cosas que la cajera tiene que ENTERARSE de verdad —que esta
+     factura es la de antes, y que el cierre firmado quedó afectado— van al
+     panel fijo. La venta normal sigue en el aviso que se va solo: ahí no hay
+     nada que decidir. */
+  if(r && r.ya_estaba === true){
+    decision('Esta venta YA ESTABA registrada',
+      'Es la factura <b>' + esc(VTA.hecha.num) + '</b>. El intento anterior sí llegó '
+      + 'y lo que se perdió fue la respuesta. <b>No se cobró ni salió del inventario '
+      + 'dos veces.</b> Entregue la mercancía una sola vez.');
+  }else if(_cerrado){
+    decision('El cierre de hoy ya estaba firmado',
+      'La venta <b>' + esc(VTA.hecha.num) + '</b> quedó registrada y el recibo salió a '
+      + esc(VTA.hecha.mail || 'la clienta') + '. Pero el cierre de hoy ya estaba firmado, '
+      + 'así que <b>quedó marcado como afectado</b>: el arqueo de la caja no cuadra con lo '
+      + 'firmado y hay que volver a cerrar. Avise a quien firmó.');
+  }else{
+    aviso('Venta ' + VTA.hecha.num + ' registrada · recibo enviado a ' + (VTA.hecha.mail || ''));
+  }
   VTA.paso='correo'; pinta();
 }
 
@@ -3128,12 +3626,30 @@ function cargaVenta(){
   function dinero(x){
     return { metodo: x.met, moneda: x.mon, monto: x.monto,
              ref: x.ref || '', banco: x.banco || '',
-             fuente: x.fuente || 'empresa' };
+             fuente: x.fuente || 'empresa',
+             /* EL COMPROBANTE DEL PAGO. La columna existe, el puente la sabe
+                leer, y hasta hoy no viajaba: la cajera adjuntaba la captura,
+                la pantalla le decía «comprobante adjunto» y el dato se
+                tiraba. Un pago en disputa se quedaba sin respaldo.
+
+                `x.print` es {nom, src}: un OBJETO. La primera versión de esto
+                mandaba `x.print === true`, que para un objeto es SIEMPRE
+                false, así que la columna —que es `text`— se llenaba con la
+                cadena 'false' en todos los cobros, con captura o sin ella. Y
+                el puente la devolvía tal cual, de modo que el navegador leía
+                'false' como verdadero y pintaba «📎 comprobante adjunto» en
+                todos. Antes la columna era nula y no afirmaba nada; así
+                afirmaba algo falso. Lo encontró el arquitecto validando.
+
+                Lo que viaja es la IMAGEN, que es lo único que sirve para
+                conciliar un pago discutido. */
+             print: (x.print && x.print.src) ? String(x.print.src) : null };
   }
 
   return {
     cliente: c.nuevo
-      ? { doc:c.doc, nom:(c.nom || '').trim(), ape:(c.ape || '').trim(),
+      ? { tipo_doc:(c.tipoDoc === 'J' ? 'J' : 'V'),
+          doc:c.doc, nom:(c.nom || '').trim(), ape:(c.ape || '').trim(),
           genero:c.gen, operadora:c.op, tel:c.tel, mail:(c.mail || '').trim() }
       : { id: c.id },
     canal:         VTA.canal,
@@ -3146,6 +3662,7 @@ function cargaVenta(){
     total:         totalVenta(),
     tasa:          t ? t.bcv : null,
     pend:          resta > 0.005 ? r2(resta) : 0,
+    llave:         llaveVenta(),
 
     /* Se manda la alícuota que SE COBRÓ, no la que está configurada: con el
        IVA apagado la venta no lleva ni un centavo de impuesto, y guardar
@@ -3189,17 +3706,28 @@ function catalogo(){return DB.productos.filter(p=>p.activo!==false&&exi(p)>0&&!f
    si mañana cambia el catálogo, la venta de ayer no se mueve */
 function marcaExento(l){ const p = DB.productos.find(x=>x.id===l.id); if(p && p.exento) l.exento = true; return l; }
 function correoHTML(){
-  const c=VTA.cli,t=tasaVigente(),v=VTA.hecha,tr=trato(c.gen);
+  const c=VTA.cli||{nom:'—',ape:'',gen:'X',mail:'',doc:'',tipoDoc:'V'},
+        t=tasaVigente(),v=VTA.hecha||{num:''},
+        tr=trato(c.gen, esEmpresa(c));
   let h='<div class="mail"><div class="mailhd">'
     +'<div><span class="mk">De</span><b>'+esc(marcaDe())+'</b> &lt;'+esc(DB.empresa.mail)+'&gt;</div>'
     +'<div><span class="mk">Para</span>'+esc(nomComp(c))+' &lt;'+esc(c.mail)+'&gt;</div>'
-    +'<div><span class="mk">Asunto</span><b>Gracias por su compra, '+esc(c.nom)+' · recibo '+esc(v.num)+'</b></div>'
+    +'<div><span class="mk">Asunto</span><b>'
+    +(tr.emp ? 'Factura de su compra · '+esc(c.nom)+' · recibo '+esc(v.num)
+             : 'Gracias por su compra, '+esc(c.nom)+' · recibo '+esc(v.num))+'</b></div>'
     +'</div><div class="mailbd">'
-    +logoRecibo()+'<h3>Gracias, '+esc(c.nom)+'</h3><p class="lead">'+esc(marcaDe())+'</p>'
-    +'<p>Hola '+esc(c.nom)+', qué alegría tener'+tr.le+' de vuelta'
-    +(c.compras>1?' — esta es su compra número <b>'+c.compras+'</b> con nosotras':'')+'. '
-    +'Cada pieza que sale de aquí la escogemos pensando en '+tr.gente+', y que nos haya elegido hoy es exactamente '
-    +'lo que nos mantiene haciendo esto con cariño.</p>';
+    +logoRecibo()
+    +(tr.emp ? '<h3>'+esc(c.nom)+'</h3>' : '<h3>Gracias, '+esc(c.nom)+'</h3>')
+    +'<p class="lead">'+esc(marcaDe())+'</p>'
+    +(tr.emp
+      ? '<p>Buen día. Les confirmamos la compra a nombre de <b>'+esc(c.nom)+'</b>'
+        +(c.compras>1?' — es la compra número <b>'+c.compras+'</b> de la empresa con nosotras':'')+'. '
+        +'Abajo va el detalle con el desglose fiscal, para que cuadre con su contabilidad. '
+        +'Gracias por seguir eligiéndonos.</p>'
+      : '<p>Hola '+esc(c.nom)+', qué alegría tener'+tr.le+' de vuelta'
+        +(c.compras>1?' — esta es su compra número <b>'+c.compras+'</b> con nosotras':'')+'. '
+        +'Cada pieza que sale de aquí la escogemos pensando en '+tr.gente+', y que nos haya elegido hoy es exactamente '
+        +'lo que nos mantiene haciendo esto con cariño.</p>');
   h+='<div class="bloque"><h4>Lo que se llevó</h4><table><tbody>';
   /* v62 · el recibo decía «talla M» y se callaba el color: en una boutique
      donde el mismo vestido viene en negro y en rojo, la clienta no veía cuál
@@ -3250,7 +3778,14 @@ function correoHTML(){
   return h;
 }
 function pasoCorreo(){
-  const c=VTA.cli,v=VTA.hecha,t=tasaVigente(),PS=pasosVta(),ia=PS.length-1;
+  /* SIN FICHA NO SE REVIENTA (PAN-1). Esta pantalla se pinta DESPUÉS de que
+     la venta salió: si revienta, la cajera se queda con la factura emitida y
+     la pantalla congelada en el paso del cobro, sin saber si cobrar. Una
+     ficha de emergencia es peor que la de verdad y muchísimo mejor que un
+     error sin repintado. */
+  const c=VTA.cli||{nom:'—',ape:'',gen:'X',mail:'',doc:'',tipoDoc:'V'},
+        v=VTA.hecha||{num:'',pend:0,cajera:DB.turno},
+        t=tasaVigente(),PS=pasosVta(),ia=PS.length-1;
   let h='<h1>Venta registrada</h1>'
     +'<p class="sub">Guardada como <b>'+esc(v.num)+'</b> por <b>'+esc(cajeraNom(v.cajera))+'</b>. La existencia bajó y la bitácora tiene su línea.</p>'
     +'<div class="riel">';
@@ -3262,7 +3797,7 @@ function pasoCorreo(){
     +'<p class="cap">Personalizado con su nombre y con trato '+(c.gen==='X'?'neutro':(c.gen==='F'?'femenino':'masculino'))
     +', con el detalle de lo comprado y el catálogo disponible.</p>'+correoHTML()+'</div>';
   h+='<div class="card peg"><h2>Resumen</h2><table class="dat"><tbody>'
-    +'<tr><td>Cliente</td><td class="n"><b>'+esc(nomComp(c))+'</b><div class="mini">V-'+esc(c.doc)+'</div></td></tr>'
+    +'<tr><td>Cliente</td><td class="n"><b>'+esc(nomComp(c))+'</b><div class="mini">'+esc(rifCliente(c))+'</div></td></tr>'
     +'<tr><td>Correo</td><td class="n">'+esc(c.mail)+'</td></tr>'
     +'<tr><td>Cajera</td><td class="n">'+esc(cajeraNom(v.cajera))+'</td></tr>'
     +'<tr><td>Canal</td><td class="n">'+esc(VTA.canal||'—')+'</td></tr>'
@@ -3322,11 +3857,35 @@ function movMet(f,k,mon){
   return {ent:Math.round(e*100)/100, sal:Math.round(sal*100)/100,
           acc:Math.round(acc*100)/100, neto:Math.round((e-sal)*100)/100};
 }
+/* CON QUÉ ABRIÓ LA GAVETA
+   =======================
+   Lo que se CONTÓ al firmar el último cierre anterior a `f`. Si no hay
+   ninguno, el fondo fijo: el día 1 la gaveta se abrió con el aporte del
+   accionista.
+
+   Esto tiene que ser la MISMA cuenta que hace el servidor en
+   `core.firma_cierre` desde la migración 026. Antes esta pantalla arrancaba
+   del fondo fijo todos los días y el servidor arrastraba, así que había dos
+   esperados compitiendo: la pantalla decía «cuadra exacto» con una cifra que
+   el servidor no aceptaba, no pintaba los campos de la autorización, y la
+   caja no se podía cerrar. Lo encontró el agente de pantalla y lo confirmó el
+   arquitecto validando el Sprint 3.
+
+   El que manda sigue siendo el servidor. Esto es para que la cajera vea la
+   misma cifra que él, no para decidir nada. */
+function abrioGaveta(f){
+  const ant=(DB.cierres||[])
+    .filter(c=>c.fecha<f)
+    .sort((a,b)=>a.fecha<b.fecha?1:-1)[0];
+  if(!ant) return { usd:+DB.fondoUSD||0, bs:0, deAyer:null };
+  return { usd:+ant.usd||0, bs:+ant.bs||0, deAyer:ant.fecha };
+}
 function esperadoCaja(f){
-  const r={};
+  const r={}, ab=abrioGaveta(f);
   METODOS.forEach(m=>{r[m.k]=movMet(f,m.k,m.mon);});
-  r.efec_usd.esperado=Math.round((DB.fondoUSD+r.efec_usd.neto)*100)/100;
-  r.efec_bs.esperado=r.efec_bs.neto;
+  r.efec_usd.esperado=Math.round((ab.usd+r.efec_usd.neto)*100)/100;
+  r.efec_bs.esperado=Math.round((ab.bs+r.efec_bs.neto)*100)/100;
+  r.abrio=ab;
   return r;
 }
 /* ==========================================================================
@@ -3479,7 +4038,7 @@ function tesVueltos(){
       +'<div style="flex:1;min-width:210px"><b>'+esc(nomComp(c))+'</b> '
       +(esDev?'<span class="chip acc">devolución</span> ':'<span class="chip">vuelto</span> ')
       +(d>=7?'<span class="chip mal">'+d+' días</span>':'<span class="chip avi">'+(d===0?'hoy':d+' día'+(d>1?'s':''))+'</span>')
-      +'<div class="mini" style="margin-top:4px">Venta '+esc(v.venta)+' · '+fFecha(v.fecha)+' · V-'+esc(c.doc)+' · '+esc(c.mail)+'</div>'
+      +'<div class="mini" style="margin-top:4px">Venta '+esc(v.venta)+' · '+fFecha(v.fecha)+' · '+esc(rifCliente(c))+' · '+esc(c.mail)+'</div>'
       +(v.entregas.length?'<div class="mini">Ya se le entregó USD '+fN(v.usd-v.saldo)+' en '+v.entregas.length+' '+(v.entregas.length===1?'parte':'partes')+'</div>':'')
       +'</div><div class="pm"><b>USD '+fN(v.saldo)+'</b>'
       +(t?'<div class="mini">Bs '+fN(v.saldo*t.bcv)+'</div>':'')
@@ -3526,8 +4085,11 @@ function formEntrega(v,c,t){
     +'<div class="mail"><div class="mailhd">'
     +'<div><span class="mk">Para</span>'+esc(nomComp(c))+' &lt;'+esc(c.mail)+'&gt;</div>'
     +'<div><span class="mk">Asunto</span><b>Su reembolso de la compra '+esc(v.venta)+' ya fue entregado</b></div></div>'
-    +'<div class="mailbd" style="padding:20px"><p style="margin-top:0">Hola '+esc(c.nom)+', le confirmamos que le entregamos '
-    +'el vuelto pendiente de su compra <b>'+esc(v.venta)+'</b> del '+fFecha(v.fecha)+'.</p>'
+    +'<div class="mailbd" style="padding:20px"><p style="margin-top:0">'
+    +(esEmpresa(c)
+      ? 'Buen día. Les confirmamos la entrega del vuelto pendiente de la compra '
+      : 'Hola '+esc(c.nom)+', le confirmamos que le entregamos el vuelto pendiente de su compra ')
+    +'<b>'+esc(v.venta)+'</b> del '+fFecha(v.fecha)+'.</p>'
     +'<div class="bloque" style="margin:14px 0"><table><tbody>'
     +'<tr><td>Vuelto que quedó pendiente</td><td style="text-align:right"><b>USD '+fN(v.usd)+'</b></td></tr>'
     +'<tr><td>Entregado ahora</td><td style="text-align:right"><b>'+(enBs?'Bs ':'USD ')+fN(pila(v._buf)||0)+'</b></td></tr>'
@@ -3538,11 +4100,110 @@ function formEntrega(v,c,t){
   return h;
 }
 
+/* EL CIERRE, POR SU PUERTA
+   ========================
+   Antes esto se escribía aquí mismo —`DB.cierres.push()` y a guardar— y el
+   servidor se enteraba después, o no se enteraba. Con eso el esperado lo
+   calculaba el navegador, y la regla de la casa «un cierre con diferencia
+   sólo lo autoriza el administrador» se cumplía grabando el literal
+   'Administrador' sin pedirle nada a nadie.
+
+   Ahora lo firma el servidor: él calcula el esperado —arrastrando lo que se
+   contó al cerrar ayer— y él comprueba el nombre y la clave. Esta pantalla
+   cuenta el dinero y manda lo que contó.
+
+   Lo que devuelve trae `esperado_usd`, `esperado_bs`, `abrio_usd` y las dos
+   diferencias: si lo que el servidor esperaba no es lo que esta pantalla
+   calculó, se lo decimos a la cajera en vez de callarlo. */
+let CERRANDO = false;
+async function cerrarCaja(local){
+  if(CERRANDO) return;
+  CERRANDO = true;
+  let r;
+  try{
+    r = await NUBE.cierra({
+      fecha:     hoy,
+      cajera_id: DB.turno,
+      usd:       pila(CIERRE.usd),
+      bs:        pila(CIERRE.bs),
+      motivo:    (CIERRE.motivo || '').trim(),
+      autoriza:  local.cuadro ? '' : (CIERRE.autoriza || '').trim(),
+      clave:     local.cuadro ? '' : (CIERRE.clave || ''),
+      usuario:   (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+    });
+  }catch(e){
+    CERRANDO = false;
+    /* La clave se tira SIEMPRE, también —y sobre todo— cuando el servidor la
+       rechazó, que es justo cuando se teclea mal. Antes sólo se limpiaba en
+       el camino bueno, así que la clave del administrador se quedaba en
+       memoria y volvía al atributo `value` del campo en cada repintado. */
+    if(CIERRE) CIERRE.clave = '';
+    const m = mensajeDelServidor(e, 'firma_cierre');
+
+    /* Y SE RESINCRONIZA. El aviso prometía «vuelva a entrar al cierre: si ya
+       estaba firmado, se lo dice», y no podía cumplirlo: sin volver a pedir
+       el documento, `DB.cierres` seguía siendo el de antes y la pantalla
+       volvía a pintar el formulario de caja abierta. La cajera contaba otra
+       vez, pulsaba, y leía «La caja NO quedó cerrada. El cierre del … ya está
+       firmado»: dos frases que se contradicen en el mismo renglón. */
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const yaEsta = (DB.cierres || []).some(c => c.fecha === hoy);
+    pinta();
+
+    if(yaEsta){
+      CIERRE = null; pinta();
+      return aviso('La caja de hoy YA ESTABA cerrada: el intento anterior sí llegó. '
+                 + 'Lo que se perdió fue la respuesta.');
+    }
+    if(!m)
+      return aviso('El servidor no respondió y la caja NO quedó cerrada. '
+                 + 'Vuelva a contar y a firmar cuando vuelva la conexión.', true);
+    return aviso('La caja NO quedó cerrada. ' + m, true);
+  }
+  CERRANDO = false;
+  if(CIERRE) CIERRE.clave = '';
+
+  const espSrv = r && r.esperado_usd !== undefined ? +r.esperado_usd : null;
+  const cuadroSrv = !!(r && r.cuadro);
+  /* El nombre, guardado ANTES de tirar CIERRE: el aviso lo leía de un CIERRE
+     que ya era nulo nueve líneas antes y salía «autorizada por .». Desde la
+     migración 027 el servidor lo devuelve, así que se toma de ahí. */
+  const quienAut = (r && r.autoriza) || (CIERRE && CIERRE.autoriza) || '';
+
+  /* La cifra de la pantalla se toma ANTES de sincronizar: después, el
+     documento ya trae el cierre firmado y `esperadoCaja(hoy)` cambia de
+     significado. */
+  const espPantalla = esperadoCaja(hoy).efec_usd.esperado;
+  await NUBE.sincroniza();
+  CIERRE = null;
+
+  if(espSrv !== null && Math.abs(espSrv - espPantalla) > 0.005){
+    /* No se oculta: si el servidor y la pantalla no esperaban lo mismo, la
+       cajera tiene derecho a saberlo antes de que alguien se lo reclame. */
+    aviso('Caja cerrada. OJO: el servidor esperaba USD ' + fN(espSrv) +
+          ' y esta pantalla calculaba USD ' + fN(espPantalla) +
+          '. El que manda es el servidor: revise si entró algo después del '
+          + 'último arqueo.', true);
+  }else{
+    aviso(cuadroSrv ? 'Caja cerrada · cuadró exacto.'
+                    : 'Caja cerrada con diferencia autorizada por ' + quienAut + '.');
+  }
+  pinta();
+
+  /* El respaldo era voluntario y por eso no pasaba. El cierre de caja es el
+     momento natural: el día está cuadrado y no hay nada a medias. */
+  setTimeout(function(){
+    if(confirm('Caja cerrada.\n\n¿Bajamos el respaldo del día ahora?\n\n'
+      + 'Guárdelo fuera de esta computadora: si se daña el equipo, se pierde todo lo posterior al último respaldo.'))
+      bajaRespaldo();
+  }, 400);
+}
+
 /* ------------------------------------------------- CIERRE DE CAJA -------- */
 function tesCierre(){
   const t=tasaVigente(), np=pendAbiertos(), vs=ventasVal(hoy), esp=esperadoCaja(hoy);
   const yaCerrado=DB.cierres.some(c=>c.fecha===hoy);
-  if(!CIERRE) CIERRE={usd:'',bs:'',motivo:''};
+  if(!CIERRE) CIERRE={usd:'',bs:'',motivo:'',autoriza:'',clave:''};
   const decUSD=pila(CIERRE.usd), decBS=pila(CIERRE.bs);
   const difUSD=Math.round((decUSD-esp.efec_usd.esperado)*100)/100;
   const difBS=Math.round((decBS-esp.efec_bs.esperado)*100)/100;
@@ -3553,9 +4214,11 @@ function tesCierre(){
     +'<div class="h dest"><span class="k">Ventas del día</span><span class="v">'+fN(totalDia)+' <small>USD</small></span>'
     +'<span class="s">'+vs.length+' '+(vs.length===1?'venta':'ventas')+'</span></div>'
     +'<div class="h"><span class="k">Efectivo USD esperado</span><span class="v">'+fN(esp.efec_usd.esperado)+'</span>'
-    +'<span class="s">fondo '+fN(DB.fondoUSD)+' + entradas − vueltos</span></div>'
+    +'<span class="s">'+(esp.abrio.deAyer
+        ? 'abrió con '+fN(esp.abrio.usd)+' del cierre del '+fFecha(esp.abrio.deAyer)
+        : 'fondo '+fN(esp.abrio.usd))+' + entradas − vueltos</span></div>'
     +'<div class="h"><span class="k">Efectivo Bs esperado</span><span class="v">'+fN(esp.efec_bs.esperado,0)+'</span>'
-    +'<span class="s">solo lo recibido en bolívares</span></div>'
+    +'<span class="s">'+(esp.abrio.deAyer?'abrió con Bs '+fN(esp.abrio.bs,0)+' + ':'')+'lo recibido en bolívares</span></div>'
     +'<div class="h"><span class="k">Vueltos pendientes</span><span class="v">'+np.length+'</span>'
     +'<span class="s">'+(np.length?'<b style="color:var(--mal)">bloquean el cierre</b>':'ninguno · vía libre')+'</span></div></div>';
 
@@ -3589,7 +4252,7 @@ function tesCierre(){
   METODOS.forEach(m=>{
     const r=esp[m.k], u=m.mon==='BS'?'Bs ':'USD ';
     const debe = m.k==='efec_usd'?r.esperado:(m.k==='efec_bs'?r.esperado:r.neto);
-    h+='<tr><td><b>'+m.ic+' '+m.n+'</b>'+(m.k==='efec_usd'?'<div class="mini">incluye el fondo de USD '+fN(DB.fondoUSD)+'</div>':'')+'</td>'
+    h+='<tr><td><b>'+m.ic+' '+m.n+'</b>'+(m.k==='efec_usd'?'<div class="mini">incluye con lo que abrió: USD '+fN(esp.abrio.usd)+'</div>':'')+'</td>'
       +'<td class="n">'+(r.ent?u+fN(r.ent):'—')+'</td>'
       +'<td class="n">'+(r.sal?'−'+u+fN(r.sal):'—')+'</td>'
       +'<td class="n"><b>'+u+fN(debe)+'</b></td></tr>';});
@@ -3628,7 +4291,27 @@ function tesCierre(){
         +'<span class="sb">requiere autorización del administrador</span></div>'
         +'<div style="margin-top:14px"><label class="f">Motivo de la diferencia</label>'
         +'<input id="ci_mot" placeholder="Escriba qué pasó" maxlength="80" value="'+esc(CIERRE.motivo)+'">'
-        +'<div class="ayuda">Queda en la bitácora junto con el nombre de quien autoriza.</div></div>';
+        +'<div class="ayuda">Queda en la bitácora junto con el nombre de quien autoriza.</div></div>'
+        /* LA AUTORIZACIÓN DE VERDAD. Antes la pantalla prometía tres veces que
+           el administrador autorizaba y que su nombre quedaba en la bitácora,
+           y no pedía nada: grababa el literal «Administrador». Desde la
+           migración 026 el servidor pide las dos cosas y comprueba las dos. */
+        +'<div class="g2" style="margin-top:14px">'
+        +'<div><label class="f">Quién autoriza</label>'
+        +'<input id="ci_aut" placeholder="Nombre y apellido" maxlength="60" value="'+esc(CIERRE.autoriza||'')+'">'
+        +'<div class="ayuda">Este nombre es el que queda escrito en el libro.</div></div>'
+        +'<div><label class="f">Clave de administrador</label>'
+        /* SIN `value`. `type=password` tapa los caracteres en pantalla, no el
+           atributo: reemitirlo dejaba la clave del administrador escrita en
+           el marcado, a la vista de cualquier inspector o gestor de
+           contraseñas. Lo encontró el agente de pantalla. Teclear no repinta
+           —el manejador de `ci_cla` no llama a pinta()— así que no se pierde
+           nada; y si algo repinta por otra causa, el campo sale vacío, que es
+           lo correcto: se vuelve a teclear. */
+        +'<input id="ci_cla" type="password" placeholder="••••••••" maxlength="60" autocomplete="off">'
+        +'<div class="ayuda">La comprueba el servidor. Sin ella no se firma. '
+        +'Si la pantalla se repinta, vuelva a escribirla.</div></div>'
+        +'</div>';
   }
   h+='<div class="acc"><button class="b oro" id="ci_g"'+(np.length||(CIERRE.usd===''&&CIERRE.bs==='')?' disabled':'')+' style="width:100%">'
     +(np.length?'Bloqueado por vueltos pendientes':(cuadra?'Cerrar la caja':'Cerrar con diferencia autorizada'))+'</button></div>';
@@ -4428,9 +5111,18 @@ function mesTexto(m){
    como esté cargado. */
 function rifCliente(c){
   if(!c) return '—';
-  if(c.rif) return c.rif;
+  const t = (c.tipoDoc === 'J') ? 'J' : 'V';
   const d = String(c.doc||'').replace(/\D/g,'');
-  return d ? (c.tipoDoc || 'V') + '-' + d : '—';
+  if(!d) return '—';
+  /* Una empresa lleva el RIF partido: J-50863887-5. Así lo pide el portal
+     del SENIAT, y así lo arma `valRif`, que ya existía en este archivo y se
+     le aplicaba al RIF de la tienda y no al del comprador.
+     (Auditoría 23/10/2026, P-06.) */
+  if(t === 'J'){
+    const v = valRif('J', d);
+    if(v.ok) return v.fmt;
+  }
+  return t + '-' + d;
 }
 
 /* una fila del libro por cada venta del mes, anuladas incluidas en cero */
@@ -4619,8 +5311,9 @@ function tribLibroVentas(){
   if(der) h += '<div class="nota"><b>'+der+'</b> '+(der===1?'fila está marcada':'filas están marcadas')
     + ' como <b>derivada</b>: la venta se registró antes de que el sistema manejara IVA y no guardó su desglose. '
     + 'El que se muestra se calculó con la alícuota vigente hoy.</div>';
-  h += '<div class="nota">A los clientes personas naturales se les arma el RIF con la letra y su cédula. '
-    + 'Si alguno factura como empresa, cárguele su RIF en la ficha del cliente.</div>';
+  h += '<div class="nota">El RIF se arma con el tipo de documento que se eligió al registrar al cliente '
+    + '—<b>V</b> si compra como persona, <b>J</b> si factura a nombre de su empresa— más su número. '
+    + 'Los clientes cargados antes de que se preguntara quedaron en <b>V</b>.</div>';
   return h + '</div>';
 }
 
@@ -4632,11 +5325,11 @@ function csvVentas(){
              [q('VENTAS · ' + r.n)].join(';'),
              [q('Del ' + fFecha(r.d) + ' al ' + fFecha(r.h))].join(';'),
              [q('Emitido el ' + fFecha(hoy))].join(';'), '',
-             ['Venta','Fecha','Hora','Cliente','Cédula','Canal','Vendedora','Cajera',
+             ['Venta','Fecha','Hora','Cliente','RIF','Canal','Vendedora','Cajera',
               'Artículos','Total USD','Devuelto','Neto','Estado'].map(q).join(';')];
   buscaVentas().forEach(v=>{
     const c = DB.clientes.find(x=>x.id === v.cliId) || {nom:'—', ape:'', doc:''};
-    L.push([q(v.num), q(fFecha(v.fecha)), q(v.hora||''), q(nomComp(c)), q(c.doc||''),
+    L.push([q(v.num), q(fFecha(v.fecha)), q(v.hora||''), q(nomComp(c)), q(c.doc ? rifCliente(c) : ''),
             q(v.canal||''), q(vendNom(v.vendedorId)), q(cajeraNom(v.cajera)),
             q((v.lineas||[]).reduce((a,l)=>a+l.cant, 0)),
             q(fN(v.total)), q(fN(devueltoUSD(v))), q(fN(netoVenta(v))),
@@ -5034,7 +5727,7 @@ function vistaCorreos(){
     +'<div class="card" style="margin-top:18px"><h2>Clientes</h2>'
     +'<table class="dat"><thead><tr><th>Cliente</th><th>Correo</th><th>Teléfono</th><th class="n">Compras</th><th class="n">Acumulado</th><th>Última</th><th>Mercadeo</th></tr></thead><tbody>';
   DB.clientes.slice().sort((a,b)=>b.monto-a.monto).forEach(c=>{
-    h+='<tr><td><b>'+esc(nomComp(c))+'</b><div class="mini">V-'+esc(c.doc)+'</div></td>'
+    h+='<tr><td><b>'+esc(nomComp(c))+'</b><div class="mini">'+esc(rifCliente(c))+'</div></td>'
       +'<td class="mini">'+esc(c.mail||'—')+'</td><td class="mini">'+esc(telComp(c))+'</td>'
       +'<td class="n">'+c.compras+'</td><td class="n"><b>'+fN(c.monto)+'</b></td>'
       +'<td class="mini">'+(c.ultima?fFecha(c.ultima):'—')+'</td>'
@@ -5738,22 +6431,84 @@ function barra(){
              :/* v62 · los dos botones llamaban a la misma función y estaban a treinta
    centímetros uno del otro: la cajera creía que uno mandaba el correo y el
    otro no. El recibo sale siempre, con cualquiera de los dos. */
-'<button class="b" id="c_reg2"'+(falta>0.005?' disabled':'')+'>Registrar la venta</button>';
+botonRegistrar('c_reg2','Registrar la venta',falta>0.005);
   }else{
     izq='<button class="b gh" data-paso="cobro">← Atrás</button>';
     inf=resta>0.005?'Quedará USD '+fN(resta)+' pendiente por entregar':(resta<-0.005?'Está entregando de más.':'Vuelto completo.');
-    der='<button class="b oro" id="v_reg2"'+(resta<-0.005?' disabled':'')+'>'+(resta>0.005?'Registrar, dejar pendiente y enviar':'Entregar, registrar y enviar')+'</button>';
+    der=botonRegistrar('v_reg2',
+      resta>0.005?'Registrar, dejar pendiente y enviar':'Entregar, registrar y enviar',
+      resta<-0.005);
   }
   $('#barrain').innerHTML=(izq||'<span></span>')+'<span class="inf">'+esc(inf)+'</span>'+(der||'<span></span>');
 }
 
 /* ---------------------------------------------------------- EVENTOS ------ */
+/* LA CLIENTA SE BUSCA POR EL PAR, NO POR EL NÚMERO.
+   ================================================
+   Buscaba `c.doc === d` y tomaba el primer acierto. Con el tipo de documento
+   puesto eso devuelve la ficha equivocada: una persona natural V-12345678
+   facturada a la empresa J-12345678, o al revés. Y como la semilla dejó toda
+   la cartera en «V», la ficha J del mismo número era inalcanzable: «No es
+   esta persona» borraba también el documento y la búsqueda volvía a traer la
+   misma V. (Auditoría 23/10/2026, P-03.)
+
+   El servidor hace lo mismo desde la migración 029 —busca por el par antes
+   de crear— así que las dos puntas dicen ahora lo mismo. */
 function buscaCli(){
   const d=(VTA.doc||'').replace(/\D/g,'');
-  if(!valDoc(d)){VTA.cli=null;VTA.buscado=false;return;}
-  const f=DB.clientes.find(c=>c.doc===d);
-  if(f&&VTA.cli!==f){VTA.cli=f;VTA.buscado=true;aviso('Cliente: '+nomComp(f));}
-  else if(!f){VTA.cli=null;VTA.buscado=true;}
+  const t=(VTA.nuevo && VTA.nuevo.tipoDoc==='J') ? 'J' : 'V';
+
+  /* `buscado` YA NO SE APAGA CUANDO EL NÚMERO NO CUADRA (R2-6).
+     Antes volvía a `false`, y el bloque de alta se pintaba con
+     `buscado && doc`: al elegir «Empresa · J» con el número incompleto
+     desaparecía el bloque entero —el selector incluido— sin un solo rojo en
+     pantalla y sin botón para volver. Y con él desaparecía el único mensaje
+     que explicaba el problema: «El dígito verificador no cuadra».
+     Ahora `buscado` significa «se escribió un documento», que es lo que la
+     pantalla necesita saber para decidir si pinta el bloque; si el número
+     sirve o no lo dice `valDocDe`, ahí mismo y en rojo. */
+  VTA.buscado = d.length > 0;
+
+  if(!valDocDe(t,d).ok){ VTA.cli=null; VTA.otroTipo=null; return; }
+
+  /* El documento se normaliza en UN sitio y se compara normalizado en todos.
+     Había tres criterios para la misma llave: aquí se comparaba `c.doc` en
+     crudo, y `rvBusca` y `cl_tipo` con `replace(/\D/g,'')`. Una ficha con el
+     documento guardado como «12.458.963» la encontraba uno y no el otro.
+     (PAN-9.) */
+  const f=DB.clientes.find(c=>docDe(c)===d && (tipoDe(c)===t));
+
+  /* Y SI EL MISMO NÚMERO EXISTE CON EL OTRO TIPO, SE DICE (R2-8).
+     La búsqueda arranca en `V`, así que a una empresa que YA está registrada
+     se le decía «No está registrado» y la cajera la daba de alta otra vez:
+     dos fichas con el mismo RIF, el histórico partido y dos renglones de
+     comprador en el libro del SENIAT. El par sigue siendo la llave —`V` y `J`
+     del mismo número son dos contribuyentes— pero callar al vecino era lo que
+     provocaba el duplicado. */
+  /* Se calcula SIEMPRE, no sólo cuando no se encontró nada. El caso que
+     motivó esto era «la empresa registrada a la que se le dice que no está»,
+     pero el peor es el otro: la persona y la empresa del mismo número existen
+     las dos, la pantalla selecciona la primera que casa y la cajera no se
+     entera de que había que elegir. Dos renglones de comprador en el libro
+     del SENIAT por no decir una línea. */
+  /* Y SÓLO SE OFRECE EL BOTÓN SI EL DOCUMENTO DEL VECINO SIRVE (PAN-5).
+     El agente de pantalla lo reprodujo: con una ficha `J-408002351`
+     —verificador malo, de las que R2-1 todavía permite crear— la pantalla
+     ofrecía «Es la empresa · Distribuidora Mala, C.A.» en botón oro, y al
+     pulsarlo `buscaCli` corría `valDocDe('J',…)`, fallaba, y dejaba
+     `cli=null` y `otroTipo=null`: la empresa que acababa de nombrar
+     desaparecía, sin camino de vuelta y con el número ya escrito.
+     Un botón que no puede cumplir lo que ofrece es peor que no tenerlo. Si la
+     ficha vecina tiene el documento mal, se dice con su nombre y se manda a
+     corregirlo donde se corrige. */
+  VTA.otroTipo = DB.clientes.find(function(c){
+    return docDe(c)===d && tipoDe(c)!==t && valDocDe(tipoDe(c), docDe(c)).ok;
+  }) || null;
+  VTA.otroRoto = VTA.otroTipo ? null
+    : (DB.clientes.find(function(c){ return docDe(c)===d && tipoDe(c)!==t; }) || null);
+
+  if(f&&VTA.cli!==f){VTA.cli=f;aviso('Cliente: '+nomComp(f));}
+  else if(!f){VTA.cli=null;}
 }
 document.addEventListener('click',e=>{
   if(e.target.closest('#m_dz')&&e.target.id!=='m_file'&&!e.target.closest('button')){
@@ -5763,7 +6518,7 @@ document.addEventListener('click',e=>{
   const pz=e.target.closest('.dzp');
   if(pz&&!e.target.closest('button')){ const f=pz.querySelector('input[type=file]'); if(f) f.click(); return; }
   const b=e.target.closest('button'); if(!b)return;
-  if(b.dataset.tab){TAB=b.dataset.tab;PSEL=null;pinta();window.scrollTo(0,0);return;}
+  if(b.dataset.tab){TAB=b.dataset.tab;if(CIERRE)CIERRE.clave='';PSEL=null;pinta();window.scrollTo(0,0);return;}
   if(b.dataset.sub){SUB=b.dataset.sub;PREV=null;pinta();return;}
   if(b.dataset.csub){pbufOlvida();CSUB=b.dataset.csub;pinta();return;}
 
@@ -5848,7 +6603,8 @@ document.addEventListener('click',e=>{
     nuevoREI();
     aviso('Reintegro de USD '+fN(v)+' registrado.');pinta();return;}
   if(b.dataset.irtes){TAB='tes';TSUB=b.dataset.irtes;pinta();return;}
-  if(b.dataset.tsub){TSUB=b.dataset.tsub;PSEL=null;pinta();return;}
+  /* Al moverse de aquí, la clave del administrador no se queda esperando. */
+  if(b.dataset.tsub){TSUB=b.dataset.tsub;PSEL=null;if(CIERRE)CIERRE.clave='';pinta();return;}
   if(b.dataset.rsub){RSUB=b.dataset.rsub;pinta();return;}
   if(b.id==='ci_g'){
     if(trancaTasa('cerrar la caja'))return;
@@ -5859,22 +6615,16 @@ document.addEventListener('click',e=>{
     const cuadro=Math.abs(dU)<0.005&&Math.abs(dB)<0.005;
     if(!cuadro&&(CIERRE.motivo||'').trim().length<5)
       return aviso('Un cierre con diferencia necesita el motivo escrito.',true);
-    DB.cierres.push({fecha:hoy,cajera:DB.turno,usd:pila(CIERRE.usd),bs:pila(CIERRE.bs),
-      difUSD:dU,difBS:dB,cuadro:cuadro,motivo:CIERRE.motivo||'',autoriza:cuadro?'':'Administrador',
-      op:'dif_caja',afectado:[]});
-    bitacora('tes','Caja cerrada',fFecha(hoy)+' · USD '+fN(pila(CIERRE.usd))+' · Bs '+fN(pila(CIERRE.bs),0)
-      +(cuadro?' · cuadró exacto':' · diferencia USD '+fN(dU)+' y Bs '+fN(dB,0)+' · '+(CIERRE.motivo||'')));
-    CIERRE=null;
-    guardar();
-    aviso(cuadro?'Caja cerrada · cuadró exacto.':'Caja cerrada con diferencia autorizada.');
-    /* El respaldo era voluntario y por eso no pasaba. El cierre de caja es el
-       momento natural: el día está cuadrado y no hay nada a medias. */
-    setTimeout(function(){
-      if(confirm('Caja cerrada.\n\n¿Bajamos el respaldo del día ahora?\n\n'
-        + 'Guárdelo fuera de esta computadora: si se daña el equipo, se pierde todo lo posterior al último respaldo.'))
-        bajaRespaldo();
-    }, 400);
-    pinta();return;}
+    if(!cuadro&&(CIERRE.autoriza||'').trim().length<5)
+      return aviso('Escriba el nombre completo de quien autoriza la diferencia: es el que queda en el libro.',true);
+    if(!cuadro&&!(CIERRE.clave||''))
+      return aviso('Un cierre con diferencia lo autoriza el administrador con su clave.',true);
+
+    /* EL CIERRE LO FIRMA EL SERVIDOR (Sprint 3). El esperado lo calcula él
+       —arrastrando lo que se contó ayer, migración 026— y la autorización la
+       comprueba él. Esta pantalla cuenta el dinero y manda lo que contó. */
+    cerrarCaja({cuadro:cuadro, dU:dU, dB:dB});
+    return;}
 
   /* navegación */
   if(b.dataset.paso){VTA.paso=b.dataset.paso;pinta();return;}
@@ -5889,11 +6639,142 @@ document.addEventListener('click',e=>{
     if(VTA.editV)return aviso('Termine de modificar esa entrega: guárdela o cancele.',true);
     registrar();return;}
   if(b.id==='h_otra'){nuevaVenta();pinta();return;}
-  if(b.id==='cl_otro'){VTA.cli=null;VTA.doc='';VTA.buscado=false;pinta();return;}
+  if(b.id==='cl_otro'){
+    /* «NO ES ESTA PERSONA» TIRA TAMBIÉN EL ALTA A MEDIAS (R2-9).
+       Antes sólo soltaba la ficha encontrada y el documento, y dejaba
+       `VTA.nuevo` con el nombre, el género, el teléfono y el correo de la
+       clienta anterior. La pantalla volvía a pintarse con el alta
+       prellenada, en verde y con el botón encendido: la venta salía con la
+       cédula de una y los datos de otra, y en el libro del SENIAT quedaba
+       un comprador que no compró.
+       Y se tira la LLAVE (R2-2): es la huella de idempotencia de esta venta.
+       Si se queda, el reintento de la venta nueva devuelve la factura del
+       contribuyente anterior. */
+    /* Y LA LLAVE SÓLO SE TIRA SI ESTA VENTA NO SE HA ENVIADO NUNCA (PAN-2).
+       Tirarla siempre abría una segunda factura, y el agente de pantalla la
+       reprodujo con clics de verdad: venta a Ana Carolina → se cae el envío →
+       panel «NO SE SABE» → «Volver a la venta» → «No es esta persona» → la
+       MISMA cédula → Registrar. El servidor recibió la misma venta dos veces,
+       con dos llaves distintas: dos facturas, dos descuentos de estante, dos
+       cobros en el libro. La llave ES la promesa que ese panel le hace a la
+       cajera —«vuelva a pulsar y le devuelvo la misma factura»— y cambiarla
+       por detrás rompe la promesa justo cuando se está cumpliendo.
+       Si la venta ya salió, cambiar de comprador no es corregir un dato: es
+       otra venta. Se dice y se manda a Ventas del día, igual que la rama de
+       «ya se usó para otra venta». */
+    if(VTA.enviada){
+      return decision('Esta venta ya se envió',
+        'No se puede cambiar de comprador: lo que hay en pantalla puede estar ya '
+        + 'registrado y cambiarlo ahora emitiría una <b>segunda factura</b> del mismo '
+        + 'carrito. Si la venta salió, búsquela en <b>Ventas del día</b>. Si de verdad '
+        + 'es otra clienta, empiece una venta nueva desde el principio.',
+        [{k:'irVentas', t:'Ver las ventas del día', oro:true},
+         {k:'ok',       t:'Cerrar'}]);
+    }
+    VTA.cli=null; VTA.doc=''; VTA.buscado=false; VTA.otroTipo=null;
+    VTA.nuevo=nuevoCliente();
+    VTA.llave=nuevaLlave();
+    pinta();return;}
+  if(b.id==='cl_tipo'){
+    const c=VTA.cli; if(!c) return;
+    const nuevo = esEmpresa(c) ? 'V' : 'J';
+    const doc = String(c.doc||'').replace(/\D/g,'');
+    /* A J se exige el RIF entero: si lo que tiene cargado no lo es, no se
+       cambia a medias. Un RIF con el verificador malo lo rechaza el portal
+       del SENIAT, y desde la migración 029 el servidor también. */
+    if(nuevo === 'J'){
+      const v = valRif('J', doc);
+      if(!v.ok) return decision('Falta el RIF de la empresa',
+        esc(v.msg) + ' Esta ficha tiene <b>' + esc(c.doc||'—') + '</b>, que no es un RIF de empresa. '
+        + 'Dé de alta la empresa con su RIF completo y pásele las compras, o corrija el documento primero.');
+    }
+
+    /* EL PAR SE MIRA ANTES DE VOLTEAR (R2-10, hallazgos de pantalla y del
+       arquitecto). La migración 029 puso un índice único sobre
+       (tipo_doc, doc): si ya existe otra ficha con el par de destino, este
+       cambio choca contra `clientes_rif_u` AL SUBIR. Y no choca solo: se lo
+       lleva el sobre entero de configuración —todo lo que iba en esa
+       subida— con reintento para siempre, porque el sobre se vuelve a armar
+       igual cada vez. Una corrección de un dato maestro tumbando la
+       sincronización completa de la tienda.
+       Aquí se mira primero, y si el par está ocupado se nombra la ficha que
+       lo ocupa, que es lo que la cajera necesita para decidir. */
+    const choca = (DB.clientes||[]).find(function(x){
+      return x.id !== c.id && docDe(x) === doc && tipoDe(x) === nuevo;
+    });
+    if(choca) return decision('Ese ' + (nuevo==='J'?'RIF':'documento') + ' ya está tomado',
+      'La ficha <b>' + esc(nomComp(choca)) + '</b> ya factura como '
+      + (nuevo==='J'?'empresa':'persona') + ' con <b>' + esc(rifCliente(choca)) + '</b>. '
+      + 'Dos fichas con el mismo documento y el mismo tipo dejarían dos renglones de comprador '
+      + 'en el libro de ventas, y el servidor las rechaza. '
+      + 'Use esa ficha para esta venta, o únalas antes desde configuración.');
+
+    const fila = DB.clientes.find(x=>x.id===c.id);
+    if(!fila) return aviso('Esa ficha ya no está.', true);
+    const antes = fila.tipoDoc || 'V';
+    fila.tipoDoc = nuevo;
+
+    /* EL ASIENTO VA DESPUÉS DE QUE EL CAMBIO QUEDE GRABADO, NO ANTES (R2-10).
+       Iba antes, y el deshacer sólo devolvía `tipoDoc`: si el guardado
+       fallaba, en la bitácora quedaba un asiento diciendo que la ficha se
+       corrigió sobre una ficha que seguía igual. Una bitácora que cuenta
+       intentos en vez de hechos no sirve para auditar, y ésta es la que el
+       dueño le presenta al auditor. */
+    if(!guardar()){ fila.tipoDoc = antes; return; }
+    bitacora('config', 'Tipo de documento corregido',
+      rifCliente(fila) + ' · ' + nomComp(fila) + ' · ' + antes + ' → ' + nuevo);
+    /* Y si el asiento no se puede grabar, se deshace el cambio: lo que no
+       queda en la bitácora no pasó. */
+    if(!guardar()){ fila.tipoDoc = antes;
+      if(DB.bitacora && DB.bitacora.length) DB.bitacora.pop();
+      return; }
+    VTA.cli = fila;
+    aviso(nomComp(fila) + ' ahora factura como ' + (nuevo==='J'?'empresa':'persona')
+        + ': ' + rifCliente(fila) + '.');
+    pinta(); return;}
   if(b.id==='cl_sigue'){if(!cliListo())return aviso('Complete los datos marcados en rojo.',true);
     VTA.paso='canal';pinta();return;}
   if(b.dataset.sug){VTA.nuevo.mail=b.dataset.sug;pinta();return;}
   if(b.dataset.gen){VTA.nuevo.gen=b.dataset.gen;pinta();return;}
+  if(b.dataset.tdoc){
+    const antes = VTA.nuevo.tipoDoc === 'J' ? 'J' : 'V';
+    const ahora = b.dataset.tdoc==='J' ? 'J' : 'V';
+    VTA.nuevo.tipoDoc = ahora;
+    /* EL APELLIDO FANTASMA (R2-11). Al pasar de persona a empresa, la
+       pantalla deja de pedir apellido, género, operadora y teléfono —una
+       empresa no los tiene— pero no los borraba: seguían dentro del sobre y
+       viajaban al servidor. La razón social del libro quedaba «Inversiones
+       Keylis» con el apellido de la señora pegado detrás, escrito por nadie
+       y ya invisible en pantalla.
+       Al volver de J a V pasa lo simétrico: la razón social se quedaba de
+       nombre. Se limpia en los dos sentidos, y sólo lo que el otro tipo no
+       usa: el documento NO se toca, porque es el número que la cajera
+       acaba de escribir. */
+    if(antes !== ahora){
+      if(ahora === 'J'){
+        /* SE LIMPIA TAMBIÉN EL NOMBRE Y EL CORREO (PAN-3).
+           La primera versión limpió lo que DESAPARECE de la vista —apellido,
+           género, operadora, teléfono— y dejó lo que se REUSA, que es peor:
+           el campo «Razón social» se pintaba con el nombre de pila de la
+           señora, en verde, con «✓ Correcto» debajo y «Todo listo.» al lado,
+           y su gmail personal pasaba a ser el buzón de la empresa. El agente
+           de pantalla lo reprodujo entero: la columna «Nombre o razón social»
+           del libro del SENIAT salía «María». El apellido fantasma volvía a
+           entrar por el único campo que no se borraba.
+           Una empresa no hereda el nombre ni el buzón de quien vino a
+           comprar. Se piden otra vez, y en rojo mientras falten. */
+        VTA.nuevo.nom=''; VTA.nuevo.ape=''; VTA.nuevo.gen='X';
+        VTA.nuevo.op=''; VTA.nuevo.tel=''; VTA.nuevo.mail='';
+        VTA.nuevo._rsocEscrito=null;
+      }else{
+        /* Y al volver a persona, la razón social no se queda de nombre. El
+           correo de la empresa tampoco es el de la señora. */
+        VTA.nuevo.nom=''; VTA.nuevo.mail=''; VTA.nuevo._rsocEscrito=null;
+      }
+    }
+    /* El tipo decide a quién se busca: V-12345678 y J-12345678 son dos
+       contribuyentes distintos. Al cambiarlo se vuelve a buscar. */
+    buscaCli();pinta();return;}
 
   /* canal */
   if(b.dataset.canal){VTA.canal=b.dataset.canal;pinta();return;}
@@ -5926,12 +6807,19 @@ document.addEventListener('click',e=>{
   if(b.dataset.met){VTA.met=b.dataset.met;VTA.ref='';VTA.banco='';VTA.print=null;precarga('cobro');pinta();return;}
   if(b.dataset.fu){VTA.fuente=b.dataset.fu;pinta();return;}
   if(b.dataset.climpia){VTA.buf='';pinta();return;}
-  if(b.dataset.exacto){VTA.buf=Math.max(0,exactoPara(VTA.met)).toFixed(2).replace('.',',');pinta();return;}
+  if(b.dataset.exacto){const _t=tasaVigente();
+    VTA.buf=Math.max(0,tecleaPara(VTA.met,exactoPara(VTA.met),_t)).toFixed(2).replace('.',',');
+    pinta();return;}
   if(b.id==='c_add'){const m=METODOS.find(x=>x.k===VTA.met),t=tasaVigente();
-    const usd=pila($('#c_monto')?$('#c_monto').value:VTA.buf);
-    if(usd<=0)return aviso('Escriba el monto en dólares.',true);
+    /* LO TECLEADO ESTÁ EN LA MONEDA DEL MÉTODO. En los tres métodos en
+       bolívares, `v` es lo que la cajera leyó en la notificación o en el
+       voucher, exacto, y el equivalente en dólares se deduce. Antes era al
+       revés y un pago móvil de Bs 1.000,00 exactos no se podía registrar. */
+    const buf=$('#c_monto')?$('#c_monto').value:VTA.buf;
+    const esc1=pila(buf);
+    if(esc1<=0)return aviso('Escriba el monto en '+(m.mon==='BS'?'bolívares':'dólares')+'.',true);
     if(m.mon==='BS'&&!t)return aviso('Sin tasa confirmada no se puede cobrar en bolívares.',true);
-    const v=montoEn(m,usd,t);
+    const v=Math.round(esc1*100)/100;
     const ref=m.banco?($('#c_ref')?$('#c_ref').value.trim():''):'';
     const bco=m.banco?($('#c_banco')?$('#c_banco').value:''):'';
     if(m.banco&&!bco)return aviso(org(m).falta+' del '+m.n.toLowerCase()+'.',true);
@@ -5952,7 +6840,8 @@ document.addEventListener('click',e=>{
     VTA.editC={i:i,c:c};
     VTA.met=c.met; VTA.banco=c.banco||''; VTA.ref=c.ref||'';
     VTA.fuente=c.fuente||'empresa'; VTA.print=c.print||null;
-    VTA.buf=(m.mon==='BS'?(t?c.monto/t.bcv:0):c.monto).toFixed(2).replace('.',',');
+    /* el buffer vuelve en la MONEDA DEL MÉTODO, que es lo que se teclea */
+    VTA.buf=(+c.monto||0).toFixed(2).replace('.',',');
     aviso('Modificando ese cobro · cámbielo y guarde.');
     pinta();return;}
   if(b.id==='c_cancel'){
@@ -5964,17 +6853,24 @@ document.addEventListener('click',e=>{
   if(b.dataset.vfu){VTA.vfuente=b.dataset.vfu;pinta();return;}
   if(b.dataset.vlimpia){VTA.vbuf='';pinta();return;}
   if(b.dataset.vr){VTA.vbuf=Number(b.dataset.vr).toFixed(2).replace('.',',');pinta();return;}
-  if(b.dataset.vexacto){VTA.vbuf=Math.max(0,vueltoResta()).toFixed(2).replace('.',',');pinta();return;}
+  if(b.dataset.vexacto){const _t=tasaVigente();
+    VTA.vbuf=Math.max(0,tecleaPara(VTA.vmet,vueltoResta(),_t)).toFixed(2).replace('.',',');
+    pinta();return;}
   if(b.id==='v_add'){const m=METODOS.find(x=>x.k===VTA.vmet),t=tasaVigente();
-    const usd=pila($('#v_monto')?$('#v_monto').value:VTA.vbuf);
-    if(usd<=0)return aviso('Escriba el monto en dólares.',true);
+    /* igual que el cobro: lo tecleado está en la moneda del método */
+    const vbuf=$('#v_monto')?$('#v_monto').value:VTA.vbuf;
+    const esc2=pila(vbuf);
+    if(esc2<=0)return aviso('Escriba el monto en '+(m.mon==='BS'?'bolívares':'dólares')+'.',true);
     if(m.mon==='BS'&&!t)return aviso('Sin tasa confirmada no se puede entregar en bolívares.',true);
-    const v=montoEn(m,usd,t);
+    const v=Math.round(esc2*100)/100;
     const ref=m.banco?($('#v_ref')?$('#v_ref').value.trim():''):'';
     const bco=m.banco?($('#v_banco')?$('#v_banco').value:''):'';
     if(m.banco&&!bco)return aviso(org(m).falta+' con la que se paga el vuelto.',true);
     if(m.banco&&ref.length<3)return aviso('Falta '+org(m).ref.toLowerCase()+' del vuelto.',true);
-    if(m.k==='efec_usd'&&v>DB.fondoUSD-efUSDdado()+0.005)return aviso('El fondo en efectivo no alcanza.',true);
+    if(m.k==='efec_usd'&&v>efectivoEnCaja()+0.005)
+      return aviso('No hay tanto efectivo en dólares en la caja: hay USD '
+                 + fN(efectivoEnCaja()) + '. Entregue lo que haya, use otra vía, '
+                 + 'o deje el resto pendiente.', true);
     const lin={met:m.k,mon:m.mon,monto:v,ref,banco:bco,fuente:m.banco?VTA.vfuente:'empresa',print:VTA.vprint};
     const eraV=!!VTA.editV;
     if(eraV){VTA.vueltos.splice(VTA.editV.i,0,lin);VTA.editV=null;}
@@ -5989,7 +6885,8 @@ document.addEventListener('click',e=>{
     VTA.editV={i:i,v:x};
     VTA.vmet=x.met; VTA.vbanco=x.banco||''; VTA.vref=x.ref||'';
     VTA.vfuente=x.fuente||'empresa'; VTA.vprint=x.print||null;
-    VTA.vbuf=(m.mon==='BS'?(t?x.monto/t.bcv:0):x.monto).toFixed(2).replace('.',',');
+    /* el buffer vuelve en la MONEDA DEL MÉTODO, que es lo que se teclea */
+    VTA.vbuf=(+x.monto||0).toFixed(2).replace('.',',');
     aviso('Modificando esa entrega · cámbiela y guarde.');
     pinta();return;}
   if(b.id==='v_cancel'){
@@ -6073,6 +6970,10 @@ document.addEventListener('click',e=>{
     const k = b.dataset.tranca;
     if(k === 'resp'){ bajaRespaldo(); return; }
     if(k === 'recarga'){ location.reload(); return; }
+    /* Desde el panel de una venta que ya salió: se la lleva a buscarla, que es
+       lo que tiene que hacer, en vez de dejarla con el pedido viejo delante. */
+    if(k === 'irVentas'){ destrancaCaja(); nuevaVenta();
+      TAB='vta'; VSUB='rep'; RSUB='dia'; pinta(); window.scrollTo(0,0); return; }
     if(k === 'reint'){ destrancaCaja(); if(guardar()) aviso('Guardado.'); return; }
     if(k === 'nubeal'){
       /* Trae lo del servidor y descarta lo local sin subir. El respaldo ya se
@@ -6202,6 +7103,20 @@ document.addEventListener('input',e=>{
       ? '<div class="err">El '+que+' no lleva números ni símbolos.</div>'
       : msgNom(lim,que);
     refrescaValid();return;}
+  if(id==='cl_rsoc'){
+    /* A diferencia del nombre de una persona, aquí NO se borran dígitos ni
+       puntuación: «Inversiones Keylis 911, C.A.» los lleva. (P-05.) */
+    const lim=limpiaRsoc(v), pos=e.target.selectionStart;
+    if(e.target.value!==lim){ e.target.value=lim;
+      e.target.setSelectionRange(Math.max(0,pos-1),Math.max(0,pos-1)); }
+    VTA.nuevo.nom=lim; VTA.nuevo.ape='';
+    /* Se recuerda LO QUE SE ESCRIBIÓ, no sólo lo que quedó: es lo que permite
+       avisar de que el campo borró algo en vez de decir «✓ Correcto» sobre un
+       dato mutilado. (R2-7.) */
+    VTA.nuevo._rsocEscrito = v;
+    e.target.className=lim?(rsocOK(lim)?'bien':'mal'):'';
+    const n=$('#cl_rsocmsg'); if(n) n.innerHTML=msgRsoc(lim, v);
+    refrescaValid();return;}
   if(id==='cl_tel'){VTA.nuevo.tel=v.replace(/\D/g,'').slice(0,7);
     if(e.target.value!==VTA.nuevo.tel)e.target.value=VTA.nuevo.tel;
     e.target.className=VTA.nuevo.tel?(/^\d{7}$/.test(VTA.nuevo.tel)?'bien':'mal'):'';refrescaValid();return;}
@@ -6225,6 +7140,10 @@ document.addEventListener('input',e=>{
   if(id==='ci_bs'){CIERRE.bs=v;const s2=e.target.selectionStart;pinta();
     const n=$('#ci_bs');if(n){n.focus();n.setSelectionRange(s2,s2);}return;}
   if(id==='ci_mot'){CIERRE.motivo=v;return;}
+  /* Nombre y clave: NO repintan. Un repintado en cada tecla volvería a
+     dibujar el campo de la clave y perdería lo escrito. */
+  if(id==='ci_aut'){CIERRE.autoriza=v;return;}
+  if(id==='ci_cla'){CIERRE.clave=v;return;}
 });
 document.addEventListener('change',e=>{
   const id=e.target.id;
@@ -6459,6 +7378,29 @@ function trancaCaja(clase, titulo, cuerpo, botones){
     + '<div class="tracc">' + b + '</div></div>';
   document.body.classList.add('trancado');
 }
+/* UNA DECISIÓN NO ES UN AVISO.
+   ============================
+   `aviso()` se borra solo a los 2,8 segundos. Está bien para «Guardado»: si
+   la cajera no lo lee, no pasa nada. No está bien para lo que la obliga a
+   hacer algo —una venta rechazada, una venta que el sistema no sabe si
+   quedó, un cierre que quedó afectado—: con la tienda llena, la cajera mira
+   a la clienta mientras el único sitio donde se dijo qué pasó se desvanece,
+   y el siguiente paso lo da a ciegas. Eso es lo que emitía la segunda
+   factura.
+
+   Esto usa la misma pantalla tomada de la caja trancada: queda ahí hasta que
+   alguien la cierra con el botón. Y `registrar()` no corre mientras haya una
+   tranca puesta, así que el reintento a ciegas tampoco es posible.
+
+   `clase`: 'decide' cuando se sabe qué pasó, 'nosesabe' cuando no. El color
+   del borde los distingue de un golpe de vista. */
+function decision(titulo, cuerpo, botones, clase){
+  destrancaCaja();
+  trancaCaja(clase || 'decide', titulo,
+    '<p>' + cuerpo + '</p>',
+    (botones && botones.length) ? botones : [{k:'ok', t:'Entendido', oro:true}]);
+}
+
 function destrancaCaja(){
   TRANCA = null;
   const d = document.getElementById('tranca');
@@ -9003,7 +9945,9 @@ function bajaRespaldo(){
 }
 function restauraRespaldo(file){
   const r = new FileReader();
-  r.onload = function(){
+  /* async porque la clave de administrador la comprueba el servidor desde la
+     migración 027: la pantalla no la tiene. */
+  r.onload = async function(){
     let paq;
     try{ paq = JSON.parse(r.result); }
     catch(e){ aviso('Ese archivo no es un respaldo de SICOM.', true); return; }
@@ -9030,7 +9974,7 @@ function restauraRespaldo(file){
        anular. Se pide DESPUÉS de comprobar que el archivo es un respaldo de
        verdad: no tiene sentido pedirle la clave a alguien para después
        decirle que se equivocó de archivo. */
-    if(!pideClaveAdmin('restaurar un respaldo')) return;
+    if(!await pideClaveAdmin('restaurar un respaldo')) return;
     if(!confirm('Va a reemplazar TODO lo que hay ahora ('+DB.ventas.length+' ventas) por el contenido del respaldo ('
       + d.ventas.length + ' ventas' + (cuando ? ', del '+isoLocal(cuando).split('-').reverse().join('/') : '')
       + ').\n\nEsto no se puede deshacer. ¿Continúa?')) return;
@@ -9064,11 +10008,11 @@ function restauraRespaldo(file){
   };
   r.readAsText(file);
 }
-function vaciaMovimientos(){
+async function vaciaMovimientos(){
   /* v61 · si anular UNA venta exige la clave, borrar TODAS tiene que exigirla
      también. Antes bastaban dos confirmaciones, y el documento vacío subía al
      servidor y quedaba como el estado de la empresa. */
-  if(!pideClaveAdmin('vaciar todos los movimientos')) return;
+  if(!await pideClaveAdmin('vaciar todos los movimientos')) return;
   if(!confirm('Va a borrar '+DB.ventas.length+' ventas, '+DB.clientes.length+' clientes, los vueltos pendientes, '
     + 'el estado de cuenta del accionista, los correos y la bitácora.\n\nEsto no se puede deshacer. ¿Continúa?')) return;
   if(!confirm('Confírmelo una vez más: se borran todos los movimientos.')) return;
@@ -9234,7 +10178,9 @@ function irAcfg(tab, sub){
   pinta(); window.scrollTo(0, 0);
 }
 
-document.addEventListener('click', e=>{
+/* async: desde la migración 027 la clave de administrador la comprueba el
+   servidor —la pantalla no la tiene— y varios botones de aquí la piden. */
+document.addEventListener('click', async e=>{
   const dz = e.target.closest('#mk_dz');
   if(dz && !e.target.closest('button') && !e.target.closest('label')){
     const f = $('#mk_arch'); if(f) f.click(); return;
@@ -9436,7 +10382,7 @@ document.addEventListener('click', e=>{
         + 'de vaciar el catálogo.', true);
     const pl = planVaciado();
     if(!pl.total) return aviso('El catálogo ya está vacío.', true);
-    if(!pideClaveAdmin('vaciar el catálogo')) return;
+    if(!await pideClaveAdmin('vaciar el catálogo')) return;
     const hecho = conTx('vaciar el catálogo', function(){
       /* v66 · se filtra por el objeto, no por el id. Un respaldo viejo puede
          traer artículos sin `id`, y entonces `idsBorrar[undefined]` marcaba
@@ -9722,6 +10668,79 @@ function valNom(s, que){
   return {ok:true, msg:''};
 }
 function nomOK(s){ return valNom(s).ok; }
+
+/* LA RAZÓN SOCIAL NO ES UN NOMBRE DE PERSONA.
+   ==========================================
+   Desde que se abrió la J se puede facturar a una empresa, y el alta seguía
+   pidiendo «Nombre» y «Apellido» con la ayuda «Como aparece en su cédula».
+   Peor: `limpiaNom()` borra MIENTRAS SE ESCRIBE los dígitos y la puntuación,
+   así que «Inversiones Keylis 911, C.A.» quedaba «Inversiones Keylis CA» y
+   nadie avisaba. Eso es lo que iba a la columna «Nombre o razón social» del
+   libro de ventas del SENIAT.
+   (Auditoría 23/10/2026, P-05.) */
+/* EL JUEGO DE CARACTERES, SEGUNDA PASADA (R2-7, auditoría 23/10/2026).
+   La primera versión dejó fuera `/ ( ) ° " :` y el limpiador los borraba
+   mientras se escribía: `Inversiones 24/7, S.R.L.` quedaba
+   `Inversiones 247, S.R.L.` **en verde, con el rótulo «✓ Correcto» debajo**.
+   Es P-05 otra vez con menos caracteres, y lo que llega así al libro del
+   SENIAT es una razón social que la empresa no tiene.
+   La barra y los paréntesis aparecen en razones sociales venezolanas de
+   verdad; el grado va en `C.A. 32°`; los dos puntos y las comillas, en
+   nombres de fantasía. */
+const RSOC_CHARS = "0-9A-Za-zÁÉÍÓÚáéíóúÑñÜüÀ-ÖØ-öø-ÿ .,&'\\-/()°\"ºª:";
+const RE_RSOC = new RegExp('^[' + RSOC_CHARS + '][' + RSOC_CHARS + ']*$');
+function valRsoc(s){
+  const v = String(s == null ? '' : s).trim();
+  if(!v) return {ok:false, msg:'Escriba la razón social, como aparece en el RIF.'};
+  if(v.length < 3) return {ok:false, msg:'La razón social es muy corta.'};
+  if(v.length > 80) return {ok:false, msg:'La razón social es demasiado larga.'};
+  if(!RE_RSOC.test(v))
+    return {ok:false, msg:'La razón social lleva letras, números, espacios y . , & \' - / ( ) ° " :'};
+  return {ok:true, msg:''};
+}
+function rsocOK(s){ return valRsoc(s).ok; }
+/* ¿El campo de la razón social borró algo de lo que se escribió? Una sola
+   pregunta, en un sitio, porque la contestan tres: el validador del botón, el
+   cuadro de requisitos y el mensaje bajo el campo. (PAN-6.) */
+function rsocMutilada(c){
+  const esc = c && c._rsocEscrito;
+  return esc != null && limpiaRsoc(esc) !== String(esc);
+}
+/* A diferencia de `limpiaNom`, esto NO borra dígitos ni puntuación: una
+   razón social los lleva. Sólo recorta lo que no cabe en ningún caso. */
+function limpiaRsoc(s){
+  return String(s == null ? '' : s)
+    .replace(new RegExp('[^' + RSOC_CHARS + ']', 'g'), '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s+/, '');
+}
+/* Y SI EL CAMPO BORRÓ ALGO, SE DICE. Ésta es la mitad que faltaba: por mucho
+   que se amplíe la lista, siempre habrá un carácter fuera —un emoji, un
+   alfabeto que no es el nuestro—, y callarlo es el problema de verdad. La
+   cajera tiene que ver que lo que escribió y lo que quedó no son lo mismo,
+   en vez de un «✓ Correcto» sobre un dato mutilado. (R2-7.) */
+function msgRsoc(v, escrito){
+  if(!String(v||'').trim())
+    return '<div class="ayuda">Como aparece en el RIF: «Inversiones Keylis 911, C.A.»</div>';
+  const r = valRsoc(v);
+  if(!r.ok) return '<div class="err">'+esc(r.msg)+'</div>';
+  if(escrito != null && limpiaRsoc(escrito) !== String(escrito)){
+    const fuera = Array.from(new Set(
+      String(escrito).split('').filter(function(ch){ return limpiaRsoc(ch) === '' && ch.trim() !== ''; })
+    )).join(' ');
+    return '<div class="err">Se quitó lo que no cabe en una razón social'
+         + (fuera ? ': ' + esc(fuera) : '')
+         + '. Quedó «' + esc(v) + '». Revise que sea el nombre del RIF.</div>';
+  }
+  return '<div class="oki">✓ Correcto</div>';
+}
+
+/* ¿Esta ficha es una empresa? Una sola pregunta, en un sitio, para que la
+   pantalla no vaya comparando con «J» en quince lugares distintos. */
+function esEmpresa(c){ return !!c && c.tipoDoc === 'J'; }
+/* La llave de una clienta, normalizada, en un solo sitio. (PAN-9.) */
+function docDe(c){ return String((c && c.doc) || '').replace(/\D/g, ''); }
+function tipoDe(c){ return (c && c.tipoDoc === 'J') ? 'J' : 'V'; }
 /* quita lo que no puede ir en un nombre, a medida que se escribe */
 function limpiaNom(s){
   return String(s == null ? '' : s)
@@ -10376,12 +11395,53 @@ function estadoVenta(v){
 
 /* ---------- clave de administrador ---------- */
 function selloClave(s){ return hash('sicom·' + String(s||'') + '·casakeylis'); }
+/* ¿HAY CLAVE DEFINIDA?
+   Desde la migración 026 el servidor NO manda el sello de la clave: manda la
+   palabra «definida» o vacío. Era lo correcto —con el sello a la vista, un
+   sello de 48 bits se invierte en un rato— pero se llevó por delante a quien
+   comparaba contra él. */
 function hayClave(){ return !!(DB.cfg && DB.cfg.claveAdmin); }
-function claveOK(s){ return hayClave() && selloClave(s) === DB.cfg.claveAdmin; }
+
+/* ¿ES ÉSTA LA CLAVE? LA COMPRUEBA QUIEN LA TIENE.
+   ===============================================
+   `claveOK` comparaba `selloClave(s)` contra `DB.cfg.claveAdmin`, que ahora
+   es el literal «definida»: no podía dar verdadero nunca. Y como «definida»
+   es un valor verdadero, `hayClave()` seguía diciendo que sí, así que ninguna
+   pantalla caía en la rama «todavía no hay clave»: todas pedían la clave y
+   todas la rechazaban. Quedaron imposibles anular una venta, autorizar una
+   devolución fuera de plazo, cambiar la propia clave, y restaurar un respaldo
+   o vaciar movimientos o catálogo. Lo encontraron los dos agentes validando.
+
+   Ahora pregunta por la puerta `sicom_clave_ok` (migración 027), que responde
+   sí, no, o nulo si todavía no hay ninguna definida. Es ASÍNCRONA, que es la
+   única forma honesta: la pantalla no tiene con qué comprobarla sola.
+
+   `claveOK` se deja, pero ya no decide: sólo sirve para el caso del documento
+   viejo, donde todavía venía el sello de verdad. Si lo que llega es
+   «definida», devuelve null —ni sí ni no— y quien llama tiene que preguntar
+   al servidor. */
+function claveOK(s){
+  if(!hayClave()) return false;
+  if(DB.cfg.claveAdmin === 'definida') return null;
+  return selloClave(s) === DB.cfg.claveAdmin;
+}
+async function claveOKsrv(s){
+  const local = claveOK(s);
+  if(local !== null) return local;
+  try{
+    const r = await NUBE.claveOk(String(s || ''));
+    /* nulo = el servidor dice que todavía no hay clave definida */
+    return r === null ? null : r === true;
+  }catch(e){
+    aviso('No se pudo comprobar la clave con el servidor: ' +
+          'sin conexión, esto no se puede autorizar.', true);
+    return false;
+  }
+}
 /* v61 · el portero de lo que no tiene vuelta atrás. Si todavía no se ha
    definido una clave de administrador no se traba nada —el sistema recién
    instalado tiene que poder limpiarse— pero se dice en voz alta. */
-function pideClaveAdmin(que){
+async function pideClaveAdmin(que){
   if(!hayClave()){
     return confirm('Todavía no hay clave de administrador definida, así que '
       + 'cualquiera con esta computadora puede ' + que + '.\n\n'
@@ -10389,7 +11449,13 @@ function pideClaveAdmin(que){
   }
   const c = prompt('Para ' + que + ' hace falta la clave de administrador:');
   if(c === null) return false;
-  if(!claveOK(c)){ aviso('Clave incorrecta.', true); return false; }
+  const ok = await claveOKsrv(c);
+  if(ok === null){
+    aviso('El servidor dice que todavía no hay clave de administrador definida. '
+        + 'Defínala en Gerencial · Seguridad.', true);
+    return false;
+  }
+  if(!ok){ aviso('Clave incorrecta.', true); return false; }
   return true;
 }
 
@@ -10429,8 +11495,20 @@ function puedeAnular(v){
   if(devueltoUSD(v) > 0.005) return 'Esa venta ya tiene una devolución registrada. Anular encima dejaría el inventario descuadrado: registre el resto como devolución.';
   return '';
 }
-function anularVenta(num, cod, det, clave){
+/* LA CLAVE SE COMPRUEBA ANTES DE ENTRAR A LA TRANSACCIÓN.
+   `conTx` es sincrónico: si el cuerpo devolviera una promesa, la daría por
+   verdadera y confirmaría la transacción antes de que la comprobación
+   terminara. Así que la clave se pregunta al servidor aquí, fuera, y adentro
+   sólo entra lo que ya está autorizado. */
+async function anularVenta(num, cod, det, clave){
   if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  if(!hayClave())
+    return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true);
+  const _ok = await claveOKsrv(clave);
+  if(_ok === null)
+    return aviso('El servidor dice que todavía no hay clave de administrador definida. '
+               + 'Defínala en Gerencial · Seguridad.', true);
+  if(!_ok) return aviso('La clave de administrador no es correcta.', true);
   const _r = conTx('anular la venta ' + num, function(){ return anulaVentaCuerpo(num, cod, det, clave); });
   if(_r){ VSEL = num; VACC = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = ''; pinta(); }
 }
@@ -10440,9 +11518,8 @@ function anulaVentaCuerpo(num, cod, det, clave){
   const no = puedeAnular(v); if(no) return aviso(no, true) || false;
   const vm = valMotivo('anul', cod, det); if(!vm.ok) return aviso(vm.msg, true) || false;
   const motivo = motTexto('anul', cod, det);
-  if(!hayClave())
-    return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true) || false;
-  if(!claveOK(clave)) return aviso('La clave de administrador no es correcta.', true) || false;
+  /* La clave ya la comprobó el servidor en `anularVenta`, antes de entrar a
+     la transacción: aquí dentro no se puede esperar nada. */
 
   /* la mercancía vuelve al inventario: solo lo que de verdad salió */
   v.lineas.forEach(l=>reponeLinea(l, true));
@@ -10756,7 +11833,7 @@ function repVentas(){
       + '<td><b>'+esc(v.num)+'</b><div class="mini">'+esc(v.hora)+'</div></td>'
       + '<td class="mini">'+fFecha(v.fecha)+'</td>'
       + '<td>'+esc(nomComp(c))+'</td>'
-      + '<td class="codn">'+esc(c.doc || '—')+'</td>'
+      + '<td class="codn">'+esc(c.doc ? rifCliente(c) : '—')+'</td>'
       /* v59 · las fotos de lo que se llevó, ahí mismo en la fila: se
          reconoce la venta sin abrirla. */
       + '<td class="mini"><div class="tirafotos">'
@@ -11032,7 +12109,8 @@ function pendVue(){ return DB.vpend.filter(p=>p.tipo !== 'devolucion' && p.saldo
 /* ==========================================================================
    SICOM v3 · eventos de ventas, seguridad y contabilidad
    ========================================================================== */
-document.addEventListener('click', e=>{
+/* async: la clave actual la comprueba el servidor (migración 027). */
+document.addEventListener('click', async e=>{
   const b = e.target.closest('button'); if(!b) return;
 
   /* ---------------- ficha de la venta ---------------- */
@@ -11071,7 +12149,9 @@ document.addEventListener('click', e=>{
     const n1 = ($('#sg_n1').value || ''), n2 = ($('#sg_n2').value || '');
     if(hayClave()){
       const act = ($('#sg_act').value || '');
-      if(!claveOK(act)) return aviso('La clave actual no es correcta.', true);
+      const _a = await claveOKsrv(act);
+      if(_a === null) return aviso('El servidor dice que todavía no hay clave definida.', true);
+      if(!_a) return aviso('La clave actual no es correcta.', true);
     }
     if(n1.length < 6) return aviso('La clave debe tener al menos 6 caracteres.', true);
     if(n1 !== n2) return aviso('Las dos claves no coinciden. Escríbalas otra vez.', true);
@@ -11580,7 +12660,22 @@ function razonClave(v, cod){
    ========================================================================== */
 let RV = null;
 function nuevaRV(){
-  RV = {doc:'', cliId:null, buscado:false, num:null, items:null, cod:'', det:'', clave:''};
+  /* `tipoDoc` desde la auditoría del 23/10/2026 (R2-13). Las devoluciones y
+     las anulaciones buscaban por el NÚMERO solo, cuando la llave de una
+     clienta es el par (tipo, número) desde la migración 029: `V-12458963` y
+     `J-12458963` son dos contribuyentes distintos. Con el número a secas,
+     `find` devolvía la primera ficha que casara —la que estuviera antes en el
+     arreglo— y se podía anular la venta de la empresa creyendo anular la de
+     la señora, o al revés. Una anulación contra el contribuyente equivocado
+     deja dos renglones mal en el libro del SENIAT: el que no se anuló y el
+     que no debía anularse. */
+  /* `otroTipo` y `otroRoto` nacen aquí, no cuando `rvBusca` los escribe: por
+     el camino «Devolver o anular esta venta →» nunca se llama a `rvBusca`, y
+     el campo quedaba `undefined`, de modo que el aviso del vecino no salía en
+     el camino más usado. Es el mismo defecto que `nuevoCliente()` vino a
+     cerrar. (PAN-8.) */
+  RV = {doc:'', tipoDoc:'V', cliId:null, buscado:false, num:null, items:null,
+        cod:'', det:'', clave:'', otroTipo:null, otroRoto:null};
 }
 
 function rvCliente(){
@@ -11676,11 +12771,43 @@ function cfgDevol(){
    ========================================================================== */
 function rvBusca(){
   const d = (RV.doc || '').replace(/\D/g, '');
-  if(!valDoc(d)){ RV.cliId = null; RV.buscado = false; RV.num = null; RV.items = null; return; }
-  const c = DB.clientes.find(x=>x.doc === d);
+  const t = RV.tipoDoc === 'J' ? 'J' : 'V';
+  /* `buscado` no se apaga cuando el número no cuadra, por lo mismo que en
+     `buscaCli`: apagarlo hacía desaparecer el bloque y con él el selector.
+     (R2-6, aplicado también aquí.) */
+  RV.buscado = d.length > 0;
+  if(!valDocDe(t, d).ok){
+    /* NO SE TIRA LA ORDEN NI LO YA CONTADO (PAN-4). La primera versión de
+       esta guarda hacía `RV.num = null; RV.items = null`, y entonces borrar un
+       dígito del documento —algo que pasa al corregir— se llevaba la orden
+       elegida y las cantidades que la cajera acababa de contar, y no las
+       devolvía al volver a escribirlo. El agente de pantalla lo midió: una
+       devolución de USD 8,50 contada renglón por renglón, perdida por una
+       tecla.
+       El documento a medio escribir no es un cambio de cliente: es un
+       documento a medio escribir. Se pinta el aviso, igual que hizo R2-6 con
+       `buscado`, y lo contado se queda donde está. Lo que sí se suelta es la
+       ficha, porque a medio documento no se puede afirmar de quién es. */
+    /* Y TAMPOCO SE SUELTA LA FICHA. Soltarla disparaba el `if(RV.cliId !==
+       antes)` de abajo en cuanto el documento se corregía, y ése es el que
+       borra la orden y lo contado: volvía la ficha y no volvía el trabajo.
+       Un documento a medio escribir no es un cambio de cliente: no se decide
+       nada hasta que el documento sirva. (PAN-4.) */
+    RV.otroTipo = null; RV.otroRoto = null; return;
+  }
+  /* POR EL PAR, no por el número (R2-13). */
+  const c = DB.clientes.find(x=>docDe(x) === d && tipoDe(x) === t);
+  /* Y SÓLO SE NOMBRA AL VECINO SI SU DOCUMENTO SIRVE (PAN-5). Una ficha J
+     con el verificador malo —que hoy existen, porque R2-1 sigue abierto— no
+     se puede seleccionar: al voltear el selector, `valDocDe` falla y la ficha
+     que se acababa de nombrar desaparece sin camino de vuelta. */
+  RV.otroTipo = DB.clientes.find(function(x){
+    return docDe(x) === d && tipoDe(x) !== t && valDocDe(tipoDe(x), docDe(x)).ok;
+  }) || null;
+  RV.otroRoto = RV.otroTipo ? null
+    : (DB.clientes.find(function(x){ return docDe(x) === d && tipoDe(x) !== t; }) || null);
   const antes = RV.cliId;
   RV.cliId = c ? c.id : null;
-  RV.buscado = true;
   if(RV.cliId !== antes){ RV.num = null; RV.items = null; RV.cod = ''; RV.det = ''; RV.clave = ''; }
   if(c && c.id !== antes) aviso('Compras de ' + nomComp(c));
 }
@@ -11692,11 +12819,26 @@ document.addEventListener('click', e=>{
     const v = DB.ventas.find(x=>x.num === b.dataset.rvir); if(!v) return;
     const c = DB.clientes.find(x=>x.id === v.cliId);
     nuevaRV();
-    if(c){ RV.doc = c.doc; RV.cliId = c.id; RV.buscado = true; RV.num = v.num; }
+    /* El tipo viaja con la ficha: si la venta era de una empresa, el paso de
+       la cédula tiene que abrir ya en «Empresa · J», o la búsqueda que corra
+       después no la encuentra. (R2-13.) */
+    if(c){ RV.doc = c.doc; RV.tipoDoc = esEmpresa(c) ? 'J' : 'V';
+           RV.cliId = c.id; RV.buscado = true;
+           /* el vecino se resuelve también por aquí, que es el camino más
+              usado y el que no pasaba por `rvBusca` (PAN-8) */
+           const _d = docDe(c), _t = RV.tipoDoc;
+           RV.otroTipo = DB.clientes.find(function(x){
+             return docDe(x) === _d && tipoDe(x) !== _t
+                 && valDocDe(tipoDe(x), docDe(x)).ok;
+           }) || null;
+           RV.num = v.num; }
     TAB = 'vta'; VSUB = 'dev'; DSUB = 'dvr'; pinta(); window.scrollTo(0, 0);
     if(!c) aviso('Esa venta no tiene cliente registrado.', true);
     return;
   }
+  if(b.dataset.rvtdoc){
+    RV.tipoDoc = b.dataset.rvtdoc === 'J' ? 'J' : 'V';
+    rvBusca(); pinta(); return; }
   if(b.id === 'rv_otro'){ nuevaRV(); pinta(); return; }
   if(b.id === 'rv_can'){ RV.num = null; RV.items = null; RV.cod = ''; RV.det = ''; RV.clave = ''; pinta(); return; }
   if(b.dataset.rvsel){
@@ -11985,22 +13127,47 @@ function rvPasoCedula(){
     + '<p class="cap">'+(esAnular()
         ? 'La cédula del comprador de la venta que se va a dejar sin efecto.'
         : 'La cédula del comprador. Solo se puede devolver contra una compra registrada a su nombre.')+'</p>'
-    + '<div class="fila"><div style="flex:0 1 280px"><label class="f">Cédula</label>'
+    + '<div style="max-width:420px;margin-bottom:12px"><label class="f">¿A nombre de quién se facturó?</label>'
+    + '<div class="segm">'+DOCTIPOS.map(function(t){
+        return '<button class="sg'+(RV.tipoDoc===t[0]?' on':'')+'" data-rvtdoc="'+t[0]+'">'
+             + '<span class="tick">'+(RV.tipoDoc===t[0]?'✓':'')+'</span>'+t[1]+'</button>'; }).join('')
+    + '</div></div>'
+    + '<div class="fila"><div style="flex:0 1 280px"><label class="f">'
+    + (RV.tipoDoc==='J' ? 'RIF de la empresa' : 'Cédula')+'</label>'
     + '<input id="rv_doc" value="'+esc(RV.doc)+'" inputmode="numeric" maxlength="9" autocomplete="off" '
-    + 'placeholder="Escriba la cédula"'+(RV.doc ? ' class="'+(valDoc(RV.doc) ? 'bien' : 'mal')+'"' : '')+'></div>';
-  if(RV.doc && !valDoc(RV.doc))
-    h += '<div style="align-self:flex-end"><div class="err" style="margin:0 0 12px">La cédula lleva entre 6 y 9 dígitos.</div></div>';
+    + 'placeholder="'+(RV.tipoDoc==='J'?'408002353':'Escriba la cédula')+'"'
+    + (RV.doc ? ' class="'+(valDocDe(RV.tipoDoc, RV.doc).ok ? 'bien' : 'mal')+'"' : '')+'></div>';
+  if(RV.doc && !valDocDe(RV.tipoDoc, RV.doc).ok)
+    h += '<div style="align-self:flex-end"><div class="err" style="margin:0 0 12px">'
+       + esc(valDocDe(RV.tipoDoc, RV.doc).msg)+'</div></div>';
   h += '</div>';
 
-  if(valDoc(RV.doc) && RV.buscado && !c)
-    h += '<div class="nota rj" style="margin-top:14px"><b>No hay ningún cliente con esa cédula.</b> '
-       + 'Si la compra se hizo a nombre de otra persona, busque con esa cédula.</div>';
+  if(RV.otroTipo){
+    const o = RV.otroTipo, oJ = esEmpresa(o);
+    h += '<div class="nota rj" style="margin-top:14px"><b>Ese número también está registrado como '
+       + (oJ?'empresa':'persona')+'.</b> '
+       /* Sin punto detrás del nombre: una razón social termina en «C.A.» y
+          quedaba «Inversiones Keylis 911, C.A.. ». (PAN-9.) */
+       + esc(rifCliente(o))+' · '+esc(nomComp(o))+' — '
+       + 'si la compra se facturó a '+(oJ?'la empresa':'la persona')+', cambie el selector: '
+       + 'son dos contribuyentes y la '+(esAnular()?'anulación':'devolución')+' va contra uno solo.</div>';
+  }else if(RV.otroRoto){
+    const o = RV.otroRoto, oJ = esEmpresa(o);
+    h += '<div class="nota rj" style="margin-top:14px"><b>Ese número está registrado como '
+       + (oJ?'empresa':'persona')+', pero con el documento mal.</b> '
+       + esc(nomComp(o))+' · '+esc(rifCliente(o))+'. '
+       + 'Corríjalo en Base de datos → Clientas antes de '
+       + (esAnular()?'anular':'devolver')+' a esa ficha.</div>';
+  }
+  if(!RV.otroTipo && valDocDe(RV.tipoDoc, RV.doc).ok && RV.buscado && !c)
+    h += '<div class="nota rj" style="margin-top:14px"><b>No hay ningún cliente con ese documento.</b> '
+       + 'Si la compra se hizo a nombre de otra persona o de una empresa, busque con ese documento.</div>';
 
   if(c){
     const cs = comprasPara(c.id, modo);
     h += '<div class="hallado" style="margin-top:14px"><span class="av">'+esc(ini(c))+'</span>'
       + '<div style="flex:1"><b>'+esc(nomComp(c))+'</b>'
-      + '<div class="mini" style="margin-top:4px">V-'+esc(c.doc)+' · '+esc(telComp(c))+' · '+esc(c.mail||'sin correo')+'</div>'
+      + '<div class="mini" style="margin-top:4px">'+esc(rifCliente(c))+' · '+esc(telComp(c))+' · '+esc(c.mail||'sin correo')+'</div>'
       + '<div class="mini">'+(esAnular()
           ? cs.filter(v=>!puedeAnular(v)).length + ' ' + (cs.filter(v=>!puedeAnular(v)).length === 1
               ? 'orden que se puede anular' : 'órdenes que se pueden anular')
@@ -13275,7 +14442,7 @@ window.NUBE = (function(){
       num: v.num, fecha: v.fecha, hora: v.hora || '',
       cajera: cajeraNom(v.cajera), canal: v.canal || '',
       cliente: c ? ((c.nom || '') + ' ' + (c.ape || '')).trim() : '',
-      doc: c ? (c.doc || '') : '',
+      doc: c ? (c.doc ? rifCliente(c) : '') : '',
       total: r2(+v.total || 0),
       base: r2(d.base || 0), iva: r2(d.iva || 0), exento: r2(d.exento || 0),
       igtf: r2(d.igtf || 0),
@@ -13762,6 +14929,20 @@ window.NUBE = (function(){
        Si revienta, no quedó nada registrado: la operación es entera o no
        es, y eso lo garantiza la transacción de la base, no esta pantalla. */
     vende: function(carga){ return opera('registra_venta', carga); },
+
+    /* EL CIERRE DE CAJA, por su puerta. Hasta hoy el cierre se escribía aquí
+       —`DB.cierres.push()` y a guardar— y el servidor se enteraba después, o
+       no se enteraba. Con eso, el esperado lo calculaba el navegador y la
+       autorización del administrador era un literal escrito a mano.
+       Ahora lo calcula y lo firma el servidor: la pantalla cuenta el dinero
+       y manda lo que contó. */
+    cierra: function(carga){ return opera('firma_cierre', carga); },
+
+    /* ¿ES ÉSTA LA CLAVE DEL ADMINISTRADOR? La comprueba el servidor, porque
+       es el único que la tiene: desde la migración 026 el sello dejó de
+       viajar al navegador. Devuelve true, false, o null si todavía no hay
+       ninguna definida. */
+    claveOk: function(clave){ return opera('clave_ok', { clave: String(clave || '') }); },
 
     plan: function(){
       try{ return nucleo().planifica(DB, ESPEJO); }

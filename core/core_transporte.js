@@ -202,6 +202,10 @@ function crea(opciones){
   const OPERACIONES = [
     'registra_venta', 'anula_venta', 'devuelve', 'entrega_pendiente',
     'firma_cierre', 'fija_inventario', 'retira_variante',
+    /* `clave_ok` no mueve dinero: dice si una clave es la del administrador.
+       Va aquí porque es una puerta publicada más, y porque la pantalla ya no
+       puede comprobarla sola —el servidor dejó de mandarle el sello—. */
+    'clave_ok',
     'anota_accionista', 'anota_correo'
   ];
 
