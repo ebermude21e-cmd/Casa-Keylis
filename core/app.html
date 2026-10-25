@@ -3059,16 +3059,44 @@ function pasoArts(){
 
 /* 4 · COBRO */
 /* precarga automática del monto que falta, en la moneda del método elegido */
+/* EN LA MONEDA DEL MÉTODO, COMO TODO LO DEMÁS.
+   ============================================
+   Esto rellenaba el campo con DÓLARES debajo de un rótulo que dice bolívares.
+   Es P-02, y el 25/10/2026 se midió por fin con clics:
+
+     blusa USD 18,00 · tasa 857,55 · se pulsa «Pago móvil»
+       campo    «Bs 18,00»
+       debajo   «equivale a USD 0,02»
+       botón    «Todo lo que falta · Bs 15.435,90»
+
+   El botón `data-exacto` SÍ pasaba por `tecleaPara()`. La precarga, no.
+
+   En el cobro el daño no es cobrar de más —son Bs 0,85— sino que la clienta
+   transfirió UNA vez Bs 15.435,90 y el libro anota DOS renglones de pago
+   móvil, uno de ellos con una referencia que nunca existió: el lote no
+   concilia ni en número ni en monto.
+
+   En el VUELTO sí se pierde dinero, y no hay guarda que lo pare: vuelto USD
+   5,32, el botón dice Bs 4.562,17, el libro anota Bs 5,32, y la diferencia
+   queda además como pendiente por entregar. Si la cajera transfirió lo que
+   leyó —que es lo razonable—, la tienda paga el vuelto DOS VECES:
+   USD 5,31 por vuelto.
+
+   `tecleaPara()` es la misma función que usan los dos botones de «todo lo que
+   falta». No hay una segunda manera de hacerlo: hay una, y esto no la usaba. */
 function precarga(cual){
+  const t=tasaVigente();
   if(cual==='cobro'){
     /* lo que salda la venta POR ESTA VÍA: si causa IGTF, ya viene incluido */
     const f=Math.max(0,exactoPara(VTA.met));
-    VTA.buf = f>0.005 ? f.toFixed(2).replace('.',',') : '';
+    const v=tecleaPara(VTA.met,f,t);
+    VTA.buf = v>0.005 ? v.toFixed(2).replace('.',',') : '';
   }else{
     const m=METODOS.find(x=>x.k===VTA.vmet);
     let r=Math.max(0,vueltoResta());
     if(m.k==='efec_usd') r=Math.min(r,efectivoEnCaja());
-    VTA.vbuf = r>0.005 ? r.toFixed(2).replace('.',',') : '';
+    const v=tecleaPara(VTA.vmet,r,t);
+    VTA.vbuf = v>0.005 ? v.toFixed(2).replace('.',',') : '';
   }
 }
 /* convierte lo escrito en dólares al monto que se guarda según la moneda del método */
