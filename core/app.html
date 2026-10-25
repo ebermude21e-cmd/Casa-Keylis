@@ -2114,6 +2114,30 @@ function vueltoDado(){const t=tasaVigente();
   return VTA.vueltos.reduce((a,v)=>a+(v.mon==='BS'?v.monto/(t?t.bcv:1):v.monto),0);}
 function vueltoResta(){return Math.round((vueltoTotal()-vueltoDado())*100)/100;}
 function efUSDdado(){return VTA.vueltos.filter(v=>v.met==='efec_usd').reduce((a,v)=>a+v.monto,0);}
+/* LA GAVETA DE BOLÍVARES, QUE NO TENÍA TOPE (PAN-28).
+   Las cinco guardas del vuelto preguntaban `m.k==='efec_usd'` y nadie miraba
+   los bolívares, aunque `esperadoCaja()` lleva calculando `efec_bs.esperado`
+   desde el cierre de caja. Medido el 25/10 con la gaveta de bolívares en
+   cero: la pantalla precargaba Bs 5.070,18, el botón decía «Todo el resto ·
+   Bs 5.070,18», no salía ninguna nota, y al pulsar Agregar guardaba la
+   entrega entera. El arqueo amanecía corto en esa cifra sin una línea que lo
+   explicara. Y el arreglo de la precarga del mismo día lo agravó: antes
+   escribía «6,00» —la cifra en dólares en el campo de bolívares— y el error
+   tapaba la exposición.
+   Los montos de `VTA.vueltos` en un método de bolívares están EN BOLÍVARES
+   (así los guarda `v_add`), así que aquí no se convierte nada. */
+function efBSdado(){return VTA.vueltos.filter(v=>v.met==='efec_bs').reduce((a,v)=>a+v.monto,0);}
+function efectivoBsEnCaja(){
+  try{
+    const e = esperadoCaja(hoy);
+    return Math.round((e.efec_bs.esperado - efBSdado()) * 100) / 100;
+  }catch(err){
+    /* Sin poder calcularlo no se inventa una gaveta llena: cero, y la cajera
+       tiene las mismas dos salidas que con los dólares —otra vía o dejarlo
+       pendiente—. */
+    return 0;
+  }
+}
 function cliActual(){
   if(VTA.cli) return VTA.cli;
   const n=VTA.nuevo;
@@ -3095,6 +3119,9 @@ function precarga(cual){
     const m=METODOS.find(x=>x.k===VTA.vmet);
     let r=Math.max(0,vueltoResta());
     if(m.k==='efec_usd') r=Math.min(r,efectivoEnCaja());
+    /* el tope de la gaveta de bolívares viene en bolívares: se pasa a la
+       moneda de `r` —dólares— antes de comparar (PAN-28) */
+    if(m.k==='efec_bs' && t && t.bcv) r=Math.min(r, efectivoBsEnCaja()/t.bcv);
     const v=tecleaPara(VTA.vmet,r,t);
     VTA.vbuf = v>0.005 ? v.toFixed(2).replace('.',',') : '';
   }
@@ -3294,6 +3321,8 @@ function pasoVuelto(){
   const m=METODOS.find(x=>x.k===VTA.vmet),enBs=m.mon==='BS';
   const restaMon=enBs?(t?resta*t.bcv:0):resta;
   const libre=efectivoEnCaja();
+  const libreBs=efectivoBsEnCaja();                       /* PAN-28 */
+  const restaBs=(t&&t.bcv)?Math.round(resta*t.bcv*100)/100:0;
   let h='<div class="vhero">'
     +'<div><span class="k">Hay que devolver</span><span class="v">USD '+fN(tot)+'</span>'
     +(t?'<span class="s">Bs '+fN(tot*t.bcv)+'</span>':'')+'</div>'
@@ -3309,10 +3338,16 @@ function pasoVuelto(){
     +'<p class="cap">'+(edv?'Cambie la vía o el monto de esa entrega y guarde. Mientras tanto está fuera de la cuenta.'
         :'Puede partirlo entre varias vías, y también puede dejar parte pendiente.')+'</p>'
     +'<div class="mets">'+METODOS.map(x=>'<button class="met'+(x.k===VTA.vmet?' on':'')+'" data-vmet="'+x.k+'">'
-      +'<span class="ic">'+x.ic+'</span><b>'+x.n+'</b><span>'+(x.k==='efec_usd'?'fondo USD '+fN(libre):(x.mon==='BS'?'bolívares':'dólares'))+'</span></button>').join('')+'</div>';
+      +'<span class="ic">'+x.ic+'</span><b>'+x.n+'</b><span>'+(x.k==='efec_usd'?'en caja USD '+fN(libre)
+          :x.k==='efec_bs'?'en caja Bs '+fN(libreBs)
+          :(x.mon==='BS'?'bolívares':'dólares'))+'</span></button>').join('')+'</div>';
   if(VTA.vmet==='efec_usd'&&libre<resta-0.005)
     h+='<div class="nota rj"><b>No hay tanto efectivo en la caja.</b> Hay USD '+fN(libre)
       +' y hay que devolver USD '+fN(resta)
+      +'. Entregue lo que haya, use otra vía, o deje el resto pendiente.</div>';
+  if(VTA.vmet==='efec_bs'&&t&&libreBs<restaBs-0.005)
+    h+='<div class="nota rj"><b>No hay tantos bolívares en la caja.</b> Hay Bs '+fN(libreBs)
+      +' y hay que devolver Bs '+fN(restaBs)
       +'. Entregue lo que haya, use otra vía, o deje el resto pendiente.</div>';
   h+='<div class="visor"><span class="vk">Entrega por '+m.n.toLowerCase()+'</span>'
     +'<div class="vrow"><span class="vu">'+(enBs?'Bs':'USD')+'</span>'
@@ -3321,6 +3356,7 @@ function pasoVuelto(){
     +'<div class="rapidos">'+(resta>0.005?'<button class="ex" data-vexacto="1">Todo el resto · '
       +(enBs&&t?'Bs '+fN(tecleaPara(VTA.vmet,resta,t)):'USD '+fN(resta))+'</button>':'')
     +(VTA.vmet==='efec_usd'&&libre>0&&libre<resta?'<button data-vr="'+libre+'">Todo lo que hay en caja · USD '+fN(libre)+'</button>':'')
+    +(VTA.vmet==='efec_bs'&&t&&libreBs>0&&libreBs<restaBs?'<button data-vrbs="'+libreBs+'">Todo lo que hay en caja · Bs '+fN(libreBs)+'</button>':'')
     +'<button class="gh" data-vlimpia="1">Borrar el monto</button></div>';
   if(m.banco){
     h+='<div style="margin-top:18px"><label class="f">¿Con qué fondos se paga?</label><div class="fuente">'
@@ -4096,11 +4132,24 @@ function formEntrega(v,c,t){
     +'<label class="f">¿Cómo se lo entrega?</label>'
     +'<div class="mets">'+METODOS.map(x=>'<button class="met'+(x.k===m.k?' on':'')+'" data-pmet="'+v.id+'|'+x.k+'">'
       +'<span class="ic">'+x.ic+'</span><b>'+x.n+'</b></button>').join('')+'</div>'
+    /* EN LA MONEDA DEL MÉTODO, COMO EN LA VENTA (PAN-27).
+       Hasta el 25/10 esta tarjeta tenía cuatro rótulos y tres monedas: la
+       unidad fija decía USD, la ayuda debajo decía «escriba el monto en
+       bolívares», el botón rápido escribía los dólares, y el correo a la
+       clienta imprimía esa misma cifra con «Bs» delante. Medido con un saldo
+       de USD 6,40 a tasa 845,03: el correo decía «Entregado ahora Bs 6,40» y
+       el libro guardaba Bs 5.408,19. Y si la cajera tecleaba los Bs 5.408,19
+       que de verdad transfirió, la pantalla la trancaba con «está entregando
+       más de lo que se le debe (USD 6,40)». No había salida correcta.
+       Ahora se teclea en la moneda del método —lo mismo que hace la venta— y
+       la conversión la hace `usdTecleado`, que es la función que ya existía
+       para esto. */
     +'<div class="visor"><span class="vk">Entrega por '+m.n.toLowerCase()+'</span>'
-    +'<div class="vrow"><span class="vu">USD</span>'
+    +'<div class="vrow"><span class="vu">'+(enBs?'Bs':'USD')+'</span>'
     +'<input class="vin" id="p_monto" inputmode="decimal" placeholder="0,00" value="'+esc(v._buf||'')+'"></div>'
     +'<span class="veq" id="p_eq">'+eqTexto(v._buf,enBs,t)+'</span></div>'
-    +'<div class="rapidos"><button class="ex" data-pex="'+v.id+'">Todo · USD '+fN(v.saldo)+'</button></div>';
+    +'<div class="rapidos"><button class="ex" data-pex="'+v.id+'">Todo · '
+    +(enBs&&t?'Bs '+fN(tecleaPara(m.k,v.saldo,t)):'USD '+fN(v.saldo))+'</button></div>';
   if(m.banco) h+='<div style="margin-top:16px"><label class="f">¿Con qué fondos?</label><div class="fuente">'
     +'<button data-pfu="'+v.id+'|empresa" class="'+((v._fu||'empresa')==='empresa'?'on':'')+'"><b>Empresa</b><span>cuenta de '+esc(marcaDe())+'</span></button>'
     +'<button data-pfu="'+v.id+'|accionista" class="'+(v._fu==='accionista'?'on':'')+'"><b>Accionista</b><span>la empresa se lo debe</span></button></div>'
@@ -4120,7 +4169,9 @@ function formEntrega(v,c,t){
     +'<b>'+esc(v.venta)+'</b> del '+fFecha(v.fecha)+'.</p>'
     +'<div class="bloque" style="margin:14px 0"><table><tbody>'
     +'<tr><td>Vuelto que quedó pendiente</td><td style="text-align:right"><b>USD '+fN(v.usd)+'</b></td></tr>'
-    +'<tr><td>Entregado ahora</td><td style="text-align:right"><b>'+(enBs?'Bs ':'USD ')+fN(pila(v._buf)||0)+'</b></td></tr>'
+    +'<tr><td>Entregado ahora</td><td style="text-align:right"><b>'+(enBs?'Bs ':'USD ')+fN(pila(v._buf)||0)+'</b>'
+    +(enBs&&t?'<div class="mini">USD '+fN(usdTecleado(m.k,v._buf,t))+' · tasa '+fN(t.bcv,2)+'</div>':'')
+    +'</td></tr>'
     +'</tbody></table></div>'
     +'<p style="margin-bottom:0">Gracias por su paciencia — y por seguir comprando con nosotras.</p></div></div>'
     +'<p class="mini" style="margin-top:10px">Este es el correo del punto 10: sale automáticamente al ejecutar la entrega.</p>'
@@ -6881,8 +6932,16 @@ document.addEventListener('click',e=>{
   if(b.dataset.vfu){VTA.vfuente=b.dataset.vfu;pinta();return;}
   if(b.dataset.vlimpia){VTA.vbuf='';pinta();return;}
   if(b.dataset.vr){VTA.vbuf=Number(b.dataset.vr).toFixed(2).replace('.',',');pinta();return;}
+  /* el gemelo en bolívares (PAN-28): el valor ya viene EN bolívares, igual
+     que `data-vr` viene en dólares */
+  if(b.dataset.vrbs){VTA.vbuf=Number(b.dataset.vrbs).toFixed(2).replace('.',',');pinta();return;}
   if(b.dataset.vexacto){const _t=tasaVigente();
-    VTA.vbuf=Math.max(0,tecleaPara(VTA.vmet,vueltoResta(),_t)).toFixed(2).replace('.',',');
+    let _r=Math.max(0,vueltoResta());
+    /* «Todo el resto» tampoco puede ofrecer lo que no hay en la gaveta:
+       antes escribía el resto entero y el tope sólo aparecía al guardar. */
+    if(VTA.vmet==='efec_usd') _r=Math.min(_r,efectivoEnCaja());
+    if(VTA.vmet==='efec_bs'&&_t&&_t.bcv) _r=Math.min(_r,efectivoBsEnCaja()/_t.bcv);
+    VTA.vbuf=Math.max(0,tecleaPara(VTA.vmet,_r,_t)).toFixed(2).replace('.',',');
     pinta();return;}
   if(b.id==='v_add'){const m=METODOS.find(x=>x.k===VTA.vmet),t=tasaVigente();
     /* igual que el cobro: lo tecleado está en la moneda del método */
@@ -6898,6 +6957,10 @@ document.addEventListener('click',e=>{
     if(m.k==='efec_usd'&&v>efectivoEnCaja()+0.005)
       return aviso('No hay tanto efectivo en dólares en la caja: hay USD '
                  + fN(efectivoEnCaja()) + '. Entregue lo que haya, use otra vía, '
+                 + 'o deje el resto pendiente.', true);
+    if(m.k==='efec_bs'&&v>efectivoBsEnCaja()+0.005)
+      return aviso('No hay tantos bolívares en efectivo en la caja: hay Bs '
+                 + fN(efectivoBsEnCaja()) + '. Entregue lo que haya, use otra vía, '
                  + 'o deje el resto pendiente.', true);
     const lin={met:m.k,mon:m.mon,monto:v,ref,banco:bco,fuente:m.banco?VTA.vfuente:'empresa',print:VTA.vprint};
     const eraV=!!VTA.editV;
@@ -6933,7 +6996,10 @@ document.addEventListener('click',e=>{
     v._met=k;v._buf='';v._ref='';pinta();return;}
   if(b.dataset.pfu){const [id,f]=b.dataset.pfu.split('|');const v=DB.vpend.find(x=>x.id===id);v._fu=f;pinta();return;}
   if(b.dataset.pex){const v=DB.vpend.find(x=>x.id===b.dataset.pex);
-    v._buf=v.saldo.toFixed(2).replace('.',',');pinta();return;}
+    /* en la moneda del método, como el campo (PAN-27) */
+    const _m=METODOS.find(x=>x.k===(v._met||'efec_usd')),_t=tasaVigente();
+    v._buf=Math.max(0,tecleaPara(_m.k,v.saldo,_t)).toFixed(2).replace('.',',');
+    pinta();return;}
   if(b.id==='fondo_g'){
     const n = Math.round(pila($('#fondo_v').value)*100)/100;
     if(!(n >= 0)) return aviso('Escriba cuánto efectivo en dólares queda en la caja para dar vuelto.', true);
@@ -6947,9 +7013,14 @@ document.addEventListener('click',e=>{
     if(trancaTasa('entregar el vuelto'))return;
     const v=DB.vpend.find(x=>x.id===b.dataset.pgo),t=tasaVigente();
     const m=METODOS.find(x=>x.k===(v._met||'efec_usd'));
-    const usd=Math.round(pila($('#p_monto')?$('#p_monto').value:v._buf)*100)/100;
-    if(usd<=0)return aviso('Escriba el monto en dólares.',true);
+    /* LO TECLEADO ESTÁ EN LA MONEDA DEL MÉTODO (PAN-27). Antes se leía
+       siempre como dólares, y la cajera tenía delante un campo rotulado en
+       bolívares: lo que transfería y lo que el libro guardaba no eran la
+       misma cifra. `usdTecleado` es la que traduce. */
+    const _txt=$('#p_monto')?$('#p_monto').value:v._buf;
     if(m.mon==='BS'&&!t)return aviso('Sin tasa confirmada no se puede entregar en bolívares.',true);
+    const usd=usdTecleado(m.k,_txt,t);
+    if(usd<=0)return aviso('Escriba el monto en '+(m.mon==='BS'?'bolívares':'dólares')+'.',true);
     const monto=montoEn(m,usd,t);
     const ref=m.banco?($('#p_ref')?$('#p_ref').value.trim():''):'';
     const bcoP=m.banco?($('#p_banco')?$('#p_banco').value:''):'';
@@ -7003,6 +7074,16 @@ document.addEventListener('click',e=>{
     if(k === 'irVentas'){ destrancaCaja(); nuevaVenta();
       TAB='vta'; VSUB='rep'; RSUB='dia'; pinta(); window.scrollTo(0,0); return; }
     if(k === 'reint'){ destrancaCaja(); if(guardar()) aviso('Guardado.'); return; }
+    /* EL BOTÓN QUE NO LLEVABA A NINGÚN SITIO (PAN-31).
+       El panel de «los datos de este navegador no se pudieron leer» ofrece un
+       solo botón —«Ir a restaurar un respaldo»— y su clave no estaba en este
+       despachador: caía al `destrancaCaja()` del final, el aviso desaparecía
+       para el resto de la sesión (`ROTA_AVISADA` ya estaba en true, así que
+       no volvía), y la cajera se quedaba en la misma pantalla sin nada que se
+       lo recordara. Medido con clic real el 25/10. Va a donde dice: Gerencia
+       · Datos y respaldo, que es la pantalla que restaura. */
+    if(k === 'rescate'){ destrancaCaja();
+      TAB='ger'; GSUB='resp'; pinta(); window.scrollTo(0,0); return; }
     if(k === 'nubeal'){
       /* Trae lo del servidor y descarta lo local sin subir. El respaldo ya se
          bajó solo antes de llegar aquí, así que nada se pierde de verdad. */
