@@ -156,7 +156,14 @@ function crea(opciones){
       else sobran.push(tabla);
     });
 
-    return { cambios: cambios, sobran: sobran,
+    /* `todo` viaja con el plan: es la FOTO desde la que se calculó, y es la
+       que tiene que quedar como espejo si el guardado sale bien. Tomar el
+       espejo de `aFilas(DB)` al volver del viaje absorbía lo que el
+       documento hubiera cambiado MIENTRAS el sobre iba de camino: esos
+       cambios quedaban dentro del espejo sin haberse mandado nunca, y el
+       diferenciador siguiente no los veía. Medido el 26/10 (PAN-34): dos
+       cambios pendientes, uno enviado, semáforo «al día», `cuantos: 0`. */
+    return { cambios: cambios, sobran: sobran, todo: todo,
              cuantos: raiz.CORE_MAP.cuantos(cambios) };
   }
 
@@ -175,21 +182,23 @@ function crea(opciones){
 
     if(plan.cuantos === 0){
       return { puestas: 0, quitadas: 0, detalle: 'nada que guardar',
-               espejo: espejo };
+               espejo: plan.todo };
     }
 
     const r = await cliente.rpc('sicom_guarda_config', { p: plan.cambios });
     if(r.error) throw new Error('no se pudo guardar: ' + r.error.message);
 
-    /* El espejo nuevo es lo que se acaba de mandar, no lo que la pantalla
-       tiene: si el servidor normalizó algo, la próxima carga lo trae. */
+    /* El espejo nuevo es LO QUE SE ACABA DE MANDAR —la foto del plan—, no lo
+       que la pantalla tiene ahora: si el servidor normalizó algo, la próxima
+       carga lo trae, y si el documento cambió mientras el sobre iba de
+       camino, ese cambio sigue pendiente en vez de quedar absorbido. */
     const d = r.data || {};
     return {
       puestas:  d.puestas  || 0,
       quitadas: d.quitadas || 0,
       detalle:  d.detalle  || '',
       por:      d.por,
-      espejo:   raiz.CORE_MAP.aFilas(DB)
+      espejo:   plan.todo
     };
   }
 
