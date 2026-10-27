@@ -6664,23 +6664,8 @@ document.addEventListener('click',e=>{
     /* la referencia y el banco pertenecen a la vía anterior: no se arrastran */
     REI.banco=''; REI.ref=''; if(!reiMet().banco) REI.print=null;
     pinta(); return; }
-  if(b.id==='a_g'){
-    if(trancaTasa('registrar el reintegro'))return;
-    const v=pila(REI.buf), s=saldoAcc(), mm=reiMet();
-    if(v<=0)return aviso('Escriba el monto.',true);
-    if(v>s+0.005)return aviso('No puede reintegrar más de lo que se le debe (USD '+fN(s)+').',true);
-    if(mm.banco&&!REI.banco)return aviso('Indique desde qué '+esc(ORIGEN[mm.org].lbl.toLowerCase())+' se le repone.',true);
-    if(mm.banco&&REI.ref.trim().length<3)
-      return aviso('El reintegro por '+mm.n.toLowerCase()+' necesita referencia.',true);
-    const mov={fecha:hoy,tipo:'reintegro',
-      concepto:'Reintegro al accionista por '+mm.n.toLowerCase()+(REI.banco?' · '+REI.banco:''),
-      usd:-r2(v),ref:mm.banco?REI.ref.trim():'',venta:'',op:'acc_rei',met:mm.k};
-    if(mm.banco&&REI.print) mov.print=REI.print;
-    DB.accionista.push(mov);
-    bitacora('tes','Reintegro al accionista','USD '+fN(v)+' por '+mm.n.toLowerCase()
-      +(mov.ref?' · ref. '+mov.ref:'')+(mov.print?' · con comprobante':''));
-    nuevoREI();
-    aviso('Reintegro de USD '+fN(v)+' registrado.');pinta();return;}
+  /* EL REINTEGRO AL ACCIONISTA SALE POR SU PUERTA (P-24 · P-25): asíncrono. */
+  if(b.id==='a_g'){ registraReintegro(); return; }
   if(b.dataset.irtes){TAB='tes';TSUB=b.dataset.irtes;pinta();return;}
   /* Al moverse de aquí, la clave del administrador no se queda esperando. */
   if(b.dataset.tsub){TSUB=b.dataset.tsub;PSEL=null;if(CIERRE)CIERRE.clave='';pinta();return;}
@@ -6985,10 +6970,8 @@ document.addEventListener('click',e=>{
     VTA.vref='';VTA.vbanco='';VTA.vprint=null;precarga('vuelto');aviso('Cambio cancelado.');pinta();return;}
 
   /* correo */
-  if(b.id==='c_mail'){const c=VTA.cli;
-    DB.correos.push({fecha:hoy,cli:nomComp(c),mail:c.mail,venta:VTA.hecha.num,
-      arts:VTA.lineas.reduce((a,l)=>a+l.cant,0),tipo:'recibo',estado:'reenviado'});
-    aviso('Recibo reenviado a '+c.mail);pinta();return;}
+  /* EL REENVÍO DEL RECIBO LO ANOTA EL SERVIDOR (P-30): asíncrono. */
+  if(b.id==='c_mail'){ reenviaRecibo(); return; }
 
   /* vueltos pendientes */
   if(b.dataset.psel){PSEL=(PSEL===b.dataset.psel?null:b.dataset.psel);pinta();return;}
@@ -7011,59 +6994,8 @@ document.addEventListener('click',e=>{
   }
   if(b.dataset.pgo){
     if(trancaTasa('entregar el vuelto'))return;
-    const v=DB.vpend.find(x=>x.id===b.dataset.pgo),t=tasaVigente();
-    const m=METODOS.find(x=>x.k===(v._met||'efec_usd'));
-    /* LO TECLEADO ESTÁ EN LA MONEDA DEL MÉTODO (PAN-27). Antes se leía
-       siempre como dólares, y la cajera tenía delante un campo rotulado en
-       bolívares: lo que transfería y lo que el libro guardaba no eran la
-       misma cifra. `usdTecleado` es la que traduce. */
-    const _txt=$('#p_monto')?$('#p_monto').value:v._buf;
-    if(m.mon==='BS'&&!t)return aviso('Sin tasa confirmada no se puede entregar en bolívares.',true);
-    const usd=usdTecleado(m.k,_txt,t);
-    if(usd<=0)return aviso('Escriba el monto en '+(m.mon==='BS'?'bolívares':'dólares')+'.',true);
-    const monto=montoEn(m,usd,t);
-    const ref=m.banco?($('#p_ref')?$('#p_ref').value.trim():''):'';
-    const bcoP=m.banco?($('#p_banco')?$('#p_banco').value:''):'';
-    if(m.banco&&!bcoP)return aviso(org(m).falta+'.',true);
-    if(m.banco&&ref.length<3)return aviso('Falta '+org(m).ref.toLowerCase()+'.',true);
-    if(usd>v.saldo+0.005)return aviso('Está entregando más de lo que se le debe (USD '+fN(v.saldo)+').',true);
-    /* v62 · ESTO DEJABA LA CAJA SIN PODER CERRAR.
-
-       Se comparaba contra el fondo, que es sólo el sencillo para dar vuelto.
-       Pero en la gaveta también está lo cobrado en efectivo durante el día.
-       Con un fondo de USD 100, anular una venta de USD 500 en efectivo era
-       un callejón sin salida: no dejaba entregarle los billetes que estaban
-       ahí mismo, y sin entregarlos no se podía cerrar el día.
-
-       Ahora se compara contra lo que de verdad hay: fondo más lo cobrado,
-       menos lo que ya salió. */
-    if(m.k==='efec_usd'){
-      const hay = (esperadoCaja(hoy).efec_usd || {}).esperado || 0;
-      if(usd > hay + 0.005)
-        return aviso('En la gaveta hay USD '+fN(hay)+' en efectivo, y está entregando USD '
-          + fN(usd)+'.', true);
-    }
-    v.entregas.push({fecha:hoy,met:m.k,mon:m.mon,monto:monto,usd:usd,ref:ref,banco:bcoP,
-      fuente:m.banco?(v._fu||'empresa'):'empresa',cajera:DB.turno});
-    v.saldo=Math.round((v.saldo-usd)*100)/100;
-    if(m.banco&&(v._fu==='accionista')) DB.accionista.push({fecha:hoy,tipo:'vuelto',
-      concepto:'Vuelto pendiente de '+v.venta+' entregado con fondos del accionista',usd:usd,ref:ref,venta:v.venta});
-    const c=DB.clientes.find(x=>x.id===v.cliId);
-    DB.correos.push({fecha:hoy,cli:nomComp(c),mail:c.mail,venta:v.venta,arts:0,tipo:'vuelto',estado:'enviado'});
-    v._buf='';v._ref='';v._banco='';
-    /* Es la salida de efectivo más frecuente de la tienda y era la única que
-       no dejaba rastro: el saldo bajaba y no quedaba quién, cuánto ni por
-       qué vía. */
-    bitacora('tes', v.tipo === 'devolucion' ? 'Devolución pagada' : 'Vuelto entregado',
-      v.venta + ' · ' + nomComp(c) + ' · USD ' + fN(usd) + ' · ' + m.n
-      + (ref ? ' · ' + org(m).ref.toLowerCase() + ' ' + ref : '')
-      + (bcoP ? ' · ' + bcoP : '')
-      + (m.banco && v._fu === 'accionista' ? ' · con fondos del accionista' : '')
-      + (v.saldo > 0.005 ? ' · quedan USD ' + fN(v.saldo) : ' · saldado'));
-    aviso(v.saldo>0.005?'Entrega parcial · quedan USD '+fN(v.saldo)+' · correo enviado a '+c.mail
-                       :'Vuelto saldado · correo enviado a '+c.mail);
-    if(v.saldo<=0.005) PSEL=null;
-    pinta();return;}
+    entregaPendiente(b.dataset.pgo);
+    return;}
 
   if(b.dataset.tranca){
     const k = b.dataset.tranca;
@@ -10531,65 +10463,8 @@ document.addEventListener('click', async e=>{
     AIPREV = parseArts(AIFILAS, {cat:AICAT, actualiza:AIACT, crearCat:AICREA, exento:AIEXE});
     pinta(); return;
   }
-  if(b.id === 'ai_go'){
-    if(!AIPREV || !AIPREV.arts.length) return aviso('No hay nada que importar.', true);
-    /* v66 · el mismo cerrojo que ya tenía el vaciado. Importar reescribe
-       precios y existencias por debajo de un carrito ya armado: la cajera
-       cobraría un precio viejo de una talla que acaba de desaparecer. */
-    if(typeof VTA !== 'undefined' && VTA && VTA.lineas && VTA.lineas.length && !VTA.hecha)
-      return aviso('Hay una venta abierta con artículos. Termínela o cancélela antes '
-        + 'de cargar el inventario.', true);
-    const arts = AIPREV.arts.slice();
-    const hecho = conTx('importar el inventario', function(){
-      let nue = 0, act = 0, cats = 0, uds = 0, revividos = 0;
-      arts.forEach(function(a){
-        if(AICREA && DB.categorias.indexOf(a.cat) < 0){ DB.categorias.push(a.cat); cats++; }
-        a.variantes.forEach(function(v){ uds += v.e; });
-        const ya = DB.productos.find(function(p){
-          return String(p.sku).toUpperCase() === a.sku; });
-        if(ya){
-          /* v66 · EL ARCHIVO SÓLO CAMBIA LO QUE TRAE.
-             La foto nunca se toca —el archivo no la lleva y perderla obligaría
-             a fotografiarlo todo de nuevo— y ahora tampoco se tocan el precio,
-             el costo, el IVA ni el ícono cuando el archivo no trae esa
-             columna. Un conteo de existencias es un conteo de existencias, no
-             una lista de precios nueva. */
-          const t = a.trae || {};
-          if(ya.activo === false){ ya.activo = true; revividos++; }
-          ya.nom = a.nom;
-          if(t.cat)    ya.cat = a.cat;
-          if(t.ico)    ya.ico = a.ico || ya.ico;
-          if(t.costo)  ya.costo = a.costo;
-          if(t.precio) ya.precio = a.precio;
-          if(t.iva)    ya.exento = a.exento;
-          if(t.exi){
-            ya.var = a.variantes.map(function(v){ return {t:v.t, c:v.c, e:v.e}; });
-            delete ya.tallas; delete ya.exi;
-          }
-          act++;
-        }else{
-          DB.productos.push({ id:nid('p'), sku:a.sku, nom:a.nom, cat:a.cat,
-            ico:a.ico || '📦', costo:a.costo, precio:a.precio, activo:true,
-            exento:a.exento,
-            var:a.variantes.map(function(v){ return {t:v.t, c:v.c, e:v.e}; }) });
-          nue++;
-        }
-      });
-      bitacora('prod', 'Inventario cargado desde un archivo',
-        nue + ' artículos nuevos · ' + act + ' actualizados · ' + uds + ' unidades'
-        + (revividos ? ' · ' + revividos + ' reactivados' : '')
-        + (cats ? ' · ' + cats + ' categorías creadas' : '')
-        + (AIFILE ? ' · archivo ' + AIFILE : ''));
-      AIRES = {nue:nue, act:act, uds:uds, cats:cats, revividos:revividos};
-      return true;
-    });
-    if(!hecho) return;
-    AIPREV = null; AIFILAS = []; AIFILE = '';
-    aviso(AIRES.nue + ' artículos agregados y ' + AIRES.act + ' actualizados'
-      + (AIRES.revividos ? ' (' + AIRES.revividos + ' vuelven a estar a la venta)' : '')
-      + ' · ' + AIRES.uds + ' unidades. Las fotos se cargan después, una por una.');
-    PSUB = 'uno'; pinta(); return;
-  }
+  /* LA CARGA MASIVA TAMBIÉN SALE POR LA PUERTA (P-24): es asíncrona. */
+  if(b.id === 'ai_go'){ importaInventario(); return; }
 
   /* ---------------- artículos ---------------- */
   if(b.dataset.pexe){ pbufLee(); PEXE = b.dataset.pexe; pinta(); return; }
@@ -10674,58 +10549,9 @@ document.addEventListener('click', async e=>{
     aviso(p.activo ? 'Artículo reactivado.' : 'Artículo dado de baja: ya no aparece en la caja.');
     pinta(); return;
   }
-  if(b.id === 'np_g'){
-    const sku = ($('#np_sku').value||'').trim().toUpperCase();
-    const nom = ($('#np_nom').value||'').trim();
-    const cat = $('#np_cat').value;
-    const ico = ($('#np_ico').value||'').trim() || '📦';
-    const costo = pila($('#np_costo').value);
-    const precio = pila($('#np_precio').value);
-    if(!sku) return aviso('Escriba el código del artículo.', true);
-    if(!nom || nom.length < 3) return aviso('Escriba el nombre del artículo.', true);
-    if(!cat) return aviso('Elija la categoría: sin ella el artículo no se puede guardar.', true);
-    if(!(precio > 0)) return aviso('El precio de venta tiene que ser mayor que cero.', true);
-    if(costo < 0) return aviso('El costo no puede ser negativo.', true);
-    if(costo > precio) return aviso('El costo es mayor que el precio: esa venta daría pérdida. Revíselo.', true);
-    const rep = DB.productos.find(p=>p.sku===sku && p.id!==PRED);
-    if(rep) return aviso('Ya hay un artículo con el código '+sku+': «'+rep.nom+'».', true);
-
-    /* v58 · la existencia sale de la rejilla: una casilla por cada
-       combinación de talla y color. */
-    pvarLee();
-    const nvar = pvarAVariantes();
-    const totVar = nvar.reduce((a,x)=>a + Math.max(0, +x.e||0), 0);
-
-    if(PRED){
-      const p = DB.productos.find(x=>x.id===PRED); if(!p) return;
-      const cam = [];
-      if(p.precio !== precio) cam.push('precio '+fN(p.precio)+' → '+fN(precio));
-      if((p.costo||0) !== costo) cam.push('costo '+fN(p.costo||0)+' → '+fN(costo));
-      if(p.cat !== cat) cam.push('categoría '+p.cat+' → '+cat);
-      if(exi(p) !== totVar) cam.push('existencia '+exi(p)+' → '+totVar);
-      if(!!p.exento !== (PEXE === 'no')) cam.push(PEXE === 'no' ? 'pasa a no gravado' : 'pasa a gravado');
-      if((p.foto||'') !== (PFOTO||'')) cam.push(PFOTO ? 'foto cargada' : 'foto quitada');
-      const antesVar = vars(p).map(v=>nombreVar(v.t, v.c) || 'único').join(' / ');
-      const ahoraVar = nvar.map(v=>nombreVar(v.t, v.c) || 'único').join(' / ');
-      if(antesVar !== ahoraVar) cam.push('variantes ' + antesVar + ' → ' + ahoraVar);
-      p.sku = sku; p.nom = nom; p.cat = cat; p.ico = ico; p.costo = costo; p.precio = precio;
-      p.exento = (PEXE === 'no');
-      p.var = nvar; delete p.tallas; delete p.exi;
-      if(PFOTO) p.foto = PFOTO; else delete p.foto;
-      bitacora('prod','Artículo modificado', sku+' · '+nom + (cam.length ? ' · '+cam.join(' · ') : ''));
-      pbufOlvida(); PRED = null; pvarDesde(null); PEXE = 'si';
-      aviso('Artículo «'+nom+'» actualizado.'); pinta(); return;
-    }
-    const np = {id:nid('p'), sku, nom, cat, ico, costo, precio, activo:true, exento:(PEXE === 'no')};
-    np.var = nvar;
-    if(PFOTO) np.foto = PFOTO;
-    DB.productos.push(np);
-    bitacora('prod','Artículo agregado', sku+' · '+nom+' · USD '+fN(precio)
-      +(np.exento?' · no gravado':'')+' · '+totVar+' unidades'
-      +(PFOTO?'':' · sin foto'));
-    pbufOlvida(); pvarDesde(null); PEXE = 'si';
-    aviso('Artículo «'+nom+'» agregado al catálogo.'); pinta(); return;
-  }
+  /* EL ARTÍCULO LO GUARDA `guardaArticulo`, QUE ES ASÍNCRONA (P-24): su
+     existencia sale por `fija_inventario` y hay que esperar al servidor. */
+  if(b.id === 'np_g'){ guardaArticulo(); return; }
 
   /* ---------------- respaldo ---------------- */
   if(b.id === 'rs_baja'){ bajaRespaldo(); return; }
@@ -11609,7 +11435,9 @@ function puedeAnular(v){
    verdadera y confirmaría la transacción antes de que la comprobación
    terminara. Así que la clave se pregunta al servidor aquí, fuera, y adentro
    sólo entra lo que ya está autorizado. */
+let ANULANDO = false;
 async function anularVenta(num, cod, det, clave){
+  if(ANULANDO) return;
   if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
   if(!hayClave())
     return aviso('Primero defina la clave de administrador en Gerencial · Seguridad.', true);
@@ -11618,96 +11446,70 @@ async function anularVenta(num, cod, det, clave){
     return aviso('El servidor dice que todavía no hay clave de administrador definida. '
                + 'Defínala en Gerencial · Seguridad.', true);
   if(!_ok) return aviso('La clave de administrador no es correcta.', true);
-  const _r = conTx('anular la venta ' + num, function(){ return anulaVentaCuerpo(num, cod, det, clave); });
-  if(_r){ VSEL = num; VACC = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = ''; pinta(); }
-}
-function anulaVentaCuerpo(num, cod, det, clave){
-  const v = DB.ventas.find(x=>x.num === num);
-  if(!v) return aviso('No encontré esa venta.', true) || false;
-  const no = puedeAnular(v); if(no) return aviso(no, true) || false;
-  const vm = valMotivo('anul', cod, det); if(!vm.ok) return aviso(vm.msg, true) || false;
-  const motivo = motTexto('anul', cod, det);
-  /* La clave ya la comprobó el servidor en `anularVenta`, antes de entrar a
-     la transacción: aquí dentro no se puede esperar nada. */
 
-  /* la mercancía vuelve al inventario: solo lo que de verdad salió */
-  v.lineas.forEach(l=>reponeLinea(l, true));
+  /* Lo que se puede decir sin molestar al servidor se dice aquí: el motivo
+     tiene forma y la venta se puede anular. Lo que decide de verdad —si ya
+     está anulada, si tiene devolución, si existe— lo vuelve a decidir él. */
+  const v = DB.ventas.find(x => x.num === num);
+  if(!v) return aviso('No encontré esa venta.', true);
+  const no = puedeAnular(v); if(no) return aviso(no, true);
+  const vm = valMotivo('anul', cod, det); if(!vm.ok) return aviso(vm.msg, true);
 
-  /* el cliente deja de tener esa compra encima */
-  ajustaCliente(v.cliId, -v.total, -1);
+  /* SIN SERVIDOR NO SE ANULA. Es la misma regla de la venta y por el mismo
+     motivo: la anulación mueve inventario, dinero y el libro contable. Antes
+     esto se escribía en el navegador y se subía después; eso era la segunda
+     verdad. */
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'La anulación la hace y la asienta el servidor. Sin conexión no se puede anular: '
+      + 'espere a que vuelva y vuelva a intentarlo. <b>Nada se ha tocado.</b>');
 
-  /* el accionista: se revierte con un asiento contrario, no se borra nada */
-  DB.accionista.filter(m=>m.venta === v.num).slice().forEach(m=>{
-    DB.accionista.push({fecha:hoy, tipo:'reverso',
-      concepto:'Reverso por anulación de la venta ' + v.num + ' · ' + m.concepto,
-      usd:-m.usd, ref:m.ref, venta:v.num, op:'anul'});
-  });
-
-  /* v62 · LO QUE HAY QUE DEVOLVERLE SE CALCULA AQUÍ, ANTES DE CANCELAR NADA.
-
-     `devolverAlAnular` descuenta el vuelto que ya se le entregó, mirando los
-     pendientes que NO están anulados. El bucle de abajo los anula. Si se
-     calculaba después, ese descuento no ocurría nunca y se le pagaba de más:
-     una venta de USD 100 cobrada con 120, con 10 de vuelto ya entregados,
-     anotaba 120 en vez de 110. La pantalla de confirmación —que sí calculaba
-     antes— decía 110, así que además las dos cifras no coincidían. */
-  const _devolver = devolverAlAnular(v);
-
-  /* el vuelto que quedó pendiente se cancela */
-  let vueltoCancelado = 0, yaEntregado = 0;
-  DB.vpend.filter(p=>p.venta === v.num && !p.anulado).forEach(p=>{
-    vueltoCancelado += p.saldo;
-    yaEntregado += (p.usd - p.saldo);
-    p.saldo = 0; p.anulado = true; p.anuladoEl = hoy;
-  });
-
-  /* si el día ya estaba cerrado, ese cierre deja de cuadrar y hay que decirlo */
-  const cie = DB.cierres.find(c=>c.fecha === v.fecha);
-  if(cie){
-    if(!cie.afectado) cie.afectado = [];
-    cie.afectado.push({venta:v.num, usd:v.total, motivo:'anulación', cuando:hoy});
+  ANULANDO = true;
+  let r;
+  try{
+    r = await NUBE.anula({
+      venta_num:    num,
+      motivo_c:     cod,
+      motivo_texto: motTexto('anul', cod, det),
+      detalle:      String(det || '').trim(),
+      cajera_id:    DB.turno || '',
+      usuario:      (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+    });
+  }catch(e){
+    ANULANDO = false;
+    const m = mensajeDelServidor(e, 'anula_venta');
+    if(m) return decision('La venta NO se anuló', esc(m)
+      + ' <b>Nada se tocó</b>: ni el inventario, ni la caja, ni el libro.');
+    return decision('NO SE SABE si la anulación quedó',
+      'El servidor no respondió. <b>No la anule otra vez todavía</b>: busque la venta en '
+      + '«Ventas del día» y mire si ya aparece anulada. Si no aparece, vuelva a intentarlo.',
+      [{k:'irVentas', t:'Ver las ventas del día', oro:true}, {k:'ok', t:'Cerrar'}], 'nosesabe');
   }
+  ANULANDO = false;
 
-  v.anulada = {fecha:hoy, hora:horaAhora(), motivo:motivo,
-               motivoC:cod, detalle:String(det||'').trim(),
-               por:cajeraNom(DB.turno), cierre: cie ? cie.fecha : null,
-               vueltoCancelado:Math.round(vueltoCancelado*100)/100,
-               yaEntregado:Math.round(yaEntregado*100)/100,
-               devuelto:_devolver, op:'anul'};
-
-  /* v61 · EL DINERO QUE SALE AL ANULAR TIENE QUE DEJAR RASTRO.
-
-     Antes el sistema decía «entréguele USD 100 a la clienta» y no creaba
-     ningún movimiento. El arqueo, que sólo mira ventas válidas y entregas de
-     tesorería, veía desaparecer el cobro y no veía salir el efectivo: la
-     gaveta quedaba con un sobrante en bolívares y un faltante en dólares, y
-     la cajera tenía que escribir un motivo a mano para que cuadrara como
-     «diferencia de caja» —una cuenta de gasto— cuando fue un reverso de
-     venta.
-
-     La devolución ya lo hacía bien: creaba un pendiente en tesorería. La
-     anulación queda igual. */
-  if(_devolver > 0.005){
-    const _c = DB.clientes.find(x=>x.id === v.cliId) || {};
-    v.anulada.pendId = nid('an');
-    DB.vpend.push({id:v.anulada.pendId, tipo:'devolucion', venta:v.num, fecha:hoy,
-                   cliId:v.cliId, usd:_devolver, saldo:_devolver, entregas:[],
-                   cajera:DB.turno, op:'anul_pag',
-                   nota:'reverso de la venta anulada ' + v.num});
-  }
-
-  bitacora('caja','Venta anulada', v.num + ' · USD ' + fN(v.total) + ' · ' + cod + ' · ' + motivo
-    + (cie ? ' · afecta el cierre del ' + fFecha(cie.fecha) : '')
-    + ' · se le devuelven USD ' + fN(v.anulada.devuelto)
-    + (yaEntregado > 0.005 ? ' (ya se le había entregado USD ' + fN(yaEntregado) + ' de vuelto)' : ''));
-
-  aviso('Venta ' + v.num + ' anulada.'
-    + (v.anulada.devuelto > 0.005
-        ? ' Quedan USD ' + fN(v.anulada.devuelto) + ' por entregarle a la clienta, en Tesorería.'
-        : '')
-    + (cie ? ' El cierre del ' + fFecha(cie.fecha) + ' quedó marcado como afectado.' : ''));
-  return true;
+  /* El documento bueno es el del servidor: se trae y se pinta. */
+  try{ await NUBE.sincroniza(); }catch(_){}
+  VSEL = num; VACC = null; VMOT = ''; VMOTC = ''; VDET = ''; VCLA = '';
+  const dev = r && +r.devuelto || 0;
+  aviso('Venta ' + num + ' anulada'
+      + (dev > 0.005 ? ' · entréguele USD ' + fN(dev) + ' a la clienta' : '')
+      + (r && r.cierre_afectado ? ' · el cierre del ' + fFecha(r.cierre_afectado) + ' quedó afectado' : ''));
+  pinta();
 }
+/* EL CUERPO LOCAL DE LA ANULACIÓN SE RETIRÓ EL 26/10 (Sprint 4 · P-26).
+
+   Escribía la anulación entera en el documento del navegador —reponía el
+   inventario, bajaba los acumulados de la clienta, revertía al accionista,
+   cancelaba el vuelto pendiente, marcaba el cierre afectado y escribía la
+   bitácora— y el servidor se enteraba en la siguiente sincronización, o no.
+   Mientras tanto la caja mantenía dos verdades, y la del navegador no tenía
+   asiento contable ni autor firmado por el token.
+
+   Ahora lo hace `core.anula_venta` por su puerta publicada, en una
+   transacción. Lo que esta pantalla hace es pedirlo y volver a leer.
+   No se deja el cuerpo viejo "por si acaso": un camino que escribe en
+   local y que nadie llama es la segunda verdad esperando a que alguien la
+   despierte. */
 
 /* ==========================================================================
    Devolver artículos
@@ -11718,27 +11520,19 @@ function totalDev(v){
   v.lineas.forEach((l,i)=>{ const n = DEV[i] || 0; t += n * l.precio; });
   return Math.round(t * 100) / 100;
 }
-function registraDevolucion(num, cod, det){
+let DEVOLVIENDO = false;
+async function registraDevolucion(num, cod, det){
+  if(DEVOLVIENDO) return;
   if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
-  let _pid = null;
-  const _r = conTx('registrar la devolución de ' + num, function(){
-    const x = devuelveCuerpo(num, cod, det);
-    if(x === false) return false;
-    _pid = x; return true;
-  });
-  if(!_r) return;
-  DEV = null; VACC = null; VMOT = ''; VMOTC = ''; VDET = '';
-  TAB = 'tes'; TSUB = 'vueltos'; PSEL = _pid;
-  pinta(); window.scrollTo(0, 0);
-}
-function devuelveCuerpo(num, cod, det){
-  const v = DB.ventas.find(x=>x.num === num);
-  if(!v) return aviso('No encontré esa venta.', true) || false;
-  if(anulada(v)) return aviso('Esa venta está anulada: no hay nada que devolver.', true) || false;
-  /* el tope no puede vivir solo en el botón: aquí se recorta lo que se pide a
-     lo que de verdad queda por devolver de cada línea */
+  const v = DB.ventas.find(x => x.num === num);
+  if(!v) return aviso('No encontré esa venta.', true);
+  if(anulada(v)) return aviso('Esa venta está anulada: no hay nada que devolver.', true);
+
+  /* El tope se vuelve a recortar aquí para que la cajera vea en el acto lo
+     que de verdad puede devolver; el que manda sigue siendo el servidor, que
+     lo recorta otra vez y lo dice en `recortado`. */
   let recortado = false;
-  v.lineas.forEach((l,i)=>{
+  v.lineas.forEach((l, i) => {
     const pedido = Math.max(0, Math.floor(+DEV[i] || 0));
     const tope = Math.max(0, (+l.cant || 0) - devueltasDe(v, i));
     const n = Math.min(pedido, tope);
@@ -11747,61 +11541,653 @@ function devuelveCuerpo(num, cod, det){
   });
   const usd = totalDev(v);
   if(usd < 0.005)
-    return aviso(recortado ? 'Esas unidades ya fueron devueltas.' : 'Indique cuántas unidades regresan.', true) || false;
-  const vm = valMotivo('dev', cod, det); if(!vm.ok) return aviso(vm.msg, true) || false;
-  const motivo = motTexto('dev', cod, det);
+    return aviso(recortado ? 'Esas unidades ya fueron devueltas.' : 'Indique cuántas unidades regresan.', true);
+  const vm = valMotivo('dev', cod, det); if(!vm.ok) return aviso(vm.msg, true);
 
+  /* QUÉ RENGLONES REGRESAN, POR SU IDENTIFICADOR DEL SERVIDOR.
+     `lid` lo trae el mapa desde el 26/10: hasta entonces la pantalla sólo
+     tenía el identificador del PRODUCTO, y con eso no se puede decir qué
+     renglón de la venta se devuelve. */
   const lineas = [];
-  v.lineas.forEach((l,i)=>{
+  let sinLid = false;
+  v.lineas.forEach((l, i) => {
     const n = DEV[i] || 0; if(!n) return;
-    /* v61 · SE LE PASABA LA TALLA Y SE LE COMÍA EL COLOR Y EL IDENTIFICADOR.
-
-       Sin color, `reponeLinea` no encontraba la variante y CREABA una nueva
-       sin color: la blusa negra devuelta aparecía como una tercera variante
-       «M sin color». El catálogo la contaba, la caja no la dejaba vender, y
-       si después alguien abría el artículo y le daba «Guardar» sin tocar
-       nada, esa unidad se borraba sola.
-
-       Y sin identificador, un artículo al que le hubieran corregido el código
-       después de vender no se encontraba: la mercancía devuelta no volvía al
-       inventario y nadie se enteraba. El comentario de `reponeLinea` explica
-       justamente eso… y esta llamada era la que no lo pasaba. */
-    lineas.push({i:i, id:l.id, sku:l.sku, nom:l.nom, talla:l.talla, color:l.color||'',
-                 cant:n, precio:l.precio, costo:l.costo||0});
-    reponeLinea({id:l.id, sku:l.sku, talla:l.talla, color:l.color||'', cant:n,
-                 desc:(l.desc !== undefined ? l.desc : l.cant)});
+    if(!l.lid){ sinLid = true; return; }
+    lineas.push({ venta_linea_id: l.lid, cant: n });
   });
+  if(sinLid || !lineas.length)
+    return aviso('Esta venta es anterior al cambio y no trae el renglón del servidor. '
+               + 'Vuelva a cargar la pantalla; si sigue igual, avise.', true);
 
-  const c = DB.clientes.find(x=>x.id === v.cliId) || {};
-  const entera = usd >= netoVenta(v) - 0.005;
-  ajustaCliente(v.cliId, -usd, entera ? -1 : 0);
+  /* SIN SERVIDOR NO SE DEVUELVE. La devolución mueve inventario, dinero y el
+     libro: la hace y la asienta el servidor (Sprint 4 · P-27). */
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'La devolución la hace y la asienta el servidor. Sin conexión no se puede registrar: '
+      + 'espere a que vuelva y vuelva a intentarlo. <b>Nada se ha tocado.</b>');
 
-  const pid = nid('dv');
-  DB.vpend.push({id:pid, tipo:'devolucion', venta:v.num, fecha:hoy, cliId:v.cliId,
-                 usd:usd, saldo:usd, entregas:[], cajera:DB.turno, op:'dev_pag'});
+  DEVOLVIENDO = true;
+  let r;
+  try{
+    r = await NUBE.devuelve({
+      venta_num:    num,
+      lineas:       lineas,
+      motivo_c:     cod,
+      motivo_texto: motTexto('dev', cod, det),
+      detalle:      String(det || '').trim(),
+      cajera_id:    DB.turno || '',
+      usuario:      (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+    });
+  }catch(e){
+    DEVOLVIENDO = false;
+    const m = mensajeDelServidor(e, 'devuelve');
+    if(m) return decision('La devolución NO quedó registrada', esc(m)
+      + ' <b>Nada se tocó</b>: ni el inventario, ni la caja, ni el libro.');
+    return decision('NO SE SABE si la devolución quedó',
+      'El servidor no respondió. <b>No la registre otra vez todavía</b>: búsquela en la '
+      + 'venta y mire si ya aparece devuelta. Si no aparece, vuelva a intentarlo.',
+      [{k:'irVentas', t:'Ver las ventas del día', oro:true}, {k:'ok', t:'Cerrar'}], 'nosesabe');
+  }
+  DEVOLVIENDO = false;
 
-  if(!v.devuelto) v.devuelto = [];
-  v.devuelto.push({fecha:hoy, hora:horaAhora(), lineas:lineas, usd:usd,
-                   motivo:motivo, motivoC:cod, detalle:String(det||'').trim(),
-                   cajera:DB.turno, pendId:pid, op:'dev'});
+  try{ await NUBE.sincroniza(); }catch(_){}
+  DEV = null; VACC = null; VMOT = ''; VMOTC = ''; VDET = '';
+  TAB = 'tes'; TSUB = 'vueltos'; PSEL = (r && r.pendiente_id) || null;
+  if(r && r.recortado)
+    aviso('Se devolvió lo que quedaba por devolver: USD ' + fN(+r.usd || 0) + '.');
+  else
+    aviso('Devolución registrada · USD ' + fN(+((r && r.usd) || usd)) + ' a entregar en Tesorería.');
+  pinta(); window.scrollTo(0, 0);
+}
 
-  const cie = DB.cierres.find(x=>x.fecha === v.fecha);
-  if(cie && cie.fecha !== hoy){
-    if(!cie.afectado) cie.afectado = [];
-    cie.afectado.push({venta:v.num, usd:usd, motivo:'devolución', cuando:hoy});
+/* ==========================================================================
+   LA ENTREGA DE UN VUELTO PENDIENTE, POR SU PUERTA  (Sprint 4 · P-28)
+
+   Es la salida de efectivo más frecuente de la tienda. Hasta el 26/10 la
+   escribía esta pantalla: empujaba la entrega al pendiente, bajaba el saldo,
+   anotaba al accionista si se pagaba con sus fondos y daba el correo por
+   enviado —todo en el documento local—. El servidor se enteraba después, o
+   no se enteraba.
+
+   `core.entrega_pendiente` hace lo mismo con transacción, asiento contable y
+   autor firmado por el token, y además COMPRUEBA LA CONVERSIÓN: si se entrega
+   en bolívares, el monto en bolívares y el equivalente en dólares tienen que
+   cuadrar con la tasa del día, o rechaza. Eso es justo lo que PAN-27 encontró
+   roto en la pantalla.
+   ========================================================================== */
+let ENTREGANDO = false;
+async function entregaPendiente(pid){
+  if(ENTREGANDO) return;
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  const v = DB.vpend.find(x => x.id === pid), t = tasaVigente();
+  if(!v) return aviso('No encontré ese pendiente.', true);
+  const m = METODOS.find(x => x.k === (v._met || 'efec_usd'));
+
+  /* LO TECLEADO ESTÁ EN LA MONEDA DEL MÉTODO (PAN-27). */
+  const _txt = $('#p_monto') ? $('#p_monto').value : v._buf;
+  if(m.mon === 'BS' && !t) return aviso('Sin tasa confirmada no se puede entregar en bolívares.', true);
+  const usd = usdTecleado(m.k, _txt, t);
+  if(usd <= 0) return aviso('Escriba el monto en ' + (m.mon === 'BS' ? 'bolívares' : 'dólares') + '.', true);
+  const monto = montoEn(m, usd, t);
+  const ref  = m.banco ? ($('#p_ref') ? $('#p_ref').value.trim() : '') : '';
+  const bcoP = m.banco ? ($('#p_banco') ? $('#p_banco').value : '') : '';
+  if(m.banco && !bcoP) return aviso(org(m).falta + '.', true);
+  if(m.banco && ref.length < 3) return aviso('Falta ' + org(m).ref.toLowerCase() + '.', true);
+  if(usd > v.saldo + 0.005)
+    return aviso('Está entregando más de lo que se le debe (USD ' + fN(v.saldo) + ').', true);
+  /* El tope de la gaveta se mira aquí para decírselo antes de molestar al
+     servidor; el arqueo de verdad lo lleva él. */
+  if(m.k === 'efec_usd'){
+    const hay = (esperadoCaja(hoy).efec_usd || {}).esperado || 0;
+    if(usd > hay + 0.005)
+      return aviso('En la gaveta hay USD ' + fN(hay) + ' en efectivo, y está entregando USD '
+                 + fN(usd) + '.', true);
+  }
+  if(m.k === 'efec_bs'){
+    const hayBs = efectivoBsEnCaja();
+    if(monto > hayBs + 0.005)
+      return aviso('En la gaveta hay Bs ' + fN(hayBs) + ' en efectivo, y está entregando Bs '
+                 + fN(monto) + '.', true);
   }
 
-  DB.correos.push({fecha:hoy, cli:nomComp(c), mail:c.mail||'', venta:v.num,
-                   arts:lineas.reduce((a,l)=>a+l.cant,0), tipo:'devolucion', estado:'enviado'});
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'La entrega la registra y la asienta el servidor. Sin conexión no se puede entregar: '
+      + 'espere a que vuelva y vuelva a intentarlo. <b>Nada se ha tocado.</b>');
 
-  bitacora('caja','Devolución registrada', v.num + ' · USD ' + fN(usd) + ' · '
-    + lineas.map(l=>l.cant + '× ' + l.nom
-        + (nombreVar(l.talla, l.color) ? ' ' + nombreVar(l.talla, l.color) : '')).join(' · ')
-    + ' · ' + cod + ' · ' + motivo);
-
-  aviso('Devolución registrada por USD ' + fN(usd) + ' · entréguesela al cliente.');
-  return pid;
+  ENTREGANDO = true;
+  let r;
+  try{
+    r = await NUBE.entrega({
+      pendiente_id: pid,
+      usd:          usd,
+      monto:        monto,
+      moneda:       m.mon,
+      metodo:       m.k,
+      ref:          ref,
+      banco:        bcoP,
+      fuente:       m.banco ? (v._fu || 'empresa') : 'empresa',
+      cajera_id:    DB.turno || '',
+      usuario:      (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+    });
+  }catch(e){
+    ENTREGANDO = false;
+    /* SE RELEE ANTES DE MANDARLA A MIRAR (PAN-36, medido el 26/10). `opera`
+       revienta antes de su propia relectura, así que sin esto el panel la
+       manda a comprobar «si el saldo ya bajó» sobre la cifra de antes de la
+       operación: la respuesta es «no bajó» siempre, aunque el servidor lo
+       haya cobrado, y el siguiente paso es pagar dos veces. */
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const m2 = mensajeDelServidor(e, 'entrega_pendiente');
+    if(m2) return decision('La entrega NO quedó registrada', esc(m2)
+      + ' <b>No se descontó nada</b>: corrija y vuelva a intentarlo.');
+    return decision('NO SE SABE si la entrega quedó',
+      'El servidor no respondió. <b>No vuelva a entregar todavía</b>: mire el pendiente en '
+      + 'Tesorería y compruebe si el saldo ya bajó.',
+      [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+  }
+  /* EL CERROJO SE SUELTA AL FINAL, NO AQUÍ (PAN-35, medido el 26/10).
+     Soltarlo antes de `sincroniza()` y antes de limpiar el formulario deja
+     una ventana del tamaño de una lectura entera del documento —900 ms en
+     el doble, «un segundo o diez» en la tienda— en la que un segundo clic
+     manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
+     el correo anotado dos veces, el conteo aplicado dos veces. */
+  try{ await NUBE.sincroniza(); }catch(_){}
+  const queda = r ? +r.saldo || 0 : 0;
+  const c = DB.clientes.find(x => x.id === v.cliId) || {};
+  aviso(queda > 0.005 ? 'Entrega parcial · quedan USD ' + fN(queda)
+                      : 'Vuelto saldado · ' + (c.mail ? 'correo enviado a ' + c.mail : 'sin correo'));
+  if(queda <= 0.005) PSEL = null;
+  ENTREGANDO = false;
+  pinta();
 }
+
+/* ==========================================================================
+   EL ARTÍCULO: SU FICHA ES CONFIGURACIÓN, SU EXISTENCIA ES LIBRO
+   (Sprint 4 · P-24)
+
+   Guardar un artículo son dos escrituras por dos caminos distintos:
+
+     · la ficha —código, nombre, categoría, costo, precio, IVA, foto— es
+       configuración y va por `guarda_config`, comparando contra el espejo.
+     · la existencia de cada variante es LIBRO. `producto_variantes` está en
+       la lista de `POR_OPERACION` del transporte, así que el guardado se
+       NIEGA a llevarla: hasta el 26/10 tocar una existencia dejaba el
+       semáforo en «no-es-config» y el artículo a medio guardar. Va por
+       `fija_inventario`, que pone candado sobre la variante antes de
+       escribirla y asienta el saldo neto del conteo.
+
+   Y en este orden, que no es estético: el servidor exige que el artículo
+   esté en el catálogo antes de fijarle existencia.
+   ========================================================================== */
+let GUARDANDO_ART = false;
+async function guardaArticulo(){
+  if(GUARDANDO_ART) return;
+  /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
+     tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
+     los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
+     que dice que no se sabe qué pasó con la venta anterior. */
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  const sku = ($('#np_sku').value||'').trim().toUpperCase();
+  const nom = ($('#np_nom').value||'').trim();
+  const cat = $('#np_cat').value;
+  const ico = ($('#np_ico').value||'').trim() || '📦';
+  const costo = pila($('#np_costo').value);
+  const precio = pila($('#np_precio').value);
+  if(!sku) return aviso('Escriba el código del artículo.', true);
+  if(!nom || nom.length < 3) return aviso('Escriba el nombre del artículo.', true);
+  if(!cat) return aviso('Elija la categoría: sin ella el artículo no se puede guardar.', true);
+  if(!(precio > 0)) return aviso('El precio de venta tiene que ser mayor que cero.', true);
+  if(costo < 0) return aviso('El costo no puede ser negativo.', true);
+  if(costo > precio) return aviso('El costo es mayor que el precio: esa venta daría pérdida. Revíselo.', true);
+  const rep = DB.productos.find(p=>p.sku===sku && p.id!==PRED);
+  if(rep) return aviso('Ya hay un artículo con el código '+sku+': «'+rep.nom+'».', true);
+
+  /* v58 · la existencia sale de la rejilla: una casilla por cada
+     combinación de talla y color. */
+  pvarLee();
+  const nvar = pvarAVariantes();
+  const totVar = nvar.reduce((a,x)=>a + Math.max(0, +x.e||0), 0);
+
+  const ed = PRED ? DB.productos.find(x=>x.id===PRED) : null;
+  if(PRED && !ed) return;
+  const llave = v => String(v.t||'') + '§' + String(v.c||'');
+  const antes = ed ? vars(ed).map(v=>({t:String(v.t||''), c:String(v.c||''),
+                                       e:Math.max(0, +v.e||0)})) : [];
+  const habia = {}; antes.forEach(v=>{ habia[llave(v)] = v.e; });
+  /* lo que ya no está en la rejilla se retira; el servidor sólo deja
+     retirar lo que está en cero */
+  const bajas = antes.filter(a=>!nvar.some(n=>llave(n) === llave(a)));
+  const cambiaExi = !ed || bajas.length > 0
+    || nvar.some(n=>habia[llave(n)] === undefined
+                    || habia[llave(n)] !== Math.max(0, +n.e||0));
+
+  if(cambiaExi && (typeof NUBE === 'undefined' || !NUBE.enLinea()))
+    return decision('No hay servidor',
+      'La existencia la fija y la asienta el servidor. Sin conexión no se puede '
+      + 'guardar el inventario de este artículo: espere a que vuelva y vuelva a '
+      + 'intentarlo. <b>Nada se ha tocado.</b>');
+
+  /* ---- 1 · la ficha, que es configuración ---- */
+  const pid = ed ? ed.id : nid('p');
+  if(ed){
+    const cam = [];
+    if(ed.precio !== precio) cam.push('precio '+fN(ed.precio)+' → '+fN(precio));
+    if((ed.costo||0) !== costo) cam.push('costo '+fN(ed.costo||0)+' → '+fN(costo));
+    if(ed.cat !== cat) cam.push('categoría '+ed.cat+' → '+cat);
+    if(exi(ed) !== totVar) cam.push('existencia '+exi(ed)+' → '+totVar);
+    if(!!ed.exento !== (PEXE === 'no')) cam.push(PEXE === 'no' ? 'pasa a no gravado' : 'pasa a gravado');
+    if((ed.foto||'') !== (PFOTO||'')) cam.push(PFOTO ? 'foto cargada' : 'foto quitada');
+    const antesVar = antes.map(v=>nombreVar(v.t, v.c) || 'único').join(' / ');
+    const ahoraVar = nvar.map(v=>nombreVar(v.t, v.c) || 'único').join(' / ');
+    if(antesVar !== ahoraVar) cam.push('variantes ' + antesVar + ' → ' + ahoraVar);
+    ed.sku = sku; ed.nom = nom; ed.cat = cat; ed.ico = ico; ed.costo = costo; ed.precio = precio;
+    ed.exento = (PEXE === 'no');
+    /* LA EXISTENCIA NO SE ESCRIBE AQUÍ. Antes era `ed.var = nvar`, y eso es
+       justo la segunda verdad: el navegador decidiendo cuántas unidades hay
+       en el estante. La deja como está y la trae la sincronización. */
+    delete ed.tallas; delete ed.exi;
+    if(PFOTO) ed.foto = PFOTO; else delete ed.foto;
+    bitacora('prod','Artículo modificado', sku+' · '+nom + (cam.length ? ' · '+cam.join(' · ') : ''));
+  }else{
+    const np = {id:pid, sku, nom, cat, ico, costo, precio, activo:true,
+                exento:(PEXE === 'no'), var:[]};
+    if(PFOTO) np.foto = PFOTO;
+    DB.productos.push(np);
+    bitacora('prod','Artículo agregado', sku+' · '+nom+' · USD '+fN(precio)
+      +(np.exento?' · no gravado':'')+' · '+totVar+' unidades'
+      +(PFOTO?'':' · sin foto'));
+  }
+  guardar();
+
+  if(!cambiaExi){
+    pbufOlvida(); PRED = null; pvarDesde(null); PEXE = 'si';
+    aviso('Artículo «'+nom+'» '+(ed?'actualizado':'agregado')+'.');
+    pinta(); return;
+  }
+
+  /* ---- 2 · la existencia, que es libro ---- */
+  GUARDANDO_ART = true;
+  let laFicha = false;
+  try{ laFicha = await NUBE.guardaYa(); }catch(e){ laFicha = false; }
+  if(!laFicha){
+    GUARDANDO_ART = false;
+    /* Y QUE EL REINTENTO SEA POSIBLE (ARQ-04, medido el 26/10). Para un
+       artículo nuevo, `PRED` sigue en null y el artículo ya está en el
+       documento: pulsar Guardar otra vez —que es lo que este panel
+       aconseja— chocaba con «ya hay un artículo con ese código». Se deja
+       el formulario modificando ESE artículo, así que el consejo funciona. */
+    if(!ed) PRED = pid;
+    return decision('La ficha no llegó al servidor',
+      'El artículo quedó escrito aquí, pero el servidor todavía no lo tiene, y la '
+      + 'existencia la fija él. <b>No se tocó el inventario.</b> Mire el semáforo: '
+      + 'cuando diga «al día», vuelva a guardar el artículo.');
+  }
+  /* LOS RETIROS VAN APARTE, CON SU PROPIO NOMBRE (PAN-37, medido el 26/10).
+     Estaban dentro del mismo `try` que `fijaInv`, pero el mensaje del
+     servidor se le pedía con el nombre de la OTRA operación: el prefijo
+     real es `retira_variante:`, no coincidía con la lista blanca, y la
+     única frase que le sirve a la cajera —«Esa variante todavía tiene 3 en
+     existencia»— salía rotulada «El servidor no respondió». */
+  let yaRetiradas = 0;
+  try{
+    for(const b of bajas){
+      await NUBE.retiraVar({ producto_id: pid, talla: b.t, color: b.c,
+        usuario: (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })() });
+      yaRetiradas++;
+    }
+  }catch(e){
+    GUARDANDO_ART = false;
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const mr = mensajeDelServidor(e, 'retira_variante');
+    const cola = yaRetiradas
+      ? ' Se retiraron ' + yaRetiradas + (yaRetiradas === 1 ? ' variante' : ' variantes')
+        + ' antes de esto, y eso sí quedó. <b>La existencia del resto NO se fijó.</b>'
+      : ' <b>No se tocó el inventario.</b>';
+    if(mr) return decision('No se pudo retirar esa variante', esc(mr) + cola);
+    return decision('NO SE SABE si la variante se retiró',
+      'El servidor no respondió.' + cola + ' Mire el artículo en el catálogo: lo que '
+      + 'diga ahí es lo que hay en el estante.',
+      [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+  }
+  let r;
+  try{
+    r = await NUBE.fijaInv({
+      lineas: nvar.map(v=>({ producto_id: pid, talla: String(v.t||''),
+                             color: String(v.c||''),
+                             existencia: Math.max(0, Math.round(+v.e||0)) })),
+      motivo: ed ? 'ajuste del artículo ' + sku : 'carga del artículo ' + sku,
+      usuario: (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+    });
+  }catch(e){
+    GUARDANDO_ART = false;
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const m = mensajeDelServidor(e, 'fija_inventario');
+    if(m) return decision('La existencia NO quedó',
+      esc(m) + ' La ficha del artículo sí se guardó. <b>El inventario está como estaba.</b>');
+    return decision('NO SE SABE si la existencia quedó',
+      'El servidor no respondió. Mire el artículo en el catálogo: lo que diga ahí '
+      + 'es lo que hay en el estante.',
+      [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+  }
+  /* EL CERROJO SE SUELTA AL FINAL, NO AQUÍ (PAN-35, medido el 26/10).
+     Soltarlo antes de `sincroniza()` y antes de limpiar el formulario deja
+     una ventana del tamaño de una lectura entera del documento —900 ms en
+     el doble, «un segundo o diez» en la tienda— en la que un segundo clic
+     manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
+     el correo anotado dos veces, el conteo aplicado dos veces. */
+  try{ await NUBE.sincroniza(); }catch(_){}
+  pbufOlvida(); PRED = null; pvarDesde(null); PEXE = 'si';
+  GUARDANDO_ART = false;
+  const dif = r ? +r.diferencia || 0 : 0;
+  aviso('Artículo «'+nom+'» '+(ed?'actualizado':'agregado')
+    + ' · ' + (r ? r.variantes : nvar.length) + (r && r.variantes === 1 ? ' variante' : ' variantes')
+    + ' · saldo neto ' + (dif >= 0 ? '+' : '') + dif
+    + (dif === 1 || dif === -1 ? ' unidad' : ' unidades'));
+  pinta();
+}
+
+/* ==========================================================================
+   EL REINTEGRO AL ACCIONISTA, POR SU PUERTA  (Sprint 4 · P-25)
+
+   El accionista pone de su bolsillo los vueltos que la caja no tiene, y la
+   tienda se lo repone. Hasta el 26/10 ese reintegro lo escribía esta
+   pantalla —`DB.accionista.push`— con el signo que ella misma elegía. Dos
+   consecuencias: el movimiento no tenía asiento contable, y el signo lo
+   decidía el navegador. `core.anota_accionista` lo exige al revés: cada
+   tipo con su signo, y si no cuadra rechaza. Un reintegro va en NEGATIVO,
+   porque baja lo que se le debe.
+   ========================================================================== */
+let REINTEGRANDO = false;
+async function registraReintegro(){
+  if(REINTEGRANDO) return;
+  /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
+     tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
+     los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
+     que dice que no se sabe qué pasó con la venta anterior. */
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  if(trancaTasa('registrar el reintegro')) return;
+  const v = pila(REI.buf), s = saldoAcc(), mm = reiMet();
+  if(v <= 0) return aviso('Escriba el monto.', true);
+  if(v > s + 0.005)
+    return aviso('No puede reintegrar más de lo que se le debe (USD ' + fN(s) + ').', true);
+  if(mm.banco && !REI.banco)
+    return aviso('Indique desde qué ' + esc(ORIGEN[mm.org].lbl.toLowerCase()) + ' se le repone.', true);
+  if(mm.banco && REI.ref.trim().length < 3)
+    return aviso('El reintegro por ' + mm.n.toLowerCase() + ' necesita referencia.', true);
+
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'El movimiento del accionista lo registra y lo asienta el servidor. Sin '
+      + 'conexión no se puede reintegrar: espere a que vuelva. <b>Nada se ha tocado.</b>');
+
+  const concepto = 'Reintegro al accionista por ' + mm.n.toLowerCase()
+                 + (REI.banco ? ' · ' + REI.banco : '');
+  const ref = mm.banco ? REI.ref.trim() : '';
+  REINTEGRANDO = true;
+  try{
+    await NUBE.anotaAcc({
+      tipo:      'reintegro',
+      /* EN NEGATIVO, y lo comprueba el servidor: baja lo que se le debe. */
+      usd:       -r2(v),
+      concepto:  concepto,
+      ref:       ref,
+      metodo:    mm.k,
+      print:     (mm.banco && REI.print) ? REI.print : null,
+      usuario:   (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+    });
+  }catch(e){
+    REINTEGRANDO = false;
+    /* SE RELEE ANTES DE MANDARLA A MIRAR (PAN-36, medido el 26/10). `opera`
+       revienta antes de su propia relectura, así que sin esto el panel la
+       manda a comprobar «si el saldo ya bajó» sobre la cifra de antes de la
+       operación: la respuesta es «no bajó» siempre, aunque el servidor lo
+       haya cobrado, y el siguiente paso es pagar dos veces. */
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const m = mensajeDelServidor(e, 'anota_accionista');
+    if(m) return decision('El reintegro NO quedó registrado', esc(m)
+      + ' <b>La cuenta del accionista está como estaba.</b>');
+    return decision('NO SE SABE si el reintegro quedó',
+      'El servidor no respondió. <b>No lo registre otra vez todavía</b>: mire la '
+      + 'cuenta del accionista y compruebe si el saldo ya bajó.',
+      [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+  }
+  /* EL CERROJO SE SUELTA AL FINAL, NO AQUÍ (PAN-35, medido el 26/10).
+     Soltarlo antes de `sincroniza()` y antes de limpiar el formulario deja
+     una ventana del tamaño de una lectura entera del documento —900 ms en
+     el doble, «un segundo o diez» en la tienda— en la que un segundo clic
+     manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
+     el correo anotado dos veces, el conteo aplicado dos veces. */
+  try{ await NUBE.sincroniza(); }catch(_){}
+  nuevoREI();
+  REINTEGRANDO = false;
+  aviso('Reintegro de USD ' + fN(v) + ' registrado · se le deben USD ' + fN(saldoAcc()) + '.');
+  pinta();
+}
+
+/* ==========================================================================
+   EL CORREO A LA CLIENTA, POR SU PUERTA  (Sprint 4 · P-30)
+
+   Reenviar el recibo escribía el renglón «reenviado» en el documento del
+   navegador: la tienda veía un correo enviado que el servidor no tenía, y
+   si la pestaña se cerraba antes de sincronizar, el renglón no existía en
+   ninguna parte. `core.anota_correo` comprueba que la venta y la clienta
+   existan, lo guarda y lo asienta.
+   ========================================================================== */
+let ENVIANDO_CORREO = false;
+async function reenviaRecibo(){
+  if(ENVIANDO_CORREO) return;
+  /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
+     tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
+     los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
+     que dice que no se sabe qué pasó con la venta anterior. */
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  const c = VTA.cli;
+  if(!c || !c.mail) return aviso('Esa clienta no tiene correo.', true);
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'El envío lo anota el servidor. Sin conexión no se puede reenviar el recibo: '
+      + 'espere a que vuelva. <b>Nada se ha tocado.</b>');
+  ENVIANDO_CORREO = true;
+  try{
+    await NUBE.anotaCorreo({
+      cliente_id: c.id || null,
+      cli_nom:    nomComp(c),
+      mail:       c.mail,
+      venta_num:  (VTA.hecha || {}).num || null,
+      arts:       VTA.lineas.reduce((a,l)=>a + l.cant, 0),
+      tipo:       'recibo',
+      estado:     'reenviado',
+      usuario:    (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
+    });
+  }catch(e){
+    ENVIANDO_CORREO = false;
+    /* SE RELEE ANTES DE MANDARLA A MIRAR (PAN-36, medido el 26/10). `opera`
+       revienta antes de su propia relectura, así que sin esto el panel la
+       manda a comprobar «si el saldo ya bajó» sobre la cifra de antes de la
+       operación: la respuesta es «no bajó» siempre, aunque el servidor lo
+       haya cobrado, y el siguiente paso es pagar dos veces. */
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const m = mensajeDelServidor(e, 'anota_correo');
+    if(m) return decision('El reenvío NO quedó anotado', esc(m)
+      + ' <b>No quedó constancia del envío.</b>');
+    return decision('NO SE SABE si el reenvío quedó anotado',
+      'El servidor no respondió. Mire los correos de la clienta antes de volver '
+      + 'a mandarlo.', [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+  }
+  /* EL CERROJO SE SUELTA AL FINAL, NO AQUÍ (PAN-35, medido el 26/10).
+     Soltarlo antes de `sincroniza()` y antes de limpiar el formulario deja
+     una ventana del tamaño de una lectura entera del documento —900 ms en
+     el doble, «un segundo o diez» en la tienda— en la que un segundo clic
+     manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
+     el correo anotado dos veces, el conteo aplicado dos veces. */
+  try{ await NUBE.sincroniza(); }catch(_){}
+  ENVIANDO_CORREO = false;
+  aviso('Recibo reenviado a ' + c.mail);
+  pinta();
+}
+
+/* ==========================================================================
+   LA CARGA MASIVA DEL INVENTARIO, POR LA MISMA PUERTA (Sprint 4 · P-24)
+
+   Es el mismo reparto que el artículo uno por uno, y con más razón: un
+   archivo de inventario son cientos de variantes. Las fichas van por el
+   guardado y TODAS las existencias en una sola llamada a
+   `fija_inventario`, que las escribe en una transacción y asienta el saldo
+   neto del conteo. Antes se escribían en el documento del navegador, y el
+   transporte se negaba a llevarlas: el conteo entero se quedaba aquí.
+   ========================================================================== */
+let IMPORTANDO = false;
+async function importaInventario(){
+  if(IMPORTANDO) return;
+  /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
+     tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
+     los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
+     que dice que no se sabe qué pasó con la venta anterior. */
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  if(!AIPREV || !AIPREV.arts.length) return aviso('No hay nada que importar.', true);
+  /* v66 · el mismo cerrojo que ya tenía el vaciado. Importar reescribe
+     precios y existencias por debajo de un carrito ya armado: la cajera
+     cobraría un precio viejo de una talla que acaba de desaparecer. */
+  if(typeof VTA !== 'undefined' && VTA && VTA.lineas && VTA.lineas.length && !VTA.hecha)
+    return aviso('Hay una venta abierta con artículos. Termínela o cancélela antes '
+      + 'de cargar el inventario.', true);
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'La existencia la fija y la asienta el servidor. Sin conexión no se puede '
+      + 'cargar un inventario: espere a que vuelva. <b>Nada se ha tocado.</b>');
+
+  const arts = AIPREV.arts.slice();
+  const lineas = [];
+  /* lo que el archivo ya no trae y sigue con mercancía (ARQ-05) */
+  const sobrantes = [];
+  const hecho = conTx('importar el inventario', function(){
+    let nue = 0, act = 0, cats = 0, uds = 0, revividos = 0;
+    arts.forEach(function(a){
+      if(AICREA && DB.categorias.indexOf(a.cat) < 0){ DB.categorias.push(a.cat); cats++; }
+      a.variantes.forEach(function(v){ uds += v.e; });
+      const ya = DB.productos.find(function(p){
+        return String(p.sku).toUpperCase() === a.sku; });
+      let pid;
+      if(ya){
+        /* v66 · EL ARCHIVO SÓLO CAMBIA LO QUE TRAE.
+           La foto nunca se toca —el archivo no la lleva y perderla obligaría
+           a fotografiarlo todo de nuevo— y ahora tampoco se tocan el precio,
+           el costo, el IVA ni el ícono cuando el archivo no trae esa
+           columna. Un conteo de existencias es un conteo de existencias, no
+           una lista de precios nueva. */
+        const t = a.trae || {};
+        if(ya.activo === false){ ya.activo = true; revividos++; }
+        ya.nom = a.nom;
+        if(t.cat)    ya.cat = a.cat;
+        if(t.ico)    ya.ico = a.ico || ya.ico;
+        if(t.costo)  ya.costo = a.costo;
+        if(t.precio) ya.precio = a.precio;
+        if(t.iva)    ya.exento = a.exento;
+        /* LA EXISTENCIA NO SE ESCRIBE AQUÍ (P-24): se apunta para la
+           puerta. Antes era `ya.var = ...` y el conteo no salía nunca. */
+        if(t.exi){
+          vars(ya).forEach(function(av){
+            if(Math.max(0, +av.e || 0) <= 0) return;
+            const sigue = a.variantes.some(function(nv){
+              return String(nv.t || '') === String(av.t || '')
+                  && String(nv.c || '') === String(av.c || ''); });
+            if(!sigue) sobrantes.push(a.sku + ' ' + (nombreVar(av.t, av.c) || 'único')
+                                      + ' · ' + Math.max(0, +av.e || 0));
+          });
+          delete ya.tallas; delete ya.exi;
+        }
+        pid = ya.id;
+        act++;
+      }else{
+        pid = nid('p');
+        DB.productos.push({ id:pid, sku:a.sku, nom:a.nom, cat:a.cat,
+          ico:a.ico || '📦', costo:a.costo, precio:a.precio, activo:true,
+          exento:a.exento, var:[] });
+        nue++;
+      }
+      if(!ya || (a.trae || {}).exi)
+        a.variantes.forEach(function(v){
+          lineas.push({ producto_id: pid, talla: String(v.t || ''),
+                        color: String(v.c || ''),
+                        existencia: Math.max(0, Math.round(+v.e || 0)) }); });
+    });
+    bitacora('prod', 'Inventario cargado desde un archivo',
+      nue + ' artículos nuevos · ' + act + ' actualizados · ' + uds + ' unidades'
+      + (revividos ? ' · ' + revividos + ' reactivados' : '')
+      + (cats ? ' · ' + cats + ' categorías creadas' : '')
+      + (AIFILE ? ' · archivo ' + AIFILE : ''));
+    AIRES = {nue:nue, act:act, uds:uds, cats:cats, revividos:revividos};
+    return true;
+  });
+  if(!hecho) return;
+
+  IMPORTANDO = true;
+  let laFicha = false;
+  try{ laFicha = await NUBE.guardaYa(); }catch(e){ laFicha = false; }
+  if(!laFicha){
+    IMPORTANDO = false;
+    return decision('Las fichas no llegaron al servidor',
+      'Los artículos quedaron escritos aquí, pero el servidor todavía no los tiene, '
+      + 'y la existencia la fija él. <b>No se cargó ninguna unidad.</b> Mire el '
+      + 'semáforo: cuando diga «al día», vuelva a importar el archivo.');
+  }
+  let r;
+  if(lineas.length){
+    try{
+      r = await NUBE.fijaInv({ lineas: lineas,
+        motivo: 'carga de inventario desde archivo' + (AIFILE ? ' ' + AIFILE : ''),
+        usuario: (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })() });
+    }catch(e){
+      IMPORTANDO = false;
+      try{ await NUBE.sincroniza(); }catch(_){}
+      const m = mensajeDelServidor(e, 'fija_inventario');
+      if(m) return decision('El inventario NO se cargó',
+        esc(m) + ' Las fichas de los artículos sí se guardaron. <b>Las existencias '
+        + 'están como estaban.</b>');
+      return decision('NO SE SABE si el inventario quedó',
+        'El servidor no respondió. Mire el catálogo: lo que diga ahí es lo que hay '
+        + 'en el estante.', [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+    }
+  }
+  /* EL CERROJO SE SUELTA AL FINAL, NO AQUÍ (PAN-35, medido el 26/10).
+     Soltarlo antes de `sincroniza()` y antes de limpiar el formulario deja
+     una ventana del tamaño de una lectura entera del documento —900 ms en
+     el doble, «un segundo o diez» en la tienda— en la que un segundo clic
+     manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
+     el correo anotado dos veces, el conteo aplicado dos veces. */
+  try{ await NUBE.sincroniza(); }catch(_){}
+  AIPREV = null; AIFILAS = []; AIFILE = '';
+  IMPORTANDO = false;
+  const dif = r ? +r.diferencia || 0 : 0;
+  aviso(AIRES.nue + ' artículos agregados y ' + AIRES.act + ' actualizados'
+    + (AIRES.revividos ? ' (' + AIRES.revividos + ' vuelven a estar a la venta)' : '')
+    + ' · ' + (r ? r.variantes : 0) + ' variantes · saldo neto '
+    + (dif >= 0 ? '+' : '') + dif + ' unidades.'
+    /* LAS QUE EL ARCHIVO YA NO TRAE SIGUEN EN EL ESTANTE (ARQ-05, medido el
+       26/10). `fija_inventario` escribe lo que se le manda y nunca borra, y
+       eso está bien: un conteo no es una orden de retirar una talla. Lo que
+       no se podía hacer era callarlo —quedaban vendibles con unidades que el
+       archivo ya no declara— así que se dice, con nombre y cantidad. Quitar
+       una variante se hace por su puerta, artículo por artículo. */
+    + (sobrantes.length
+        ? ' OJO: ' + sobrantes.length + (sobrantes.length === 1 ? ' variante' : ' variantes')
+          + ' que el archivo ya no trae siguen con existencia en el estante ('
+          + sobrantes.slice(0, 4).join(', ') + (sobrantes.length > 4 ? ', …' : '')
+          + '). El archivo no retira nada: quítelas desde el artículo.'
+        : '')
+    + ' Las fotos se cargan después, una por una.');
+  PSUB = 'uno'; pinta();
+}
+
+/* EL CUERPO LOCAL DE LA DEVOLUCIÓN SE RETIRÓ EL 26/10 (Sprint 4 · P-27).
+
+   Escribía la devolución entera en el documento del navegador: reponía el
+   inventario, bajaba los acumulados de la clienta, creaba el pendiente de
+   tesorería y marcaba el cierre afectado. El servidor se enteraba después, o
+   no. Ahora lo hace `core.devuelve` por su puerta, en una transacción, con
+   su asiento y su autor firmado por el token: recorta lo que ya se devolvió,
+   devuelve el IGTF que corresponda y numera el pendiente. */
 
 /* ==========================================================================
    SICOM v3 · pantallas de ventas, seguridad y contabilidad
@@ -14712,7 +15098,15 @@ window.NUBE = (function(){
       subiendo  = false;
       pendiente = true;
       const m = String((e && e.message) || '');
-      if(/no se guarda por configuracion/.test(m)){
+      /* EL SERVIDOR TAMBIÉN SE NIEGA, Y CON OTRAS PALABRAS (TST-46, medido
+         el 26/10). El transporte dice «esto no se guarda por configuracion»
+         y `core.guarda_config` dice «la tabla X no se guarda por aqui».
+         Sólo se reconocía la primera, así que una tabla del libro declarada
+         configuración por error pasaba el filtro de aquí, la rechazaba el
+         servidor, y esto lo tomaba por un problema de permisos y lo
+         reintentaba para siempre. No se arregla reintentando: se arregla
+         cambiando la pantalla, y hasta entonces tiene que estar a la vista. */
+      if(/no se guarda por configuracion|no se guarda por aqui|no se guarda por aquí/.test(m)){
         /* Esto no lo arregla reintentar: es la pantalla la que está
            mandando por la puerta equivocada. Se queda en rojo, con el
            detalle a la vista, hasta que alguien lo corrija. */
@@ -14733,6 +15127,26 @@ window.NUBE = (function(){
     ESPEJO    = r.espejo || ESPEJO;
     subiendo  = false;
     pendiente = false;
+
+    /* LO QUE CAMBIÓ MIENTRAS EL SOBRE IBA DE CAMINO SIGUE PENDIENTE
+       (PAN-34). El espejo que devuelve el transporte es la foto de lo que
+       se mandó, así que aquí todavía se puede preguntar si quedó algo. Sin
+       esto, un cambio hecho durante el viaje se quedaba esperando a que
+       alguien guardara otra cosa. */
+    try{
+      const queda = nucleo().planifica(DB, ESPEJO);
+      if(queda.cuantos > 0 || (queda.sobran && queda.sobran.length)){
+        /* Y NO SE ANOTA `fijaSubido()` AQUÍ. La huella que esa función
+           guarda es la del documento COMPLETO: anotarla con algo sin
+           mandar deja a la máquina diciendo «al día» y creyendo a la vez
+           que tiene trabajo sin subir, y con esa contradicción se niega a
+           bajar nada nunca más (está escrito en `adopta`). */
+        pendiente = true;
+        pon('pendiente');
+        programaReintento();
+        return false;
+      }
+    }catch(e){}
 
     /* La huella que se guarda es la del documento COMPLETO. Hoy eso es
        cierto porque el libro contable no cambia desde esta pantalla; el día
@@ -15047,6 +15461,90 @@ window.NUBE = (function(){
        y manda lo que contó. */
     cierra: function(carga){ return opera('firma_cierre', carga); },
 
+    /* LA ANULACIÓN, POR SU PUERTA (Sprint 4 · P-26).
+       Hasta hoy la anulación la escribía esta pantalla: reponía el
+       inventario, bajaba los acumulados de la clienta, revertía al
+       accionista, cancelaba el vuelto pendiente y marcaba el cierre
+       afectado —todo en el documento local—, y el servidor se enteraba en la
+       siguiente sincronización… o no se enteraba. Mientras tanto la caja
+       mantenía DOS VERDADES.
+       `core.anula_venta` hace exactamente eso mismo, en una transacción, con
+       su asiento contable y su renglón de bitácora firmado por el token.
+       Devuelve { venta_num, devuelto, vuelto_cancelado, ya_entregado,
+       pendiente_id, cierre_afectado }. */
+    anula: function(carga){ return opera('anula_venta', carga); },
+
+    /* LA DEVOLUCIÓN, POR SU PUERTA (Sprint 4 · P-27). Devuelve
+       { devolucion_id, usd, articulos, igtf, pendiente_id, recortado,
+       cierre_afectado }. */
+    devuelve: function(carga){ return opera('devuelve', carga); },
+
+    /* LA ENTREGA DE UN VUELTO PENDIENTE (Sprint 4 · P-28). Devuelve
+       { pendiente_id, entregado, saldo, metodo, ref }. */
+    entrega: function(carga){ return opera('entrega_pendiente', carga); },
+
+    /* EL INVENTARIO, POR SU PUERTA (Sprint 4 · P-24).
+
+       `producto_variantes` es libro, no configuración: el transporte se
+       niega a mandarla por el guardado y la pantalla se quedaba en rojo
+       —«esto no se guarda por configuracion»— cada vez que alguien tocaba
+       una existencia. Ahora va por `fija_inventario`, que pone candado
+       sobre la variante antes de escribirla: sin él, entre leer la
+       existencia anterior y escribir la nueva cabe una venta, y el conteo
+       la pisa. Devuelve { variantes, diferencia }.
+
+       `retira_variante` borra una combinación de talla y color, y SÓLO si
+       está en cero: el servidor no deja desaparecer unidades.  */
+    /* LA CUENTA DEL ACCIONISTA, POR SU PUERTA (Sprint 4 · P-25). El
+       servidor es el que pone el signo de cada tipo: un «cobro» en
+       positivo o un «reintegro» a mano daban vuelta la cuenta desde la
+       pantalla, que es justo lo que se le quitó a la anulación. Devuelve
+       el id del movimiento. */
+    anotaAcc:    function(carga){ return opera('anota_accionista', carga); },
+
+    /* EL CORREO A LA CLIENTA (Sprint 4 · P-30). La pantalla daba el envío
+       por hecho escribiéndolo en su documento; ahora lo anota el servidor,
+       que comprueba que la venta y la clienta existan. Devuelve el id. */
+    anotaCorreo: function(carga){ return opera('anota_correo', carga); },
+
+    fijaInv:   function(carga){ return opera('fija_inventario', carga); },
+    retiraVar: function(carga){ return opera('retira_variante', carga); },
+
+    /* LA SUBIDA DE LA CONFIGURACIÓN, ESPERABLE. `marcaSucio` dispara la
+       subida y devuelve de inmediato, y eso no sirve para el artículo: el
+       servidor exige que esté en el catálogo ANTES de fijarle existencia,
+       así que hay que poder esperar a que su ficha llegue. Devuelve true
+       sólo si quedó guardada; si no, el semáforo ya dice por qué.
+
+       ESPERA A LA SUBIDA EN VUELO antes de mandar la suya. `guardar()` ya
+       disparó una cuando se escribió la ficha, y `sube` sólo deja una de
+       camino: llamar derecho devolvía false —«hay otra en vuelo»— y el
+       artículo se quedaba sin existencia con el servidor al día. */
+    guardaYa:  async function(){
+      /* NO SE PREGUNTA AL SEMÁFORO, SE PREGUNTA AL DIFERENCIADOR (PAN-34,
+         medido el 26/10). El atajo era `if(!pendiente && ESTADO ===
+         'al-dia') return true`, y las dos señales las pone `sube` al
+         terminar SU viaje, sin mirar si el documento cambió mientras iba de
+         camino. Medido: la ficha de un artículo nuevo no se mandaba nunca,
+         `guardaYa` contestaba «sí», la existencia salía igual y el artículo
+         desaparecía con el aviso «agregado» ya dado. Lo único que de verdad
+         contesta «ya está allá» es que no quede diferencia que mandar. */
+      for(let vuelta = 0; vuelta < 6; vuelta++){
+        for(let i = 0; i < 100 && subiendo; i++)
+          await new Promise(function(r){ setTimeout(r, 100); });
+        let plan;
+        try{ plan = nucleo().planifica(DB, ESPEJO); }
+        catch(e){ return false; }
+        /* Si la pantalla metió libro contable en el guardado, esto no se
+           arregla reintentando: el transporte se planta antes de la red y
+           el semáforo lo dice con su detalle. */
+        if(plan.sobran && plan.sobran.length) return false;
+        if(plan.cuantos === 0) return true;
+        await sube(verLocal());
+      }
+      return false;
+    },
+
     /* ¿ES ÉSTA LA CLAVE DEL ADMINISTRADOR? La comprueba el servidor, porque
        es el único que la tiene: desde la migración 026 el sello dejó de
        viajar al navegador. Devuelve true, false, o null si todavía no hay
@@ -15055,7 +15553,14 @@ window.NUBE = (function(){
 
     plan: function(){
       try{ return nucleo().planifica(DB, ESPEJO); }
-      catch(e){ return { cambios:{}, sobran:[], cuantos:-1, error:String(e && e.message || e) }; }
+      catch(e){
+        /* `sobran` NO va vacío cuando esto revienta (TST-49). Devolverlo
+           vacío hacía que toda comprobación que exigiera «sobran.length
+           === 0» quedara verde justo cuando el diferenciador no se pudo ni
+           calcular. Se nombra el fallo en los dos sitios. */
+        return { cambios:{}, sobran:['(no se pudo calcular)'], cuantos:-1,
+                 error:String(e && e.message || e) };
+      }
     },
     franja: franjaCalidad,
     marcaSucio: marcaSucio,
