@@ -1707,7 +1707,64 @@ function pila(s){
   const v = parseFloat(t);
   return isFinite(v) ? v : 0;
 }
+/* EL IDENTIFICADOR LO DA EL SERVIDOR (ARQ-33, medido el 26/10 por el DBA).
+
+   `nid()` era `'p' + (++DB.corr.id)`, y `DB.corr.id` sale de
+   `core.correlativos`. Ninguna función del servidor lo movía, así que cada
+   sincronización lo devolvía a su valor viejo y el segundo artículo que se
+   cargara nacía con el MISMO `p101`. `guarda_config` reconoce `productos`
+   por su `id` y hace UPDATE antes del INSERT: el segundo RENOMBRABA al
+   primero. Un artículo con las variantes de dos, el otro desaparecido del
+   catálogo con su mercancía en el estante, el margen calculado con el costo
+   ajeno, y la bitácora diciendo dos veces «productos +1».
+
+   La 034 puso un trinquete que cierra el caso de una sola cajera —el de
+   todos los días—; con dos a la vez el daño volvía entero. Esto lo cierra
+   por donde había que cerrarlo: el número lo da `core.nid()`, por su puerta.
+
+   `nid()` SIGUE EXISTIENDO para lo que no es identidad de una fila del
+   servidor —claves de pintado, llaves temporales— pero ya no acuña ninguno
+   de los cinco que viajan: ésos pasan por `nidServidor`. */
 function nid(p){return p+(++DB.corr.id);}
+
+/* Pide al servidor los identificadores que hagan falta. Devuelve un arreglo
+   de textos, o lanza. Sin servidor no hay identificador: se niega, igual que
+   el resto de las operaciones del Sprint 4. */
+async function nidServidor(pre, cuantos){
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    throw new Error('nuevos_ids: No hay conexión con el servidor.');
+  const r = await NUBE.nuevosIds(pre, cuantos || 1);
+  const lista = Array.isArray(r) ? r : [];
+  if(lista.length !== (cuantos || 1))
+    throw new Error('nuevos_ids: el servidor devolvió ' + lista.length
+                    + ' identificador(es) y se pidieron ' + (cuantos || 1));
+  return lista;
+}
+
+/* EL ALTA DE UNA FICHA QUE LLEVA IDENTIFICADOR DEL SERVIDOR.
+   Las cuatro altas de configuración —cajera, vendedor, repartidor, zona—
+   son manejadores de un clic, cortos y síncronos. Esto les pone delante el
+   viaje por el identificador sin convertir cada una en una función aparte:
+   piden el número, y si llega, hacen lo suyo con él. */
+let PIDIENDO_ID = false;
+async function conIdDelServidor(pre, hacer){
+  if(PIDIENDO_ID) return;
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  PIDIENDO_ID = true;
+  let id;
+  try{ id = (await nidServidor(pre, 1))[0]; }
+  catch(e){
+    PIDIENDO_ID = false;
+    const m = mensajeDelServidor(e, 'nuevos_ids');
+    return decision('No hay servidor',
+      (m ? esc(m) + ' ' : '')
+      + 'El identificador de la ficha lo da el servidor, para que dos '
+      + 'computadoras no acuñen el mismo. Sin conexión no se puede agregar: '
+      + 'espere a que vuelva. <b>Nada se ha tocado.</b>');
+  }
+  try{ hacer(id); }
+  finally{ PIDIENDO_ID = false; }
+}
 function horaAhora(){ return horaLocal(); }
 function dias(iso){return Math.round((Date.parse(hoy)-Date.parse(iso))/86400000);}
 function nomComp(c){return (c.nom+' '+c.ape).trim();}
@@ -3447,6 +3504,36 @@ let REGISTRANDO = false;
    Los cuatro botones de registrar —los dos de la tarjeta y los dos de la
    barra de abajo— pasan por aquí, de modo que no puede quedar uno sin
    enterarse. */
+/* Y LO MISMO PARA LAS OCHO OPERACIONES DEL SPRINT 4 (PAN-38, medido el
+   26/10). Ninguna avisaba que estaba trabajando: el rótulo no cambiaba, el
+   botón no se deshabilitaba y no ponía `aria-busy`. Durante un segundo o
+   diez no pasaba nada visible, y eso es justo el combustible del segundo
+   clic que PAN-35 midió en USD 10,00 pagados dos veces.
+
+   No repinta: marca el botón que se pulsó y devuelve la función que lo
+   suelta. Repintar a mitad de una operación cambiaría la pantalla debajo de
+   las manos de la cajera. */
+function ocupa(cual, rotulo){
+  let b = null;
+  try{ b = (typeof cual === 'string') ? document.getElementById(cual) : cual; }catch(e){}
+  if(!b) return function(){};
+  const antesTxt = b.textContent, antesCls = b.className, antesDis = b.disabled;
+  try{
+    b.disabled = true;
+    b.className = antesCls + ' ocupado';
+    b.setAttribute('aria-busy', 'true');
+    b.textContent = rotulo || 'Un momento… no vuelva a pulsar';
+  }catch(e){}
+  return function(){
+    try{
+      b.disabled = antesDis;
+      b.className = antesCls;
+      b.removeAttribute('aria-busy');
+      b.textContent = antesTxt;
+    }catch(e){}
+  };
+}
+
 function botonRegistrar(id, rotulo, apagado){
   const ocupado = REGISTRANDO === true;
   return '<button class="b' + (/^v_/.test(id) ? ' oro' : '') + (ocupado ? ' ocupado' : '')
@@ -6994,7 +7081,7 @@ document.addEventListener('click',e=>{
   }
   if(b.dataset.pgo){
     if(trancaTasa('entregar el vuelto'))return;
-    entregaPendiente(b.dataset.pgo);
+    entregaPendiente(b.dataset.pgo, b);
     return;}
 
   if(b.dataset.tranca){
@@ -7053,9 +7140,12 @@ document.addEventListener('click',e=>{
     if(!banco)return aviso('Elija el banco de su pago móvil.',true);
     const vt=valTel(op,tel); if(vt)return aviso('Pago móvil: '+vt.toLowerCase(),true);
     const _cv = abreCuentaPersona('vend', (nom + ' ' + ape).trim());
-    DB.cfg.vendedores.push({id:nid('v'),nom,ape,ci,com,banco,op,tel,activo:true,cta:_cv});
-    if(_cv) bitacora('contab','Cuenta de vendedora abierta', _cv + ' · ' + nom + ' ' + ape);
-    aviso('Vendedor agregado con sus datos de pago.');pinta();return;}
+    conIdDelServidor('v', function(_id){
+      DB.cfg.vendedores.push({id:_id,nom,ape,ci,com,banco,op,tel,activo:true,cta:_cv});
+      if(_cv) bitacora('contab','Cuenta de vendedora abierta', _cv + ' · ' + nom + ' ' + ape);
+      aviso('Vendedor agregado con sus datos de pago.');pinta();return;
+    });
+    return;}
   if(b.dataset.vtog){const v=DB.cfg.vendedores.find(x=>x.id===b.dataset.vtog);v.activo=!v.activo;
     bitacora('cfg', v.activo?'Vendedora reactivada':'Vendedora desactivada', v.nom+' '+(v.ape||''));
     pinta();return;}
@@ -7073,18 +7163,24 @@ document.addEventListener('click',e=>{
     if(!banco)return aviso('Elija el banco de su pago móvil.',true);
     const vt2=valTel(op,tel); if(vt2)return aviso('Pago móvil: '+vt2.toLowerCase(),true);
     const _cr = abreCuentaPersona('rep', (nom + ' ' + ape).trim());
-    DB.cfg.repartidores.push({id:nid('r'),nom,ape,ci,pct,banco,op,tel,activo:true,cta:_cr});
-    if(_cr) bitacora('contab','Cuenta de repartidor abierta', _cr + ' · ' + nom + ' ' + ape);
-    aviso('Repartidor agregado con sus datos de pago.');pinta();return;}
+    conIdDelServidor('r', function(_id){
+      DB.cfg.repartidores.push({id:_id,nom,ape,ci,pct,banco,op,tel,activo:true,cta:_cr});
+      if(_cr) bitacora('contab','Cuenta de repartidor abierta', _cr + ' · ' + nom + ' ' + ape);
+      aviso('Repartidor agregado con sus datos de pago.');pinta();return;
+    });
+    return;}
   if(b.dataset.rtog){const r=DB.cfg.repartidores.find(x=>x.id===b.dataset.rtog);r.activo=!r.activo;
     bitacora('cfg', r.activo?'Repartidor reactivado':'Repartidor desactivado', r.nom+' '+(r.ape||''));
     pinta();return;}
   if(b.id==='nz_g'){const nom=$('#nz_nom').value.trim(),usd=pila($('#nz_usd').value),t=$('#nz_t').value.trim();
     if(nom.length<3)return aviso('Escriba el nombre de la zona.',true);
     if(usd<=0)return aviso('La tarifa debe ser mayor que cero.',true);
-    DB.cfg.zonas.push({id:nid('z'),nom,usd,t:t||'Por confirmar',activo:true});
-    bitacora('cfg','Zona de delivery agregada', nom+' · USD '+fN(usd));
-    aviso('Zona agregada.');pinta();return;}
+    conIdDelServidor('z', function(_id){
+      DB.cfg.zonas.push({id:_id,nom,usd,t:t||'Por confirmar',activo:true});
+      bitacora('cfg','Zona de delivery agregada', nom+' · USD '+fN(usd));
+      aviso('Zona agregada.');pinta();
+    });
+    return;}
   if(b.dataset.ztog){const z=DB.cfg.zonas.find(x=>x.id===b.dataset.ztog);z.activo=!z.activo;
     bitacora('cfg', z.activo?'Zona de delivery reactivada':'Zona de delivery desactivada', z.nom);
     pinta();return;}
@@ -7115,9 +7211,12 @@ document.addEventListener('click',e=>{
     if(ape.length<2)return aviso('Escriba el apellido de la cajera.',true);
     if(!/^\d{6,9}$/.test(ci))return aviso('La cédula debe tener entre 6 y 9 dígitos.',true);
     if(DB.cfg.cajeras.some(k=>k.ci===ci))return aviso('Ya hay una cajera con esa cédula.',true);
-    DB.cfg.cajeras.push({id:nid('k'),nom,ape,ci,activo:true});
-    bitacora('cfg','Cajera agregada', nom+' '+ape+' · C.I. '+ci);
-    aviso('Cajera agregada.');pinta();return;}
+    conIdDelServidor('k', function(_id){
+      DB.cfg.cajeras.push({id:_id,nom,ape,ci,activo:true});
+      bitacora('cfg','Cajera agregada', nom+' '+ape+' · C.I. '+ci);
+      aviso('Cajera agregada.');pinta();
+    });
+    return;}
   if(b.dataset.ktog){const k=DB.cfg.cajeras.find(x=>x.id===b.dataset.ktog);
     if(DB.turno===k.id)return aviso('No puede desactivar a la cajera en turno.',true);
     k.activo=!k.activo;
@@ -7304,6 +7403,14 @@ document.addEventListener('keydown',e=>{
   const id=e.target.id;
   if(id==='c_monto'){e.preventDefault();const b=$('#c_add');if(b)b.click();}
   if(id==='v_monto'){e.preventDefault();const b=$('#v_add');if(b)b.click();}
+  /* Y EL DEL VUELTO PENDIENTE (PAN-49). La cajera teclea el monto, pulsa
+     Enter y no pasaba nada: los otros dos campos de monto sí responden y
+     éste no, que es de las cosas que hacen dudar de si el sistema oyó. */
+  if(id==='p_monto'){
+    e.preventDefault();
+    const b = document.querySelector('[data-pgo]');
+    if(b) b.click();
+  }
 });
 /* ==========================================================================
    SICOM v2 · núcleo persistente
@@ -7447,6 +7554,11 @@ function destrancaCaja(){
   const d = document.getElementById('tranca');
   if(d) d.remove();
   document.body.classList.remove('trancado');
+  /* Y SE REPINTA (PAN-50). Los paneles «NO SE SABE» mandan a mirar un saldo
+     o un pendiente, y debajo del velo quedaba la pantalla de ANTES de la
+     operación: la cajera cerraba el aviso y veía justo lo que el aviso le
+     decía que fuera a comprobar, sin actualizar. */
+  try{ if(DB && DB.instalado) pinta(); }catch(e){}
 }
 function trancaLleno(){
   trancaCaja('lleno', 'La última operación no se guardó',
@@ -10050,9 +10162,40 @@ function restauraRespaldo(file){
   r.readAsText(file);
 }
 async function vaciaMovimientos(){
-  /* v61 · si anular UNA venta exige la clave, borrar TODAS tiene que exigirla
-     también. Antes bastaban dos confirmaciones, y el documento vacío subía al
-     servidor y quedaba como el estado de la empresa. */
+  /* ESTO YA NO BORRA NADA, Y DECÍA QUE SÍ (PAN-43, medido el 26/10).
+
+     Vaciaba `DB.ventas`, `DB.clientes`, `DB.vpend`, `DB.accionista`,
+     `DB.correos`, `DB.cierres` y la bitácora **del navegador**, y afirmaba
+     «esto no se puede deshacer» y «el sistema quedó sin ventas ni clientes».
+     Las dos frases eran falsas desde el Sprint 4: ninguna de esas tablas
+     viaja por el guardado —son libro, cada una tiene su operación— y
+     ninguna tiene puerta de borrado. La primera sincronización traía todo de
+     vuelta. O sea: la cajera escribía la clave de administrador, confirmaba
+     dos veces una pérdida irreversible, y no pasaba nada.
+
+     El libro lo borra quien lleva el libro. Mientras no exista una operación
+     publicada para eso —y no la hay, a propósito: un libro contable que se
+     pueda vaciar desde la caja no es un libro contable— esto se dice tal
+     cual y no se toca el documento. */
+  if(typeof NUBE !== 'undefined' && NUBE.enLinea()){
+    return decision('El libro no se borra desde aquí',
+      'Las ventas, las clientas, los vueltos, la cuenta del accionista, los '
+      + 'correos y los cierres <b>viven en el servidor</b>, y cada uno entró '
+      + 'por su operación: anular, devolver, entregar. No hay —ni va a haber— '
+      + 'un botón que los borre todos desde la caja.<br><br>'
+      + 'Lo que este botón hacía era vaciarlos <b>en esta computadora</b>, y la '
+      + 'primera sincronización los traía de vuelta: decía que no se podía '
+      + 'deshacer y no era verdad. Si de verdad hay que vaciar la empresa, se '
+      + 'hace desde el servidor y queda constancia de quién lo hizo.');
+  }
+  return decision('El libro no se borra desde aquí',
+    'Y sin servidor, menos: lo que se ve en esta pantalla es una copia de lo '
+    + 'que hay allá. <b>Nada se ha tocado.</b>');
+}
+
+/* El cuerpo viejo queda aquí, sin llamadores, por si algún día existe la
+   operación publicada que de verdad lo haga del lado del servidor. */
+async function vaciaMovimientosCuerpoViejo(){
   if(!await pideClaveAdmin('vaciar todos los movimientos')) return;
   if(!confirm('Va a borrar '+DB.ventas.length+' ventas, '+DB.clientes.length+' clientes, los vueltos pendientes, '
     + 'el estado de cuenta del accionista, los correos y la bitácora.\n\nEsto no se puede deshacer. ¿Continúa?')) return;
@@ -11616,8 +11759,12 @@ async function registraDevolucion(num, cod, det){
    roto en la pantalla.
    ========================================================================== */
 let ENTREGANDO = false;
-async function entregaPendiente(pid){
+async function entregaPendiente(pid, boton){
   if(ENTREGANDO) return;
+  const libera = ocupa(boton || null, 'Entregando… no vuelva a pulsar');
+  try{ return await entregaPendienteCuerpo(pid); } finally{ libera(); }
+}
+async function entregaPendienteCuerpo(pid){
   if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
   const v = DB.vpend.find(x => x.id === pid), t = tasaVigente();
   if(!v) return aviso('No encontré ese pendiente.', true);
@@ -11692,7 +11839,9 @@ async function entregaPendiente(pid){
      el doble, «un segundo o diez» en la tienda— en la que un segundo clic
      manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
      el correo anotado dos veces, el conteo aplicado dos veces. */
-  try{ await NUBE.sincroniza(); }catch(_){}
+  /* NO SE RELEE DOS VECES (PAN-46). `opera` ya sincroniza al volver de la
+     puerta: la segunda lectura pagaba otra vez la llamada más pesada del
+     sistema y abría la ventana del segundo clic. */
   const queda = r ? +r.saldo || 0 : 0;
   const c = DB.clientes.find(x => x.id === v.cliId) || {};
   aviso(queda > 0.005 ? 'Entrega parcial · quedan USD ' + fN(queda)
@@ -11723,6 +11872,10 @@ async function entregaPendiente(pid){
 let GUARDANDO_ART = false;
 async function guardaArticulo(){
   if(GUARDANDO_ART) return;
+  const libera = ocupa('np_g', 'Guardando… no vuelva a pulsar');
+  try{ return await guardaArticuloCuerpo(); } finally{ libera(); }
+}
+async function guardaArticuloCuerpo(){
   /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
      tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
      los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
@@ -11769,7 +11922,27 @@ async function guardaArticulo(){
       + 'intentarlo. <b>Nada se ha tocado.</b>');
 
   /* ---- 1 · la ficha, que es configuración ---- */
-  const pid = ed ? ed.id : nid('p');
+  //
+  // EL IDENTIFICADOR DEL ARTÍCULO NUEVO LO DA EL SERVIDOR (ARQ-33). Era
+  // `nid('p')`, un contador del navegador que ninguna función del servidor
+  // movía: dos computadoras acuñaban el mismo `p101` y la segunda renombraba
+  // al primero sin que nada se encendiera.
+  let pid;
+  if(ed){ pid = ed.id; }
+  else{
+    GUARDANDO_ART = true;
+    try{ pid = (await nidServidor('p', 1))[0]; }
+    catch(e){
+      GUARDANDO_ART = false;
+      const mi = mensajeDelServidor(e, 'nuevos_ids');
+      return decision('No hay servidor',
+        (mi ? esc(mi) + ' ' : '')
+        + 'El identificador del artículo lo da el servidor, para que dos '
+        + 'computadoras no acuñen el mismo. Sin conexión no se puede agregar: '
+        + 'espere a que vuelva. <b>Nada se ha tocado.</b>');
+    }
+    GUARDANDO_ART = false;
+  }
   if(ed){
     const cam = [];
     if(ed.precio !== precio) cam.push('precio '+fN(ed.precio)+' → '+fN(precio));
@@ -11802,7 +11975,13 @@ async function guardaArticulo(){
 
   if(!cambiaExi){
     pbufOlvida(); PRED = null; pvarDesde(null); PEXE = 'si';
-    aviso('Artículo «'+nom+'» '+(ed?'actualizado':'agregado')+'.');
+    /* SIN SERVIDOR SE DICE QUE FALTA SUBIRLA (PAN-47). La ficha es
+       configuración y se reintenta sola, así que no se niega; lo que no se
+       puede es afirmar «actualizado» cuando el servidor todavía no la tiene. */
+    const _enLinea = (typeof NUBE !== 'undefined' && NUBE.enLinea());
+    aviso('Artículo «'+nom+'» '+(ed?'actualizado':'agregado')
+      + (_enLinea ? '.' : ' AQUÍ · falta subirlo: el semáforo lo dice cuando llegue.'),
+      !_enLinea);
     pinta(); return;
   }
 
@@ -11876,7 +12055,9 @@ async function guardaArticulo(){
      el doble, «un segundo o diez» en la tienda— en la que un segundo clic
      manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
      el correo anotado dos veces, el conteo aplicado dos veces. */
-  try{ await NUBE.sincroniza(); }catch(_){}
+  /* NO SE RELEE DOS VECES (PAN-46). `opera` ya sincroniza al volver de la
+     puerta: la segunda lectura pagaba otra vez la llamada más pesada del
+     sistema y abría la ventana del segundo clic. */
   pbufOlvida(); PRED = null; pvarDesde(null); PEXE = 'si';
   GUARDANDO_ART = false;
   const dif = r ? +r.diferencia || 0 : 0;
@@ -11901,6 +12082,10 @@ async function guardaArticulo(){
 let REINTEGRANDO = false;
 async function registraReintegro(){
   if(REINTEGRANDO) return;
+  const libera = ocupa('a_g', 'Registrando… no vuelva a pulsar');
+  try{ return await registraReintegroCuerpo(); } finally{ libera(); }
+}
+async function registraReintegroCuerpo(){
   /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
      tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
      los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
@@ -11958,7 +12143,9 @@ async function registraReintegro(){
      el doble, «un segundo o diez» en la tienda— en la que un segundo clic
      manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
      el correo anotado dos veces, el conteo aplicado dos veces. */
-  try{ await NUBE.sincroniza(); }catch(_){}
+  /* NO SE RELEE DOS VECES (PAN-46). `opera` ya sincroniza al volver de la
+     puerta: la segunda lectura pagaba otra vez la llamada más pesada del
+     sistema y abría la ventana del segundo clic. */
   nuevoREI();
   REINTEGRANDO = false;
   aviso('Reintegro de USD ' + fN(v) + ' registrado · se le deben USD ' + fN(saldoAcc()) + '.');
@@ -11977,6 +12164,10 @@ async function registraReintegro(){
 let ENVIANDO_CORREO = false;
 async function reenviaRecibo(){
   if(ENVIANDO_CORREO) return;
+  const libera = ocupa('c_mail', 'Enviando… no vuelva a pulsar');
+  try{ return await reenviaReciboCuerpo(); } finally{ libera(); }
+}
+async function reenviaReciboCuerpo(){
   /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
      tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
      los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
@@ -12021,7 +12212,9 @@ async function reenviaRecibo(){
      el doble, «un segundo o diez» en la tienda— en la que un segundo clic
      manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
      el correo anotado dos veces, el conteo aplicado dos veces. */
-  try{ await NUBE.sincroniza(); }catch(_){}
+  /* NO SE RELEE DOS VECES (PAN-46). `opera` ya sincroniza al volver de la
+     puerta: la segunda lectura pagaba otra vez la llamada más pesada del
+     sistema y abría la ventana del segundo clic. */
   ENVIANDO_CORREO = false;
   aviso('Recibo reenviado a ' + c.mail);
   pinta();
@@ -12040,6 +12233,10 @@ async function reenviaRecibo(){
 let IMPORTANDO = false;
 async function importaInventario(){
   if(IMPORTANDO) return;
+  const libera = ocupa('ai_go', 'Importando… no vuelva a pulsar');
+  try{ return await importaInventarioCuerpo(); } finally{ libera(); }
+}
+async function importaInventarioCuerpo(){
   /* CON LA CAJA TRANCADA NO SE OPERA (PAN-42, medido el 26/10). El velo
      tapa el ratón pero no atrapa el foco, así que un Tab+Enter llegaba a
      los botones de detrás y el aviso de éxito se pintaba DEBAJO del panel
@@ -12061,6 +12258,30 @@ async function importaInventario(){
   const lineas = [];
   /* lo que el archivo ya no trae y sigue con mercancía (ARQ-05) */
   const sobrantes = [];
+
+  /* LOS IDENTIFICADORES DE LOS ARTÍCULOS NUEVOS, ANTES DE EMPEZAR (ARQ-33).
+     `conTx` es síncrona y no puede esperar un viaje, así que se cuentan los
+     que el archivo trae y no están en el catálogo, se piden todos de una vez
+     —por eso la puerta recibe `cuantos`— y se reparten dentro. Un archivo de
+     cuatrocientos artículos nuevos es un viaje, no cuatrocientos. */
+  const nuevosSku = arts.filter(function(a){
+    return !DB.productos.some(function(p){
+      return String(p.sku).toUpperCase() === a.sku; }); }).length;
+  let bolsa = [];
+  if(nuevosSku > 0){
+    IMPORTANDO = true;
+    try{ bolsa = await nidServidor('p', nuevosSku); }
+    catch(e){
+      IMPORTANDO = false;
+      const mi = mensajeDelServidor(e, 'nuevos_ids');
+      return decision('No hay servidor',
+        (mi ? esc(mi) + ' ' : '')
+        + 'Los identificadores de los artículos nuevos los da el servidor, '
+        + 'para que dos computadoras no acuñen el mismo. Sin conexión no se '
+        + 'puede importar: espere a que vuelva. <b>Nada se ha tocado.</b>');
+    }
+    IMPORTANDO = false;
+  }
   const hecho = conTx('importar el inventario', function(){
     let nue = 0, act = 0, cats = 0, uds = 0, revividos = 0;
     arts.forEach(function(a){
@@ -12100,7 +12321,8 @@ async function importaInventario(){
         pid = ya.id;
         act++;
       }else{
-        pid = nid('p');
+        pid = bolsa.shift();
+        if(!pid) throw new Error('se acabaron los identificadores del servidor');
         DB.productos.push({ id:pid, sku:a.sku, nom:a.nom, cat:a.cat,
           ico:a.ico || '📦', costo:a.costo, precio:a.precio, activo:true,
           exento:a.exento, var:[] });
@@ -12156,11 +12378,21 @@ async function importaInventario(){
      el doble, «un segundo o diez» en la tienda— en la que un segundo clic
      manda la operación otra vez. Medido: USD 10,00 reintegrados dos veces,
      el correo anotado dos veces, el conteo aplicado dos veces. */
-  try{ await NUBE.sincroniza(); }catch(_){}
+  /* NO SE RELEE DOS VECES (PAN-46). `opera` ya sincroniza al volver de la
+     puerta: la segunda lectura pagaba otra vez la llamada más pesada del
+     sistema y abría la ventana del segundo clic. */
   AIPREV = null; AIFILAS = []; AIFILE = '';
   IMPORTANDO = false;
   const dif = r ? +r.diferencia || 0 : 0;
-  aviso(AIRES.nue + ' artículos agregados y ' + AIRES.act + ' actualizados'
+  /* LAS FICHAS QUE CONTÓ EL SERVIDOR (PAN-44). `AIRES.nue` y `AIRES.act` los
+     contaba el navegador leyendo su propio documento; `guarda_config`
+     devuelve cuántas filas puso de verdad. Si no contestó —porque no había
+     nada que mandar— se dice lo que se escribió aquí, que entonces es lo
+     mismo. */
+  const _g = (function(){ try{ return NUBE.ultimoGuardado() || {}; }catch(e){ return {}; } })();
+  const fichas = (+_g.puestas > 0) ? (+_g.puestas + ' fichas guardadas en el servidor')
+                                   : (AIRES.nue + ' artículos agregados y ' + AIRES.act + ' actualizados');
+  aviso(fichas + (true ? '' : AIRES.nue + ' artículos agregados y ' + AIRES.act + ' actualizados')
     + (AIRES.revividos ? ' (' + AIRES.revividos + ' vuelven a estar a la venta)' : '')
     + ' · ' + (r ? r.variantes : 0) + ' variantes · saldo neto '
     + (dif >= 0 ? '+' : '') + dif + ' unidades.'
@@ -15057,6 +15289,9 @@ window.NUBE = (function(){
   }
 
   /* ---------- subir ---------- */
+  /* lo que contestó el servidor en el último guardado (PAN-44) */
+  let ULTIMO_GUARDADO = { puestas: 0, quitadas: 0, detalle: '' };
+
   function marcaSucio(){
     /* Lo llama guardar() después de escribir bien en el navegador. */
     pendiente = true;
@@ -15125,6 +15360,8 @@ window.NUBE = (function(){
        guardado. Adoptarlo aquí es lo que hace que el próximo cambio mande
        sólo lo que de verdad cambió y no el documento entero otra vez. */
     ESPEJO    = r.espejo || ESPEJO;
+    ULTIMO_GUARDADO = { puestas: r.puestas || 0, quitadas: r.quitadas || 0,
+                        detalle: r.detalle || '' };
     subiendo  = false;
     pendiente = false;
 
@@ -15378,37 +15615,22 @@ window.NUBE = (function(){
     }catch(e){ return false; }
   }
 
-  /* v67 · Une lo de esta computadora con lo del servidor y sube el resultado.
-     Devuelve true si se pudo; false sólo si el documento del servidor no se
-     pudo ni leer. */
-  function fundeConServidor(docServ, vServ){
-    try{
-      const base = baseAcordada();
-      const suyo = normaliza(JSON.parse(JSON.stringify(docServ)));
-      const r = funde(base, DB, suyo);
-      if(!r || !r.doc) return false;
-      ADOPTANDO = true;
-      try{
-        DB = normaliza(r.doc);
-        try{ aplicaPiso(); }catch(e){}
-        anotaFusion(r, 'la otra computadora');
-        /* el testigo cuenta lo que hay: la cadena unida trae los asientos de
-           las dos, así que nunca es menos de lo que había */
-        try{ subeBit(((DB.bitacora || []).length) + ((DB.bitCorte || {}).n || 0)); }catch(e){}
-        fijaVer(vServ);
-        ULT_ESCRITO = null;              /* que guardar() escriba de verdad */
-        guardar();
-      } finally { ADOPTANDO = false; }
-      olvidaHuellas();
-      pendiente = true;
-      pon('pendiente');
-      setTimeout(function(){
-        if(haySinSubir()) sube(verLocal());
-      }, 120);
-      try{ pinta(); }catch(e){}
-      return true;
-    }catch(e){ return false; }
-  }
+  /* `fundeConServidor` SE RETIRÓ EL 27/10 (PAN-48).
+
+     No la llamaba nadie —el agente de pantalla lo midió buscando llamadores
+     y no hay ninguno— y era un cartucho cargado al lado de la puerta nueva:
+     hacía `DB = funde(…)` y `guardar()`, y eso vuelve a poner
+     `producto_variantes` en el sobre de la configuración, que es el síntoma
+     exacto que P-24 cerró —el semáforo en «Eso no se guarda aquí»—.
+
+     Y la rama que la habría llamado es inalcanzable por otra razón medida:
+     `ALMACEN` es un `Map` en memoria desde que la sesión dejó de vivir en el
+     disco, así que el evento `storage` no se dispara NUNCA, `otraEscribio()`
+     es siempre falso y toda la maquinaria de dos pestañas —la escritura
+     aplazada, la tranca «otra pestaña guardó», la fusión— no se ejecuta.
+     Dos pestañas son hoy dos clientes independientes que sólo se encuentran
+     en el servidor; eso es lo correcto desde el Sprint 4, y es también lo
+     que hace que el identificador tenga que darlo él (ARQ-33). */
 
   function trancaNube(vServ, vMia){
     try{
@@ -15507,6 +15729,12 @@ window.NUBE = (function(){
        que comprueba que la venta y la clienta existan. Devuelve el id. */
     anotaCorreo: function(carga){ return opera('anota_correo', carga); },
 
+    /* LOS IDENTIFICADORES LOS DA EL SERVIDOR (036 · ARQ-33). Devuelve una
+       lista de textos ya acuñados del correlativo de la base. */
+    nuevosIds: function(prefijo, cuantos){
+      return opera('nuevos_ids', { prefijo: prefijo, cuantos: cuantos || 1 });
+    },
+
     fijaInv:   function(carga){ return opera('fija_inventario', carga); },
     retiraVar: function(carga){ return opera('retira_variante', carga); },
 
@@ -15520,6 +15748,11 @@ window.NUBE = (function(){
        disparó una cuando se escribió la ficha, y `sube` sólo deja una de
        camino: llamar derecho devolvía false —«hay otra en vuelo»— y el
        artículo se quedaba sin existencia con el servidor al día. */
+    /* Lo que el servidor dijo del ÚLTIMO guardado: cuántas filas puso y
+       cuántas quitó. La carga masiva las enseñaba contadas por el navegador
+       (PAN-44). */
+    ultimoGuardado: function(){ return ULTIMO_GUARDADO; },
+
     guardaYa:  async function(){
       /* NO SE PREGUNTA AL SEMÁFORO, SE PREGUNTA AL DIFERENCIADOR (PAN-34,
          medido el 26/10). El atajo era `if(!pendiente && ESTADO ===

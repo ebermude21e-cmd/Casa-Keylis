@@ -215,7 +215,15 @@ function crea(opciones){
        Va aquí porque es una puerta publicada más, y porque la pantalla ya no
        puede comprobarla sola —el servidor dejó de mandarle el sello—. */
     'clave_ok',
-    'anota_accionista', 'anota_correo'
+    'anota_accionista', 'anota_correo',
+    /* EL REPARTIDOR DE IDENTIFICADORES (036, ARQ-33). No escribe en el libro
+       y aun así es una operación y no un guardado: el correlativo es del
+       servidor. La pantalla acuñaba los suyos con un contador que ninguna
+       función del servidor movía, y dos clientes que leyeran el mismo número
+       creaban dos veces el mismo `p101`: `guarda_config` reconoce
+       `productos` por su `id` y el segundo RENOMBRABA al primero, en
+       silencio. Lo midió el DBA el 26/10. */
+    'nuevos_ids'
   ];
 
   /* La puerta publicada de cada operación lleva el prefijo `sicom_`. No es
