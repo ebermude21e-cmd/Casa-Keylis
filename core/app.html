@@ -2122,6 +2122,7 @@ let USEL = null;       /* uid de la persona que se está mirando */
 let UPERFIL = '';      /* el perfil elegido en el borrador */
 let UMARCAS = {};      /* el borrador de las marcas, clave → true/false */
 let UNUEVO = null;     /* la invitación en curso: correo, nombre, cajera */
+let UFICHA = null;     /* el borrador del nombre y la ficha de cajera */
 /* La ficha en blanco de una clienta por dar de alta, en UN solo sitio. La
    escribían dos: `nuevaVenta` y, desde R2-9, el botón «No es esta persona».
    Dos copias del mismo objeto son dos oportunidades de que una se quede sin
@@ -6603,8 +6604,21 @@ function uPerfilRotulo(clave){
   return p ? p.rotulo : (clave || '—');
 }
 
-/* Lo que de verdad podría hacer alguien: la plantilla de su perfil, con las
-   marcas a mano encima. Es la misma cuenta que hace `core.quien_soy`. */
+/* LO QUE YA TIENE ALGUIEN LO CUENTA EL SERVIDOR (040 · ARQ-48).
+   ============================================================
+   `core.lee_usuarios` baja `efectivas` desde la 040, calculadas con
+   `sicom.opciones_de` — la MISMA función que `core.invita` y
+   `core.cambia_acceso` usan para decidir si quien reparte puede repartirlo.
+   Antes esta pantalla las armaba por su cuenta: una segunda implementación
+   del reparto de permisos, y el día que las dos difirieran se enseñaría la
+   del navegador mientras el servidor aplicaba la suya.
+
+   `uEfectivas` se queda, pero sólo para EL BORRADOR: lo que todavía no
+   existe en el servidor no se le puede preguntar. */
+function uDelServidor(fila){
+  return (fila && Array.isArray(fila.efectivas)) ? fila.efectivas
+       : uEfectivas(fila && fila.papel, fila && fila.marcas);
+}
 function uEfectivas(perfil, marcas){
   const base = uPlantilla(perfil), sale = [];
   ((USU && USU.opciones) || []).forEach(function(o){
@@ -6638,6 +6652,7 @@ function uAbre(uid){
   USEL = uid; UVISTA = 'ficha';
   UPERFIL = f.papel || '';
   UMARCAS = Object.assign({}, f.marcas || {});
+  UFICHA = null;
   pinta();
 }
 
@@ -6657,7 +6672,7 @@ function uVistaLista(){
     + '<table class="dat" id="u_tabla"><thead><tr><th>Persona</th><th>Perfil</th><th>Opciones</th>'
     + '<th>Estado</th><th></th></tr></thead><tbody>';
   us.forEach(function(u){
-    const ef = uEfectivas(u.papel, u.marcas).length;
+    const ef = uDelServidor(u).length;
     const am = uAMano(u.papel, u.marcas);
     h += '<tr data-ufila="' + esc(u.uid) + '">'
       + '<td><b>' + esc(u.nombre || '—') + '</b>'
@@ -6675,7 +6690,7 @@ function uVistaLista(){
     + '<p class="cap">Mientras no entren, se pueden retirar. Al entrar con ese correo, el sistema les aplica lo marcado.</p>'
     + '<table class="dat" id="u_inv"><thead><tr><th>Correo</th><th>Perfil</th><th>Opciones</th><th></th></tr></thead><tbody>';
   inv.forEach(function(i){
-    const ef = uEfectivas(i.papel, i.marcas).length;
+    const ef = uDelServidor(i).length;
     h += '<tr><td><b>' + esc(i.correo) + '</b>'
       + (i.nombre ? '<div class="mini">' + esc(i.nombre) + '</div>' : '') + '</td>'
       + '<td>' + esc(uPerfilRotulo(i.papel)) + '</td>'
@@ -6704,9 +6719,15 @@ function uVistaLista(){
    palabras que en esta pantalla no existen —«editar_ajustes»—. Es la regla
    que este mismo archivo escribe dos veces y no aplicaba aquí: no se le
    enseña a nadie una puerta que le van a cerrar en la cara. */
+/* Y LO QUE UNO PUEDE REPARTIR VIENE EN LA MISMA RESPUESTA (040). `USU.mias`
+   sale de `sicom.opciones_de_uid`, que es la función que impone la regla en
+   las dos que escriben. El `yo.opciones` del sobre es otra respuesta y de
+   otro momento: se usa sólo si la base todavía no tiene la 040. */
 function uMias(){
-  try{ return ((typeof NUBE !== 'undefined' && NUBE.yo()) || {}).opciones || []; }
-  catch(e){ return []; }
+  try{
+    if(USU && Array.isArray(USU.mias)) return USU.mias;
+    return ((typeof NUBE !== 'undefined' && NUBE.yo()) || {}).opciones || [];
+  }catch(e){ return []; }
 }
 function uPuedoRepartir(clave){
   const m = uMias();
@@ -6784,7 +6805,7 @@ function uVistaFicha(){
   /* Y TAMPOCO SE ABRE LA FICHA DE QUIEN TIENE MÁS QUE UNO. Guardarla sin
      tocar nada ya sería repartir lo que uno no tiene: `core.cambia_acceso`
      compara el conjunto que QUEDARÍA, no el cambio. Se enseña, no se edita. */
-  const sobra = uEfectivas(f.papel, f.marcas).filter(function(c){ return !uPuedoRepartir(c); });
+  const sobra = uDelServidor(f).filter(function(c){ return !uPuedoRepartir(c); });
   if(sobra.length)
     return h + '<div class="nota">Esta persona puede hacer cosas que usted no puede: '
              + esc(sobra.map(function(c){
@@ -6794,7 +6815,27 @@ function uVistaFicha(){
              + 'Pídale el cambio a quien sí las tenga.</div>'
              + uCasillasSoloLectura(f);
 
-  h += uPerfilesBotones(UPERFIL)
+  /* LA FICHA DE CAJERA Y EL NOMBRE, EDITABLES (040 · ARQ-47). El servidor
+     siempre los aceptó; lo que faltaba era que distinguiera «no lo mando» de
+     «lo quiero vacío», y por eso la pantalla no los ofrecía. Hasta hoy, poner
+     a alguien a cerrar caja después de que entrara obligaba a volver al
+     editor SQL — justo la práctica que la 039 vino a terminar. */
+  h += '<div class="card"><h2>Su ficha</h2>'
+     + '<div class="fila">'
+     + '<div><label class="f">Nombre, para la bitácora</label>'
+     + '<input id="u_fnombre" maxlength="60" placeholder="Nombre y apellido" value="'
+     + esc(UFICHA && UFICHA.nombre !== undefined ? UFICHA.nombre : (f.nombre || '')) + '"></div>'
+     + '<div><label class="f">Ficha de cajera</label><select id="u_fcajera">'
+     + '<option value="">Sin ficha</option>'
+     + DB.cfg.cajeras.filter(function(k){ return k.activo || k.id === f.cajera_id; })
+         .map(function(k){
+           const puesta = (UFICHA && UFICHA.cajera !== undefined ? UFICHA.cajera : (f.cajera_id || ''));
+           return '<option value="' + esc(k.id) + '"' + (puesta === k.id ? ' selected' : '') + '>'
+                + esc(k.id + ' · ' + nomComp(k)) + '</option>'; }).join('')
+     + '</select>'
+     + '<p class="cap">Sin ficha no se puede cuadrar una caja a su nombre.</p></div>'
+     + '</div></div>'
+     + uPerfilesBotones(UPERFIL)
      + uCasillas(UPERFIL, UMARCAS)
      + '<div class="card"><h2>Guardar</h2>'
      + '<div class="acc"><button class="b oro" id="u_guarda">Guardar los cambios</button>'
@@ -6818,7 +6859,7 @@ function uVistaFicha(){
    pantalla —el servidor manda las marcas crudas— y eso queda anotado. */
 function uCasillasSoloLectura(f){
   let h = '<div class="card"><h2>Qué puede hacer</h2><div class="lineas">';
-  (uSoyYo(f.uid) ? uMias() : uEfectivas(f.papel, f.marcas)).forEach(function(c){
+  (uSoyYo(f.uid) ? uMias() : uDelServidor(f)).forEach(function(c){
     const o = ((USU && USU.opciones) || []).find(function(x){ return x.clave === c; }) || {};
     h += '<div class="lin"><div class="li"><b>' + esc(o.rotulo || c) + '</b>'
       + (o.nota ? '<div class="mini">' + esc(o.nota) + '</div>' : '') + '</div></div>';
@@ -6873,9 +6914,18 @@ function cfgUsuarios(){
    tecleado. Se recoge antes de repintar: es el mismo problema que PAN-34 y
    la misma solución. */
 function uRecogeInvitacion(){
-  if(UVISTA !== 'invitar') return;
   const v = function(id){ const x = $('#' + id); return x ? String(x.value || '') : ''; };
-  UNUEVO = { correo: v('u_correo').trim(), nombre: v('u_nombre').trim(), cajera: v('u_cajera') };
+  if(UVISTA === 'invitar')
+    UNUEVO = { correo: v('u_correo').trim(), nombre: v('u_nombre').trim(), cajera: v('u_cajera') };
+  uRecogeFicha();
+}
+/* Y en la ficha, lo mismo con el nombre y la ficha de cajera (040): cada
+   casilla que se marca repinta, y repintar borra lo tecleado. */
+function uRecogeFicha(){
+  if(UVISTA !== 'ficha') return;
+  const n = $('#u_fnombre'), c = $('#u_fcajera');
+  if(!n) return;
+  UFICHA = { nombre: String(n.value || '').trim(), cajera: c ? String(c.value || '') : '' };
 }
 document.addEventListener('change', function(e){
   const c = e.target && e.target.closest ? e.target.closest('[data-uop]') : null;
@@ -6952,6 +7002,7 @@ async function uFallo(e, puerta, que){
    guardó». */
 function uHuella(f){
   return !f ? '' : [f.papel, f.activo ? '1' : '0', f.correo || '',
+                    f.nombre || '', f.cajera_id || '',
                     JSON.stringify(f.marcas || {})].join('|');
 }
 async function uAlDia(f){
@@ -6978,13 +7029,24 @@ async function uGuarda(){
   const f = uFila(USEL); if(!f || UOCUPADO) return;
   if(uSoyYo(f.uid)) return aviso('Nadie se cambia sus propias opciones · pídaselo a otra persona que administre.', true);
   if(!uHayServidor()) return;
+  uRecogeFicha();
   UOCUPADO = true;
   const suelta = ocupa('u_guarda', 'Guardando… no vuelva a pulsar');
   try{
     const al = await uAlDia(f);
     if(!al){ suelta(); UOCUPADO = false; return; }
-    const r = await NUBE.cambiaAcceso({
-      uid: al.uid, papel: UPERFIL, activo: al.activo, marcas: UMARCAS });
+    /* UN CAMPO QUE NO SE EDITA NO VIAJA (040 · DBA-28). Esta pantalla reparte
+       permisos: no opina sobre la suspensión, que tiene su propio botón. Y
+       desde la 040 el servidor deja el valor como está cuando no viaja, así
+       que no mandarlo es lo correcto y lo seguro. El nombre y la ficha de
+       cajera viajan SÓLO si cambiaron: mandarlos siempre volvería a ser una
+       foto vieja escribiéndose encima de lo que otra persona acaba de poner. */
+    const carga = { uid: al.uid, papel: UPERFIL, marcas: UMARCAS };
+    if(UFICHA){
+      if(UFICHA.nombre !== (al.nombre || '')) carga.nombre = UFICHA.nombre;
+      if(UFICHA.cajera !== (al.cajera_id || '')) carga.cajera_id = UFICHA.cajera || null;
+    }
+    const r = await NUBE.cambiaAcceso(carga);
     UVISTA = 'lista'; USEL = null;
     await uPide();
     aviso('Listo · ' + (al.nombre || al.correo || 'esa persona') + ' queda con perfil '
