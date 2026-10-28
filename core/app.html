@@ -1144,6 +1144,13 @@ html[data-logo="si"] .nplogo{width:min(240px,72vw);height:112px;background:none;
 .npcaja #np_entrar{width:100%;margin-top:18px;padding:13px}
 .nperr{background:var(--mal-bg);color:var(--mal-ink);border-radius:var(--r1);
   padding:10px 13px;font-size:13.5px;margin-top:12px}
+/* El aviso de que algo SALIO BIEN. Hasta la 039 la puerta solo sabia decir
+   que algo fallo, y las tres puertas nuevas —crear la clave, pedir el enlace,
+   guardarla— terminan en un «ya esta» que la persona tiene que leer para
+   saber que le toca ahora: abrir su correo. */
+.npok{background:var(--bien-bg,#eaf6ee);color:var(--bien-ink,#1d5c33);border-radius:var(--r1);
+  padding:10px 13px;font-size:13.5px;margin-top:12px}
+.npmini a{color:var(--ink2);text-decoration:underline;cursor:pointer}
 .npofl{margin-top:22px;padding-top:18px;border-top:1px solid var(--hair);text-align:center}
 .npofl p{font-size:13px;color:var(--ink2);margin:0 0 10px}
 .npofl .b{width:100%}
@@ -1384,8 +1391,10 @@ try{
     </div>
     <h2 id="np_marca">SICOM</h2>
     <p class="npsub" id="np_lema">Sistema comercial y contable</p>
-    <p class="npsub npsub2">Entre con su correo y su clave para trabajar con los datos de la empresa.</p>
-    <form id="np_form" autocomplete="on">
+    <p class="npsub npsub2" id="np_lead">Entre con su correo y su clave para trabajar con los datos de la empresa.</p>
+
+    <!-- ENTRAR · lo de siempre -->
+    <form id="np_form" autocomplete="on" data-pane="entrar">
       <label class="npf" for="np_mail">Correo</label>
       <input id="np_mail" type="email" required autocomplete="username"
              inputmode="email" autocapitalize="none" spellcheck="false">
@@ -1394,7 +1403,53 @@ try{
       <div class="nperr" id="np_err" hidden></div>
       <button class="b oro" id="np_entrar" type="submit" disabled>Conectando…</button>
     </form>
-    <p class="npmini" id="np_pie">Si no tiene clave, pídasela al administrador.</p>
+
+    <!-- PRIMERA VEZ · ella misma pone su clave.
+         El correo tiene que ser EL MISMO que el administrador invitó: la
+         invitación vive en el servidor y se canjea por correo, no por quien
+         diga ser. Si no coincide, la cuenta se crea pero no abre nada. -->
+    <form id="np_form_crear" autocomplete="on" data-pane="crear" hidden>
+      <label class="npf" for="npc_mail">Correo con el que la invitaron</label>
+      <input id="npc_mail" type="email" required autocomplete="username"
+             inputmode="email" autocapitalize="none" spellcheck="false">
+      <label class="npf" for="npc_clave">Su clave nueva</label>
+      <input id="npc_clave" type="password" required autocomplete="new-password" minlength="8">
+      <label class="npf" for="npc_clave2">Otra vez, para no equivocarse</label>
+      <input id="npc_clave2" type="password" required autocomplete="new-password" minlength="8">
+      <div class="nperr" id="npc_err" hidden></div>
+      <div class="npok" id="npc_ok" hidden></div>
+      <button class="b oro" id="npc_btn" type="submit">Crear mi clave</button>
+    </form>
+
+    <!-- OLVIDÉ MI CLAVE -->
+    <form id="np_form_olvide" autocomplete="on" data-pane="olvide" hidden>
+      <label class="npf" for="npo_mail">Su correo</label>
+      <input id="npo_mail" type="email" required autocomplete="username"
+             inputmode="email" autocapitalize="none" spellcheck="false">
+      <div class="nperr" id="npo_err" hidden></div>
+      <div class="npok" id="npo_ok" hidden></div>
+      <button class="b oro" id="npo_btn" type="submit">Mandarme el enlace</button>
+    </form>
+
+    <!-- LA CLAVE NUEVA · sólo se llega aquí por el enlace del correo -->
+    <form id="np_form_nueva" autocomplete="on" data-pane="nueva" hidden>
+      <label class="npf" for="npn_clave">Su clave nueva</label>
+      <input id="npn_clave" type="password" required autocomplete="new-password" minlength="8">
+      <label class="npf" for="npn_clave2">Otra vez, para no equivocarse</label>
+      <input id="npn_clave2" type="password" required autocomplete="new-password" minlength="8">
+      <div class="nperr" id="npn_err" hidden></div>
+      <div class="npok" id="npn_ok" hidden></div>
+      <button class="b oro" id="npn_btn" type="submit">Guardar mi clave</button>
+    </form>
+
+    <p class="npmini" id="np_pie">
+      <a href="#" id="np_ir_crear">Primera vez: crear mi clave</a>
+      &nbsp;·&nbsp;
+      <a href="#" id="np_ir_olvide">Olvidé mi clave</a>
+    </p>
+    <p class="npmini" id="np_pie_volver" hidden>
+      <a href="#" id="np_ir_entrar">Volver a entrar con mi clave</a>
+    </p>
   </div>
 </div>
 
@@ -14726,6 +14781,9 @@ window.NUBE = (function(){
 
   /* ---------- carga del cliente ---------- */
   async function arranca(){
+    /* Los formularios de la puerta, cableados SIEMPRE: con sesión o sin
+       ella. Ver el comentario de `cableaPuerta`. */
+    try{ cableaPuerta(); }catch(e){}
     let mod;
     try{
       // Ya viene cargada con la pagina. Antes se pedia aqui a un CDN, y en
@@ -14764,9 +14822,21 @@ window.NUBE = (function(){
 
     sb.auth.onAuthStateChange(function(evt, ses){
       sesion = ses;
+      /* LA SESIÓN DE RECUPERACIÓN NO ABRE EL SISTEMA.
+         El enlace del correo trae una sesión de verdad, así que sin esto
+         quien lo pulse entra a trabajar SIN haber puesto clave nueva — y
+         cualquiera a quien se le reenvíe ese correo, también. Aquí la
+         puerta se queda abierta en «ponga su clave nueva» hasta que la
+         ponga. */
+      if(RECUPERANDO){ abrePuerta(); modoPuertaGlobal('nueva'); return; }
       if(ses){ cierraPuerta(); sincroniza(); }
       else   { pon('sin-sesion'); abrePuerta(); }
     });
+
+    /* El enlace del correo se lee ANTES de preguntar si hay sesión: si trae
+       una recuperación, la puerta tiene que quedar en «ponga su clave
+       nueva» y no en la de siempre. */
+    if(await tomaEnlaceDelCorreo()) return;
 
     const r = await sb.auth.getSession();
     sesion = r && r.data ? r.data.session : null;
@@ -14858,7 +14928,22 @@ window.NUBE = (function(){
       b.textContent = 'Entrar';
     }
 
+    cableaPuerta();
+  }
+
+  /* ====================================================================
+     LOS FORMULARIOS SE CABLEAN AL ARRANCAR, NO AL ABRIR LA PUERTA
+
+     Estaban dentro de `abrePuerta()`, y `abrePuerta()` sólo corre cuando
+     NO hay sesión. Consecuencia: con una sesión abierta —el caso de la
+     caja encendida— los formularios de la puerta no tenían ni un oyente,
+     y los tres botones nuevos no hacían nada. Lo encontró la batería de la
+     pantalla el 28/10 al pulsar «Primera vez: crear mi clave» con sesión
+     puesta: el panel no cambiaba.
+     ==================================================================== */
+  function cableaPuerta(){
     if(PUERTA_LISTA) return;
+    if(!document.getElementById('np_form')) return;
     PUERTA_LISTA = true;
 
     document.getElementById('np_form').addEventListener('submit', async function(e){
@@ -14894,7 +14979,243 @@ window.NUBE = (function(){
       }
     });
 
+    /* ==================================================================
+       LAS TRES PUERTAS QUE FALTABAN
+
+       Hasta la 039 esta pantalla sólo sabía ENTRAR. La invitación la crea
+       el administrador en el servidor —`sicom.invitacion`— pero la persona
+       invitada no tenía cómo darse una clave, ni cómo recuperarla si la
+       olvidaba. La mitad de abajo estaba hecha y la de arriba no.
+
+       Quién hace qué, y por qué así:
+
+         · La clave la pone ELLA. Nunca pasa por el administrador, que así
+           no puede entrar con la cuenta de una cajera y vender a su
+           nombre. El administrador reparte PERMISOS, no claves.
+         · El correo de confirmación lo manda Supabase. Si el correo que
+           teclea no es el que el administrador invitó, la cuenta se crea y
+           no abre nada: `core.entra()` sólo canjea invitaciones, y las
+           diecinueve puertas le responden 42501. No hace falta —ni se
+           debe— decirle aquí si ese correo estaba invitado o no: eso sería
+           publicar la lista de quién trabaja en la tienda a cualquiera que
+           pruebe direcciones.
+         · El olvido se recupera por correo, no por preguntas de seguridad:
+           la respuesta a «el colegio donde estudió» es averiguable, no se
+           puede revocar, y en una tienda termina compartida.
+       ================================================================== */
+    const PANES = ['entrar','crear','olvide','nueva'];
+    function modoPuerta(m){
+      PANES.forEach(function(x){
+        const f = document.querySelector('[data-pane="' + x + '"]');
+        if(f) f.hidden = (x !== m);
+      });
+      const lead = document.getElementById('np_lead');
+      const pie  = document.getElementById('np_pie');
+      const vol  = document.getElementById('np_pie_volver');
+      if(lead) lead.textContent =
+          m === 'crear'  ? 'Use el mismo correo con el que la invitaron y elija una clave suya.'
+        : m === 'olvide' ? 'Le mandamos un enlace a su correo para que ponga una clave nueva.'
+        : m === 'nueva'  ? 'Escriba su clave nueva. Con ésta entrará de ahora en adelante.'
+        : 'Entre con su correo y su clave para trabajar con los datos de la empresa.';
+      if(pie) pie.hidden = (m !== 'entrar');
+      /* Desde la pantalla de la clave nueva NO se ofrece volver: la persona
+         llegó por el enlace del correo y su sesión es de recuperación. */
+      if(vol) vol.hidden = (m === 'entrar' || m === 'nueva');
+    }
+    function liga(id, m){
+      const a = document.getElementById(id);
+      if(a) a.addEventListener('click', function(e){ e.preventDefault(); modoPuerta(m); });
+    }
+    liga('np_ir_crear', 'crear');
+    liga('np_ir_olvide', 'olvide');
+    liga('np_ir_entrar', 'entrar');
+
+    /* El mensaje que de verdad explica qué pasó. Supabase contesta en
+       inglés y con el vocabulario de su API; la cajera lee esto a las siete
+       de la mañana con la cola esperando. */
+    function diceQuePaso(msg){
+      const t = String(msg || '');
+      if(/pwned|leaked|compromis/i.test(t))
+        return 'Esa clave aparece en listas de claves filtradas en internet. '
+             + 'Elija otra: cualquiera que no haya usado en otro sitio.';
+      if(/at least|should be at least|length/i.test(t))
+        return 'La clave tiene que tener al menos 8 caracteres.';
+      if(/already registered|already been registered|User already/i.test(t))
+        return 'Ese correo ya tiene clave. Si no la recuerda, use «Olvidé mi clave».';
+      if(/rate limit|too many|for security purposes/i.test(t))
+        return 'Se pidieron demasiados correos seguidos. Espere un minuto y vuelva a intentar.';
+      if(/invalid|not valid/i.test(t))
+        return 'Ese correo no parece válido.';
+      if(/fetch|network|failed to/i.test(t))
+        return 'No hay conexión con el servidor. Revise la conexión y vuelva a intentar.';
+      return t;
+    }
+    function avisa(idErr, idOk, malo, texto){
+      const er = document.getElementById(idErr);
+      const ok = document.getElementById(idOk);
+      if(er){ er.hidden = true; }
+      if(ok){ ok.hidden = true; }
+      const d = malo ? er : ok;
+      if(d){ d.textContent = texto; d.hidden = false; }
+    }
+
+    /* ---------- primera vez: crear mi clave ---------- */
+    document.getElementById('np_form_crear').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const b = document.getElementById('npc_btn');
+      const correo = document.getElementById('npc_mail').value.trim();
+      const c1 = document.getElementById('npc_clave').value;
+      const c2 = document.getElementById('npc_clave2').value;
+      if(c1 !== c2){ avisa('npc_err','npc_ok', true, 'Las dos claves no son iguales.'); return; }
+      if(c1.length < 8){ avisa('npc_err','npc_ok', true, 'La clave tiene que tener al menos 8 caracteres.'); return; }
+      if(!sb){ avisa('npc_err','npc_ok', true, 'No hay conexión con el servidor.'); return; }
+      b.disabled = true; b.textContent = 'Creando…';
+      let res;
+      try{
+        res = await sb.auth.signUp({
+          email: correo, password: c1,
+          /* Adónde vuelve después de confirmar: a ESTA pantalla, la que
+             está abierta, sea la de la tienda o la de calidad. */
+          options: { emailRedirectTo: location.origin + location.pathname }
+        });
+      }catch(x){ res = { error: { message: String(x && x.message || x) } }; }
+      b.disabled = false; b.textContent = 'Crear mi clave';
+      if(res && res.error){
+        avisa('npc_err','npc_ok', true, diceQuePaso(res.error.message));
+        return;
+      }
+      document.getElementById('npc_clave').value = '';
+      document.getElementById('npc_clave2').value = '';
+      avisa('npc_err','npc_ok', false,
+        'Listo. Le mandamos un correo a ' + correo + '. Ábralo y pulse el enlace para '
+        + 'confirmar; después vuelva aquí y entre con esa clave. Si no llega en unos '
+        + 'minutos, mire en la carpeta de correo no deseado.');
+    });
+
+    /* ---------- olvidé mi clave ---------- */
+    document.getElementById('np_form_olvide').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const b = document.getElementById('npo_btn');
+      const correo = document.getElementById('npo_mail').value.trim();
+      if(!sb){ avisa('npo_err','npo_ok', true, 'No hay conexión con el servidor.'); return; }
+      b.disabled = true; b.textContent = 'Mandando…';
+      try{
+        await sb.auth.resetPasswordForEmail(correo, {
+          redirectTo: location.origin + location.pathname
+        });
+      }catch(x){ /* se cae al mismo aviso de abajo, a propósito */ }
+      b.disabled = false; b.textContent = 'Mandarme el enlace';
+      /* SE CONTESTA LO MISMO EXISTA O NO ESA CUENTA. Decir «ese correo no
+         está registrado» le regala a cualquiera la lista de quién trabaja
+         en la tienda, probando direcciones una por una. */
+      avisa('npo_err','npo_ok', false,
+        'Si ' + correo + ' tiene una cuenta, le acaba de llegar un enlace. Ábralo y '
+        + 'ponga su clave nueva. El enlace dura una hora.');
+    });
+
+    /* ---------- la clave nueva, al volver del enlace ---------- */
+    document.getElementById('np_form_nueva').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const b = document.getElementById('npn_btn');
+      const c1 = document.getElementById('npn_clave').value;
+      const c2 = document.getElementById('npn_clave2').value;
+      if(c1 !== c2){ avisa('npn_err','npn_ok', true, 'Las dos claves no son iguales.'); return; }
+      if(c1.length < 8){ avisa('npn_err','npn_ok', true, 'La clave tiene que tener al menos 8 caracteres.'); return; }
+      if(!sb){ avisa('npn_err','npn_ok', true, 'No hay conexión con el servidor.'); return; }
+      b.disabled = true; b.textContent = 'Guardando…';
+      let res;
+      try{ res = await sb.auth.updateUser({ password: c1 }); }
+      catch(x){ res = { error: { message: String(x && x.message || x) } }; }
+      b.disabled = false; b.textContent = 'Guardar mi clave';
+      if(res && res.error){
+        avisa('npn_err','npn_ok', true, diceQuePaso(res.error.message));
+        return;
+      }
+      document.getElementById('npn_clave').value = '';
+      document.getElementById('npn_clave2').value = '';
+      avisa('npn_err','npn_ok', false, 'Su clave quedó cambiada. Ya puede trabajar.');
+      /* Y AHORA SÍ ENTRA. La sesión de recuperación deja de serlo en cuanto
+         la clave está puesta, que es exactamente lo que se le pidió hacer. */
+      RECUPERANDO = false;
+      setTimeout(function(){ cierraPuerta(); sincroniza(); }, 1200);
+    });
+
   }
+
+  /* ==================================================================
+     EL ENLACE DEL CORREO, LEÍDO A MANO
+
+     El cliente se arma con `detectSessionInUrl: false` a propósito, y eso
+     hay que decirlo entero: con esa línea en `true`, CUALQUIER dirección
+     que alguien le pegue a la cajera con permisos en el fragmento le abre
+     sesión sola, sin que nadie decida nada. Aquí no se abre nada por
+     accidente.
+
+     El precio es que el enlace del correo de recuperación hay que leerlo
+     nosotros. Llega así:
+
+       https://casakeylis.com/core/#access_token=…&refresh_token=…&type=recovery
+
+     Se toma SÓLO cuando el tipo es `recovery`, se arma la sesión con esos
+     dos permisos, y se BORRA el fragmento de la barra en el acto: si se
+     queda, vive en el historial del navegador de la tienda y el siguiente
+     que pulse «atrás» entra como ella.
+     ================================================================== */
+  /* Mientras valga `true`, la pantalla NO deja entrar: la persona llegó por
+     el enlace del correo y lo único que puede hacer es poner su clave. */
+  let RECUPERANDO = false;
+  async function tomaEnlaceDelCorreo(){
+    const h = String(location.hash || '').replace(/^#/, '');
+    const q = String(location.search || '').replace(/^\?/, '');
+    if(!h && !q) return false;
+    const p = new URLSearchParams(h || q);
+    const limpia = function(){
+      try{ history.replaceState(null, '', location.pathname + location.search.replace(/[?&](code|error|error_code|error_description)=[^&]*/g,'')); }
+      catch(e){ location.hash = ''; }
+    };
+    /* El enlace vencido o ya usado vuelve con el motivo escrito, no con
+       permisos. Si no se lee, la persona ve la puerta de siempre y no
+       entiende por qué su enlace «no hizo nada». */
+    if(p.get('error') || p.get('error_code')){
+      const d = String(p.get('error_description') || '').replace(/\+/g, ' ');
+      limpia();
+      abrePuerta();
+      try{
+        modoPuertaGlobal('olvide');
+        const er = document.getElementById('npo_err');
+        if(er){
+          er.textContent = /expired|invalid/i.test(d)
+            ? 'Ese enlace ya venció o ya se usó. Pida uno nuevo aquí abajo.'
+            : 'El enlace no sirvió: ' + d;
+          er.hidden = false;
+        }
+      }catch(e){}
+      return true;
+    }
+    if(p.get('type') !== 'recovery') return false;
+    const at = p.get('access_token'), rt = p.get('refresh_token');
+    if(!at || !rt || !sb) return false;
+    RECUPERANDO = true;
+    try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }
+    catch(e){ RECUPERANDO = false; return false; }
+    limpia();
+    abrePuerta();
+    try{ modoPuertaGlobal('nueva'); }catch(e){}
+    return true;
+  }
+  /* `modoPuerta` vive dentro de `abrePuerta` porque allí se cablean los
+     formularios una sola vez. Esto es el asa para alcanzarlo desde fuera. */
+  function modoPuertaGlobal(m){
+    ['entrar','crear','olvide','nueva'].forEach(function(x){
+      const f = document.querySelector('[data-pane="' + x + '"]');
+      if(f) f.hidden = (x !== m);
+    });
+    const pie = document.getElementById('np_pie');
+    const vol = document.getElementById('np_pie_volver');
+    if(pie) pie.hidden = (m !== 'entrar');
+    if(vol) vol.hidden = (m === 'entrar' || m === 'nueva');
+  }
+
   function cierraPuerta(){
     /* v57 · la puerta se ESCONDE, no se destruye.
 
@@ -15824,7 +16145,15 @@ window.NUBE = (function(){
     },
     version: verLocal,
     quien: function(){ return sesion && sesion.user ? sesion.user.email : ''; },
-    pinta: pintaSemaforo
+    pinta: pintaSemaforo,
+    /* Lo que la batería necesita para medir las puertas de acceso. No
+       expone nada: `recupera` lee el fragmento de la dirección —que ya está
+       a la vista de cualquiera— y `puerta` sólo cambia qué formulario se
+       ve. Una comprobación que no puede alcanzar lo que mide no es una
+       comprobación. */
+    recupera: tomaEnlaceDelCorreo,
+    puerta: modoPuertaGlobal,
+    cablea: cableaPuerta
   };
 })();
 
