@@ -132,6 +132,21 @@ function crea(opciones){
     };
   }
 
+  /* ------------------------------------------------------------------ */
+  /* QUIÉN ENTRA Y QUÉ PUEDE CADA QUIEN                                  */
+  /*                                                                     */
+  /* Va aparte de `op` porque no lleva carga: la puerta no recibe `p`.   */
+  /* Devuelve el catálogo de opciones, los perfiles con sus plantillas,  */
+  /* quién tiene acceso con sus marcas, las invitaciones sin usar, el    */
+  /* uid de quien pregunta y el correo de rescate. La pantalla no inventa */
+  /* ninguna de esas cinco cosas: las lee.                               */
+  /* ------------------------------------------------------------------ */
+  async function usuarios(){
+    const r = await cliente.rpc('sicom_lee_usuarios');
+    if(r.error) throw new Error('lee_usuarios: ' + r.error.message);
+    return r.data;
+  }
+
   async function foto(id){
     const r = await cliente.rpc('sicom_lee_foto', { p_id: String(id) });
     if(r.error) throw new Error(r.error.message);
@@ -223,7 +238,13 @@ function crea(opciones){
        creaban dos veces el mismo `p101`: `guarda_config` reconoce
        `productos` por su `id` y el segundo RENOMBRABA al primero, en
        silencio. Lo midió el DBA el 26/10. */
-    'nuevos_ids'
+    'nuevos_ids',
+    /* LA ADMINISTRACIÓN DE USUARIOS (039 · P-40). Las tres que escriben.
+       No mueven dinero, pero reparten quién puede moverlo, así que van por
+       donde van las operaciones: el servidor valida, asienta y firma. La
+       cuarta —`lee_usuarios`— no lleva carga y tiene su propia función más
+       abajo. */
+    'invita', 'cambia_acceso', 'retira_invitacion'
   ];
 
   /* La puerta publicada de cada operación lleva el prefijo `sicom_`. No es
@@ -239,18 +260,29 @@ function crea(opciones){
      ningún otro sitio. */
   function puerta(op){ return 'sicom_' + op; }
 
+  /* LA SALIDA QUE EL SERVIDOR MANDA CON EL RECHAZO NO SE TIRA.
+     PostgreSQL distingue el motivo (`message`) de la salida (`hint`), y las
+     funciones de este sistema escriben hints a propósito: «Dele primero esa
+     opcion a otra persona», «Pidale a quien si las tenga que haga ese
+     cambio». El transporte se quedaba sólo con el motivo, así que la
+     pantalla decía qué pasó y no qué hacer. No traduce —eso sigue sin ser
+     suyo—: lo lleva. */
   const operaciones = {};
   OPERACIONES.forEach(function(op){
     operaciones[op] = async function(carga){
       const r = await cliente.rpc(puerta(op), { p: carga });
-      if(r.error) throw new Error(op + ': ' + r.error.message);
+      if(r.error){
+        const e = new Error(op + ': ' + r.error.message);
+        if(r.error.hint) e.hint = r.error.hint;
+        throw e;
+      }
       return r.data;
     };
   });
 
   return {
     entra: entra, sale: sale, quien: quien,
-    carga: carga, foto: foto,
+    carga: carga, foto: foto, usuarios: usuarios,
     planifica: planifica, guarda: guarda,
     op: operaciones,
     CONFIGURACION: CONFIGURACION,

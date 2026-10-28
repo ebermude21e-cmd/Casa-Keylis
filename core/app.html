@@ -2100,6 +2100,28 @@ function selBanco(id,val,extra,o){
    está leída la configuración: aquí todavía no existe DB. */
 let TAB='vta', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
 let VTA=null;
+
+/* ==========================================================================
+   USUARIOS Y PERMISOS · el estado de la pantalla (039 · P-40)
+
+   `USU` es LO QUE CONTESTÓ EL SERVIDOR y no se toca: el catálogo de
+   opciones, los perfiles con su plantilla, quién tiene acceso con sus
+   marcas, las invitaciones sin usar, el uid de quien está mirando y el
+   correo de rescate. No vive en `DB` a propósito: no es configuración de la
+   tienda, no se guarda, no se sincroniza y no sale en el respaldo. Se pide
+   al entrar a la pantalla y se vuelve a pedir después de cada cambio.
+
+   `UMARCAS` es el borrador de quien administra: lo que lleva marcado ANTES
+   de pulsar guardar. Lo demás son punteros de navegación.
+   ========================================================================== */
+let USU = null;        /* lo que contestó el servidor · null = sin pedir */
+let UCARGANDO = false; /* hay una lectura en vuelo */
+let UERR = '';         /* por qué no se pudo leer */
+let UVISTA = 'lista';  /* lista · ficha · invitar */
+let USEL = null;       /* uid de la persona que se está mirando */
+let UPERFIL = '';      /* el perfil elegido en el borrador */
+let UMARCAS = {};      /* el borrador de las marcas, clave → true/false */
+let UNUEVO = null;     /* la invitación en curso: correo, nombre, cajera */
 /* La ficha en blanco de una clienta por dar de alta, en UN solo sitio. La
    escribían dos: `nuevaVenta` y, desde R2-9, el botón «No es esta persona».
    Dos copias del mismo objeto son dos oportunidades de que una se quede sin
@@ -6503,6 +6525,545 @@ function selCta(id, val){
 }
 
 /* ------------------------------------------------------ CONFIGURACIÓN ---- */
+/* ==========================================================================
+   SICOM · USUARIOS Y PERMISOS   (migración 039 · P-40)
+
+   El caso de uso lo puso el dueño y es el de la banca: quien administra
+   registra el correo de una persona, le marca lo que va a poder hacer, y
+   esa persona entra por su cuenta con ese correo. Lo que aquí se marque no
+   lo cumple esta pantalla: lo exige `core.exige` en cada puerta. Esconder
+   un botón no es un permiso.
+
+   TRES COSAS QUE ESTA PANTALLA NO HACE, Y SON LAS QUE IMPORTAN:
+
+   1 · NO INVENTA EL CATÁLOGO. Las opciones, sus grupos, sus rótulos y las
+       plantillas de cada perfil las contesta `sicom_lee_usuarios`. El
+       prototipo las traía escritas a mano —quince— y una lista escrita a
+       mano envejece en cuanto una migración reparte la dieciseisava: la
+       pantalla enseñaría catorce casillas sobre un servidor de dieciséis
+       y nadie se enteraría.
+   2 · NO ESCRIBE NADA EN EL DOCUMENTO. Ni el acceso, ni las marcas, ni las
+       invitaciones viven en `DB`: no son configuración de la tienda, no se
+       sincronizan y no salen en el respaldo. Cada cambio sale por su puerta
+       y después se vuelve a LEER, porque lo que vale no es lo que se pidió
+       sino cómo quedó la casa.
+   3 · NO DECIDE QUIÉN PUEDE ENTRAR AQUÍ. La pestaña aparece si el servidor
+       dijo que esta sesión tiene `administrar_usuarios`; si alguien llega
+       igual, las cuatro puertas contestan 42501.
+   ========================================================================== */
+
+/* ¿Esta sesión administra? Lo dice el servidor en `yo.opciones`. */
+function uAdministra(){
+  try{ return typeof NUBE !== 'undefined' && NUBE.puede('administrar_usuarios'); }
+  catch(e){ return false; }
+}
+
+/* Lo que el servidor contestó, pedido una vez al entrar. Se vuelve a pedir
+   después de cada cambio: ni el papel, ni las marcas, ni el recuento de
+   administradores se recalculan aquí. */
+async function uPide(){
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea()){
+    USU = null; UERR = 'Sin conexión con el servidor: esta pantalla la contesta él.';
+    pinta(); return;
+  }
+  UCARGANDO = true; UERR = ''; pinta();
+  try{
+    USU = await NUBE.usuarios();
+    UERR = '';
+  }catch(e){
+    USU = null;
+    UERR = mensajeDelServidor(e, 'lee_usuarios')
+        || 'El servidor no contestó quiénes tienen acceso.';
+  }
+  UCARGANDO = false;
+  pinta();
+}
+
+/* El catálogo, por grupos, EN EL ORDEN EN QUE LO MANDÓ EL SERVIDOR. */
+function uGrupos(){
+  const g = [], ind = {};
+  ((USU && USU.opciones) || []).forEach(function(o){
+    const k = o.grupo || 'Otras';
+    if(ind[k] === undefined){ ind[k] = g.length; g.push({ rotulo: k, opciones: [] }); }
+    g[ind[k]].opciones.push(o);
+  });
+  return g;
+}
+function uCuantasOpciones(){ return ((USU && USU.opciones) || []).length; }
+
+/* La plantilla de un perfil, tal como la guarda el servidor. */
+function uPlantilla(clave){
+  const p = ((USU && USU.perfiles) || []).find(function(x){ return x.clave === clave; });
+  const m = {};
+  ((p && p.opciones) || []).forEach(function(c){ m[c] = true; });
+  return m;
+}
+function uPerfilRotulo(clave){
+  const p = ((USU && USU.perfiles) || []).find(function(x){ return x.clave === clave; });
+  return p ? p.rotulo : (clave || '—');
+}
+
+/* Lo que de verdad podría hacer alguien: la plantilla de su perfil, con las
+   marcas a mano encima. Es la misma cuenta que hace `core.quien_soy`. */
+function uEfectivas(perfil, marcas){
+  const base = uPlantilla(perfil), sale = [];
+  ((USU && USU.opciones) || []).forEach(function(o){
+    const m = marcas && Object.prototype.hasOwnProperty.call(marcas, o.clave)
+            ? !!marcas[o.clave] : !!base[o.clave];
+    if(m) sale.push(o.clave);
+  });
+  return sale;
+}
+/* Cuántas se apartan de la plantilla. Es lo que se le enseña a quien
+   administra para que sepa qué está tocando a mano. */
+function uAMano(perfil, marcas){
+  const base = uPlantilla(perfil); let n = 0;
+  ((USU && USU.opciones) || []).forEach(function(o){
+    if(marcas && Object.prototype.hasOwnProperty.call(marcas, o.clave)
+       && !!marcas[o.clave] !== !!base[o.clave]) n++;
+  });
+  return n;
+}
+function uFila(uid){
+  return (((USU && USU.usuarios) || []).find(function(x){ return x.uid === uid; })) || null;
+}
+/* ¿Soy yo? Nadie se reparte a sí mismo: lo bloquea el servidor (DBA-23,
+   ARQ-41) y aquí ni se ofrece, para no enseñar un botón que va a fallar. */
+function uSoyYo(uid){ return !!(USU && USU.yo && uid === USU.yo); }
+
+/* El borrador: se arma de lo que la persona TIENE, no de la plantilla. */
+function uAbre(uid){
+  const f = uFila(uid);
+  if(!f) return;
+  USEL = uid; UVISTA = 'ficha';
+  UPERFIL = f.papel || '';
+  UMARCAS = Object.assign({}, f.marcas || {});
+  pinta();
+}
+
+/* ---------- la lista ---------- */
+function uVistaLista(){
+  const us = (USU && USU.usuarios) || [];
+  const inv = (USU && USU.invitaciones) || [];
+  const tot = uCuantasOpciones();
+  let h = '<div class="kpis-mod">'
+    + '<div class="kpi"><div class="kn">' + us.filter(function(x){ return x.activo; }).length + '</div><div class="kt">Con acceso</div></div>'
+    + '<div class="kpi"><div class="kn">' + inv.length + '</div><div class="kt">Invitaciones por usar</div></div>'
+    + '<div class="kpi"><div class="kn">' + tot + '</div><div class="kt">Opciones del sistema</div></div>'
+    + '<div class="kpi"><div class="kn">' + ((USU && USU.perfiles) || []).length + '</div><div class="kt">Perfiles</div></div>'
+    + '</div>';
+
+  h += '<div class="card"><h2>Quién entra al sistema</h2>'
+    + '<table class="dat" id="u_tabla"><thead><tr><th>Persona</th><th>Perfil</th><th>Opciones</th>'
+    + '<th>Estado</th><th></th></tr></thead><tbody>';
+  us.forEach(function(u){
+    const ef = uEfectivas(u.papel, u.marcas).length;
+    const am = uAMano(u.papel, u.marcas);
+    h += '<tr data-ufila="' + esc(u.uid) + '">'
+      + '<td><b>' + esc(u.nombre || '—') + '</b>'
+      + '<div class="mini">' + esc(u.correo || 'sin correo') + '</div></td>'
+      + '<td>' + esc(uPerfilRotulo(u.papel)) + (u.administra ? ' <span class="chip">administra</span>' : '') + '</td>'
+      + '<td>' + ef + ' de ' + tot
+      + '<div class="mini">' + (am ? am + (am === 1 ? ' cambiada a mano' : ' cambiadas a mano') : 'todas las del perfil') + '</div></td>'
+      + '<td>' + (u.activo ? '<span class="chip ok">activo</span>' : '<span class="chip">suspendido</span>') + '</td>'
+      + '<td class="n"><button class="b sm gh" data-uver="' + esc(u.uid) + '">Opciones</button></td></tr>';
+  });
+  if(!us.length) h += '<tr><td colspan="5" class="mini">Todavía no ha entrado nadie.</td></tr>';
+  h += '</tbody></table></div>';
+
+  h += '<div class="card"><h2>Invitaciones sin usar</h2>'
+    + '<p class="cap">Mientras no entren, se pueden retirar. Al entrar con ese correo, el sistema les aplica lo marcado.</p>'
+    + '<table class="dat" id="u_inv"><thead><tr><th>Correo</th><th>Perfil</th><th>Opciones</th><th></th></tr></thead><tbody>';
+  inv.forEach(function(i){
+    const ef = uEfectivas(i.papel, i.marcas).length;
+    h += '<tr><td><b>' + esc(i.correo) + '</b>'
+      + (i.nombre ? '<div class="mini">' + esc(i.nombre) + '</div>' : '') + '</td>'
+      + '<td>' + esc(uPerfilRotulo(i.papel)) + '</td>'
+      + '<td>' + ef + ' de ' + tot + '</td>'
+      + '<td class="n"><button class="b sm gh" data-uretira="' + esc(i.correo) + '">Retirar</button></td></tr>';
+  });
+  if(!inv.length) h += '<tr><td colspan="4" class="mini">No hay invitaciones pendientes.</td></tr>';
+  h += '</tbody></table></div>';
+
+  h += '<div class="nota">El correo <b>' + esc((USU && USU.rescate) || '—') + '</b> es el del rescate: '
+     + 'si alguna vez no quedara nadie administrando, esa cuenta vuelve a entrar como dueña. '
+     + 'Se cambia en el servidor, no desde aquí.</div>';
+  return h;
+}
+
+/* NADIE REPARTE LO QUE NO TIENE · la mitad de la pantalla (ARQ-36).
+   =================================================================
+   El cerrojo es del servidor: `core.invita` y `core.cambia_acceso` comparan
+   lo que la invitación concedería contra lo que tiene quien invita, y
+   contestan 42501 con los nombres internos de las opciones que sobran. Eso
+   está bien y no se toca.
+
+   Lo que estaba mal era de este lado: la pantalla le ofrecía a la
+   administradora el perfil «Dueño» y las dos casillas que la 037 le negó a
+   propósito. Llenaba el formulario, pulsaba guardar y recibía un rechazo con
+   palabras que en esta pantalla no existen —«editar_ajustes»—. Es la regla
+   que este mismo archivo escribe dos veces y no aplicaba aquí: no se le
+   enseña a nadie una puerta que le van a cerrar en la cara. */
+function uMias(){
+  try{ return ((typeof NUBE !== 'undefined' && NUBE.yo()) || {}).opciones || []; }
+  catch(e){ return []; }
+}
+function uPuedoRepartir(clave){
+  const m = uMias();
+  /* Sin token no hay «uno mismo»: el servidor tampoco compara. */
+  return !m.length || m.indexOf(clave) >= 0;
+}
+function uPerfilRepartible(p){
+  return (p.opciones || []).every(uPuedoRepartir);
+}
+
+/* ---------- las casillas, que son las mismas al invitar y al cambiar ---------- */
+function uCasillas(perfil, marcas){
+  const base = uPlantilla(perfil);
+  let h = '<div class="card"><h2>Qué puede hacer</h2>'
+    + '<p class="cap" id="u_resumen">' + uEfectivas(perfil, marcas).length + ' de ' + uCuantasOpciones()
+    + ' marcadas' + (uAMano(perfil, marcas) ? ' · ' + uAMano(perfil, marcas) + ' a mano' : ' · tal como el perfil')
+    + '</p>';
+  uGrupos().forEach(function(g){
+    h += '<div class="cap" style="margin-top:14px">' + esc(g.rotulo) + '</div><div class="lineas">';
+    g.opciones.forEach(function(o){
+      const puesta = Object.prototype.hasOwnProperty.call(marcas, o.clave)
+                   ? !!marcas[o.clave] : !!base[o.clave];
+      const distinta = puesta !== !!base[o.clave];
+      const mia = uPuedoRepartir(o.clave);
+      h += '<div class="lin"><label class="li" style="cursor:pointer">'
+        + '<input type="checkbox" data-uop="' + esc(o.clave) + '"' + (puesta ? ' checked' : '')
+        + (mia ? '' : ' disabled') + '> '
+        + '<b>' + esc(o.rotulo || o.clave) + '</b>'
+        + (o.nota ? '<div class="mini">' + esc(o.nota) + '</div>' : '')
+        + (mia ? '' : '<div class="mini">usted no la tiene: no la puede repartir</div>')
+        + '</label>'
+        + (distinta ? '<span class="chip">' + (puesta ? 'añadida a mano' : 'quitada a mano') + '</span>' : '')
+        + '</div>';
+    });
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function uPerfilesBotones(perfil){
+  let h = '<div class="card"><h2>Perfil</h2>'
+    + '<p class="cap">Elegirlo vuelve a marcar las opciones de la plantilla y borra lo que se haya cambiado a mano.</p>'
+    + '<div class="lineas">';
+  ((USU && USU.perfiles) || []).forEach(function(p){
+    const mio = uPerfilRepartible(p);
+    h += '<div class="lin"><div class="li"><b>' + esc(p.rotulo || p.clave) + '</b>'
+      + '<div class="mini">' + (p.opciones || []).length + ' de ' + uCuantasOpciones() + ' opciones'
+      + (mio ? '' : ' · usted no las tiene todas: no puede repartir este perfil') + '</div></div>'
+      + '<button class="b sm ' + (perfil === p.clave ? 'oro' : 'gh') + '" data-uperfil="' + esc(p.clave) + '"'
+      + (mio ? '' : ' disabled') + '>'
+      + (perfil === p.clave ? 'puesto' : 'Poner') + '</button></div>';
+  });
+  h += '</div></div>';
+  return h;
+}
+
+/* ---------- la ficha de una persona ---------- */
+function uVistaFicha(){
+  const f = uFila(USEL);
+  if(!f){ UVISTA = 'lista'; return uVistaLista(); }
+  const yo = uSoyYo(f.uid);
+  let h = '<div class="acc" style="margin-bottom:12px"><button class="b sm gh" id="u_volver">← Usuarios y permisos</button></div>'
+    + '<div class="card"><h2>' + esc(f.nombre || f.correo || '—') + '</h2>'
+    + '<p class="cap">' + esc(f.correo || 'sin correo') + ' · perfil ' + esc(uPerfilRotulo(f.papel))
+    + (f.cajera_id ? ' · ficha de cajera <b>' + esc(f.cajera_id) + '</b>' : ' · sin ficha de cajera')
+    + ' · ' + (f.activo ? 'activo' : 'suspendido') + '</p>';
+  if(yo) h += '<div class="nota">Esta es su propia cuenta. Nadie se cambia su propio perfil, '
+            + 'sus opciones, su ficha de cajera ni su nombre: con eso se firma el libro. '
+            + 'Pídaselo a otra persona que administre.</div>';
+  h += '</div>';
+
+  if(yo) return h + uCasillasSoloLectura(f);
+
+  /* Y TAMPOCO SE ABRE LA FICHA DE QUIEN TIENE MÁS QUE UNO. Guardarla sin
+     tocar nada ya sería repartir lo que uno no tiene: `core.cambia_acceso`
+     compara el conjunto que QUEDARÍA, no el cambio. Se enseña, no se edita. */
+  const sobra = uEfectivas(f.papel, f.marcas).filter(function(c){ return !uPuedoRepartir(c); });
+  if(sobra.length)
+    return h + '<div class="nota">Esta persona puede hacer cosas que usted no puede: '
+             + esc(sobra.map(function(c){
+                 const o = ((USU && USU.opciones) || []).find(function(x){ return x.clave === c; });
+                 return (o && o.rotulo) || c; }).join(', '))
+             + '. Nadie reparte lo que no tiene, así que aquí sólo se le enseña. '
+             + 'Pídale el cambio a quien sí las tenga.</div>'
+             + uCasillasSoloLectura(f);
+
+  h += uPerfilesBotones(UPERFIL)
+     + uCasillas(UPERFIL, UMARCAS)
+     + '<div class="card"><h2>Guardar</h2>'
+     + '<div class="acc"><button class="b oro" id="u_guarda">Guardar los cambios</button>'
+     + '<button class="b gh" id="u_cancela">Cancelar</button></div></div>'
+     + '<div class="card"><h2>' + (f.activo ? 'Quitarle el acceso' : 'Devolverle el acceso') + '</h2>'
+     + '<p class="cap">No se borra nada: queda suspendida y su historia intacta.</p>'
+     + '<div class="acc"><button class="b gh" id="u_suspende">'
+     + (f.activo ? 'Suspender el acceso' : 'Volver a activarla') + '</button>'
+     + (f.activo || !f.correo ? ''
+        : '<button class="b gh" id="u_libera">Retirarle el correo</button>') + '</div>'
+     + (f.activo && f.correo
+        ? '<div class="nota">Para retirarle el correo —y poder dárselo a otra persona— '
+        + 'hay que suspenderla primero: así lo exige el servidor.</div>' : '')
+     + '</div>';
+  return h;
+}
+/* PARA LA FICHA PROPIA, LA CUENTA LA DA EL SERVIDOR. `core.quien_soy` ya la
+   calculó y viaja en `yo.opciones`; volver a armarla aquí con plantilla más
+   marcas es una segunda implementación de lo mismo, y el día que difieran se
+   enseñaría la del navegador. Para los demás no hay otra cuenta que la de la
+   pantalla —el servidor manda las marcas crudas— y eso queda anotado. */
+function uCasillasSoloLectura(f){
+  let h = '<div class="card"><h2>Qué puede hacer</h2><div class="lineas">';
+  (uSoyYo(f.uid) ? uMias() : uEfectivas(f.papel, f.marcas)).forEach(function(c){
+    const o = ((USU && USU.opciones) || []).find(function(x){ return x.clave === c; }) || {};
+    h += '<div class="lin"><div class="li"><b>' + esc(o.rotulo || c) + '</b>'
+      + (o.nota ? '<div class="mini">' + esc(o.nota) + '</div>' : '') + '</div></div>';
+  });
+  return h + '</div></div>';
+}
+
+/* ---------- invitar ---------- */
+function uVistaInvitar(){
+  const n = UNUEVO || (UNUEVO = { correo: '', nombre: '', cajera: '' });
+  let h = '<div class="acc" style="margin-bottom:12px"><button class="b sm gh" id="u_volver">← Usuarios y permisos</button></div>'
+    + '<div class="card"><h2>Invitar a alguien</h2>'
+    + '<p class="cap">Entrará por su cuenta con el correo que se ponga aquí. Hasta que entre, queda como invitación pendiente.</p>'
+    + '<div class="fila">'
+    + '<div><label class="f">Correo</label><input id="u_correo" maxlength="70" placeholder="nombre@dominio.com" value="' + esc(n.correo) + '"></div>'
+    + '<div><label class="f">Nombre, para la bitácora</label><input id="u_nombre" maxlength="60" placeholder="Nombre y apellido" value="' + esc(n.nombre) + '"></div>'
+    + '<div><label class="f">Ficha de cajera</label><select id="u_cajera"><option value="">Sin ficha</option>'
+    + DB.cfg.cajeras.filter(function(k){ return k.activo; }).map(function(k){
+        return '<option value="' + esc(k.id) + '"' + (n.cajera === k.id ? ' selected' : '') + '>'
+             + esc(k.id + ' · ' + nomComp(k)) + '</option>'; }).join('')
+    + '</select></div></div>'
+    + '<p class="cap">La ficha sólo hace falta para quien vaya a cerrar caja.</p></div>';
+  h += uPerfilesBotones(UPERFIL)
+     + uCasillas(UPERFIL, UMARCAS)
+     + '<div class="card"><h2>Guardar</h2>'
+     + '<div class="acc"><button class="b oro" id="u_invita">Guardar la invitación</button>'
+     + '<button class="b gh" id="u_cancela">Cancelar</button></div></div>';
+  return h;
+}
+
+function cfgUsuarios(){
+  if(!uAdministra())
+    return '<div class="card"><h2>Usuarios y permisos</h2>'
+         + '<p class="cap">Esta pantalla es de quien administra usuarios. '
+         + 'El servidor no le concedió esa opción a esta sesión.</p></div>';
+  if(UERR)
+    return '<div class="card"><h2>Usuarios y permisos</h2><p class="cap">' + esc(UERR) + '</p>'
+         + '<div class="acc"><button class="b gh" id="u_recarga">Volver a intentarlo</button></div></div>';
+  if(UCARGANDO || !USU)
+    return '<div class="card"><h2>Usuarios y permisos</h2>'
+         + '<p class="cap">Preguntándole al servidor quiénes tienen acceso…</p></div>';
+  if(UVISTA === 'ficha')   return uVistaFicha();
+  if(UVISTA === 'invitar') return uVistaInvitar();
+  return '<div class="acc" style="margin-bottom:12px">'
+       + '<button class="b oro" id="u_nueva">Invitar a alguien</button>'
+       + '<button class="b gh" id="u_recarga">Volver a leer del servidor</button></div>'
+       + uVistaLista();
+}
+
+/* ---------- lo que se escribe en el formulario de invitar ----------
+   Cada casilla que se marca repinta la pantalla, y repintar borra lo
+   tecleado. Se recoge antes de repintar: es el mismo problema que PAN-34 y
+   la misma solución. */
+function uRecogeInvitacion(){
+  if(UVISTA !== 'invitar') return;
+  const v = function(id){ const x = $('#' + id); return x ? String(x.value || '') : ''; };
+  UNUEVO = { correo: v('u_correo').trim(), nombre: v('u_nombre').trim(), cajera: v('u_cajera') };
+}
+document.addEventListener('change', function(e){
+  const c = e.target && e.target.closest ? e.target.closest('[data-uop]') : null;
+  if(!c) return;
+  uRecogeInvitacion();
+  const cual = c.dataset.uop;
+  UMARCAS[cual] = !!c.checked;
+  pinta();
+  /* Y EL FOCO VUELVE A SU CASILLA. `pinta()` reemplaza la pantalla entera,
+     así que marcar con el teclado se volvía imposible: después de la primera
+     barra espaciadora el foco se iba al cuerpo y había que tabular desde
+     arriba otra vez, con dieciséis casillas en cinco grupos. Lo tecleado ya
+     se rescataba; el foco no. */
+  try{ const d = document.querySelector('[data-uop="' + cual + '"]'); if(d) d.focus(); }catch(x){}
+});
+
+/* ---------- las tres que escriben ----------
+   Las tres hacen lo mismo en el mismo orden: comprobar que hay servidor,
+   mandar UNA sola llamada, y volver a LEER. Ninguna toca `DB`, ninguna da
+   por buena una respuesta que no llegó, y ninguna deja pulsar dos veces.  */
+let UOCUPADO = false;
+
+function uSinServidor(){
+  decision('No hay servidor',
+    'Quién entra al sistema lo lleva el servidor. Sin conexión no se puede cambiar: '
+  + 'espere a que vuelva. <b>Nada se ha tocado.</b>');
+  return false;
+}
+function uHayServidor(){
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea()) return uSinServidor();
+  return true;
+}
+/* LO QUE EL SERVIDOR DIJO, Y LO QUE NO SE SABE, SON DOS COSAS DISTINTAS.
+   ====================================================================
+   La primera versión de esto decía «Nada cambió» siempre, también cuando
+   lo que se perdió fue la RESPUESTA y no la llamada. Entonces la frase es
+   falsa: la persona ya puede entrar —o ya no— y la pantalla afirma lo
+   contrario con esas palabras. Es la misma mentira exacta que el Sprint 4
+   le quitó a la venta, a la anulación y a la devolución, y aquí había
+   vuelto a entrar por la puerta de atrás. Lo levantaron los dos agentes el
+   28/10 por caminos distintos.
+
+   `mensajeDelServidor` sólo devuelve texto cuando el servidor contestó en
+   castellano por su puerta: ésa es la señal de que el rechazo es suyo y de
+   que no escribió nada. Sin ese texto no se sabe nada, y se dice.
+
+   En los dos casos se vuelve a LEER antes de pintar: después de un intento
+   fallido la lista de la pantalla es justo la que menos vale. */
+async function uFallo(e, puerta, que){
+  const m = mensajeDelServidor(e, puerta);
+  const pista = (e && e.hint) ? ' ' + esc(String(e.hint)) : '';
+  await uPide();
+  if(m){
+    decision(que + ' NO quedó',
+      esc(m) + pista
+    + ' <b>Nada cambió</b>: el servidor lo rechazó entero y lo de abajo es lo que hay.');
+  }else{
+    decision('NO SE SABE si ' + que.toLowerCase() + ' quedó',
+      'El servidor no contestó. <b>No lo repita todavía</b>: la lista de abajo se acaba de '
+    + 'volver a leer, mire cómo quedó esa persona antes de volver a tocarla.');
+  }
+}
+
+/* LA FOTO CON LA QUE SE ESCRIBE TIENE QUE SER DE AHORA (los dos agentes,
+   28/10). `USU` se lee al entrar y no se refresca solo: con la ficha abierta
+   diez minutos, lo que se manda es el estado de hace diez minutos. Y como
+   `core.cambia_acceso` hace `coalesce(activo, true)`, un `activo` viejo no
+   es un campo de más: REACTIVA a quien otra persona acababa de suspender, y
+   el aviso dice «Listo».
+
+   Se vuelve a leer justo antes de escribir y se compara. Si otra persona
+   tocó esa ficha mientras tanto, no se escribe: se dice y se enseña cómo
+   quedó. Es el mismo trato que el documento le da a «Otra computadora
+   guardó». */
+function uHuella(f){
+  return !f ? '' : [f.papel, f.activo ? '1' : '0', f.correo || '',
+                    JSON.stringify(f.marcas || {})].join('|');
+}
+async function uAlDia(f){
+  const antes = uHuella(f);
+  await uPide();
+  const ahora = uFila(f.uid);
+  if(!ahora){
+    decision('Esa persona ya no tiene acceso',
+      'Otra persona se lo retiró mientras usted tenía la ficha abierta. '
+    + '<b>No se tocó nada.</b>');
+    return null;
+  }
+  if(uHuella(ahora) !== antes){
+    decision('Otra persona cambió esta ficha',
+      'Mientras usted la tenía abierta, alguien más cambió lo de '
+    + esc(ahora.nombre || ahora.correo || 'esa persona') + '. <b>No se escribió nada</b>: '
+    + 'abra la ficha otra vez y decida sobre lo que hay ahora.');
+    return null;
+  }
+  return ahora;
+}
+
+async function uGuarda(){
+  const f = uFila(USEL); if(!f || UOCUPADO) return;
+  if(uSoyYo(f.uid)) return aviso('Nadie se cambia sus propias opciones · pídaselo a otra persona que administre.', true);
+  if(!uHayServidor()) return;
+  UOCUPADO = true;
+  const suelta = ocupa('u_guarda', 'Guardando… no vuelva a pulsar');
+  try{
+    const al = await uAlDia(f);
+    if(!al){ suelta(); UOCUPADO = false; return; }
+    const r = await NUBE.cambiaAcceso({
+      uid: al.uid, papel: UPERFIL, activo: al.activo, marcas: UMARCAS });
+    UVISTA = 'lista'; USEL = null;
+    await uPide();
+    aviso('Listo · ' + (al.nombre || al.correo || 'esa persona') + ' queda con perfil '
+        + uPerfilRotulo(UPERFIL) + '. Administrando quedan '
+        + ((r && r.quedan_administrando) != null ? r.quedan_administrando : '—') + '.');
+  }catch(e){ await uFallo(e, 'cambia_acceso', 'El cambio'); }
+  suelta();
+  UOCUPADO = false;
+}
+
+/* Suspender, reactivar y retirar el correo son el MISMO cambio: el servidor
+   exige que el correo se libere en el mismo movimiento en que se suspende,
+   para que nadie quede dentro con el correo ya dado a otra persona. */
+async function uSuspende(libera){
+  const f = uFila(USEL); if(!f || UOCUPADO) return;
+  if(uSoyYo(f.uid)) return aviso('Nadie se retira a sí mismo.', true);
+  if(!uHayServidor()) return;
+  UOCUPADO = true;
+  const suelta = ocupa(libera ? 'u_libera' : 'u_suspende', 'Un momento… no vuelva a pulsar');
+  try{
+    const al = await uAlDia(f);
+    if(!al){ suelta(); UOCUPADO = false; return; }
+    const carga = { uid: al.uid, activo: libera ? false : !al.activo };
+    if(libera) carga.libera_correo = true;
+    const r = await NUBE.cambiaAcceso(carga);
+    UVISTA = 'lista'; USEL = null;
+    await uPide();
+    const quedan = ' Administrando quedan '
+                 + ((r && r.quedan_administrando) != null ? r.quedan_administrando : '—') + '.';
+    aviso((libera ? 'Se le retiró el correo · ese correo ya se le puede dar a otra persona.'
+         : carga.activo ? 'Vuelve a tener acceso.'
+         : 'Queda suspendida · su historia no se tocó.') + quedan);
+  }catch(e){ await uFallo(e, 'cambia_acceso', 'El cambio'); }
+  suelta();
+  UOCUPADO = false;
+}
+
+async function uInvita(){
+  if(UOCUPADO) return;
+  uRecogeInvitacion();
+  const n = UNUEVO || {};
+  /* El correo se mira aquí antes de salir, con el mismo examen que el resto
+     del sistema. El servidor lo vuelve a mirar: esto es cortesía, no
+     cerrojo. */
+  if(!n.correo) return aviso('Falta el correo con el que esa persona va a entrar.', true);
+  const vc = valMail(n.correo);
+  if(!vc.ok) return aviso(vc.msg, true);
+  if(!UPERFIL) return aviso('Elija el perfil con el que va a entrar.', true);
+  if(!uHayServidor()) return;
+  UOCUPADO = true;
+  const suelta = ocupa('u_invita', 'Guardando… no vuelva a pulsar');
+  try{
+    await NUBE.invita({ correo: n.correo, papel: UPERFIL,
+                        nombre: n.nombre || null,
+                        cajera_id: n.cajera || null,
+                        marcas: UMARCAS });
+    UVISTA = 'lista'; UNUEVO = null;
+    await uPide();
+    aviso('Invitación guardada · ' + n.correo + ' entra por su cuenta con ese correo.');
+  }catch(e){ await uFallo(e, 'invita', 'La invitación'); }
+  suelta();
+  UOCUPADO = false;
+}
+
+async function uRetira(correo){
+  if(UOCUPADO) return;
+  if(!uHayServidor()) return;
+  UOCUPADO = true;
+  const suelta = ocupa(document.querySelector('[data-uretira="' + correo + '"]'),
+                       'Retirando…');
+  try{
+    await NUBE.retiraInvitacion({ correo: correo });
+    await uPide();
+    aviso('Invitación retirada · ' + correo + ' ya no puede entrar con ese correo.');
+  }catch(e){ await uFallo(e, 'retira_invitacion', 'El retiro de la invitación'); }
+  suelta();
+  UOCUPADO = false;
+}
+
 function vistaCfg(){
   let h='<h1>Configuración</h1>'
     +'<p class="sub">Todo lo que la caja ofrece se administra aquí. Cambie una tarifa o agregue un canal y aparece en la venta al instante.</p>'
@@ -6510,8 +7071,15 @@ function vistaCfg(){
     +[['emp','Empresa'],['tasas','Tasas de cambio'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
       ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras'],
       ['dev','Devoluciones']]
+      /* La pestaña de usuarios sólo se le ofrece a quien el servidor dijo
+         que administra. No es el permiso —el permiso es `core.exige` en las
+         cuatro puertas— es no enseñarle a la cajera una puerta que le van a
+         cerrar en la cara. */
+      .concat(uAdministra() ? [['usuarios','Usuarios y permisos']] : [])
       .map(s=>'<button data-csub="'+s[0]+'" class="'+(CSUB===s[0]?'on':'')+'">'+s[1]+'</button>').join('')
     +'</div>';
+
+  if(CSUB==='usuarios') return h + cfgUsuarios();
 
   if(CSUB==='emp')   return h + cfgEmpresa();
   if(CSUB==='tasas') return h + vistaTasas();
@@ -6741,7 +7309,37 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b)return;
   if(b.dataset.tab){TAB=b.dataset.tab;if(CIERRE)CIERRE.clave='';PSEL=null;pinta();window.scrollTo(0,0);return;}
   if(b.dataset.sub){SUB=b.dataset.sub;PREV=null;pinta();return;}
-  if(b.dataset.csub){pbufOlvida();CSUB=b.dataset.csub;pinta();return;}
+  if(b.dataset.csub){
+    pbufOlvida();CSUB=b.dataset.csub;
+    /* Entrar a usuarios es PREGUNTARLE AL SERVIDOR, no leer el documento:
+       nada de esto vive en `DB`. Se vuelve a la lista cada vez. */
+    if(CSUB==='usuarios'){ UVISTA='lista'; USEL=null; uPide(); }
+    pinta();return;}
+
+  /* ---------- usuarios y permisos (039 · P-40) ---------- */
+  if(b.id==='u_recarga'){ uPide(); return; }
+  if(b.id==='u_volver' || b.id==='u_cancela'){
+    UVISTA='lista'; USEL=null; UNUEVO=null; pinta(); return; }
+  if(b.id==='u_nueva'){
+    UVISTA='invitar'; USEL=null; UNUEVO={correo:'',nombre:'',cajera:''};
+    /* SIN PERFIL PUESTO. Poner «el primero de la lista» es dejar que el
+       orden de presentación del catálogo decida qué se concede: hoy sale
+       `cajera` por casualidad, y una migración que reparta un perfil con
+       orden menor cambiaría el valor por omisión sin que nada se encienda.
+       `uInvita` ya exige elegirlo, así que vacío es gratis y seguro. */
+    UPERFIL = ''; UMARCAS = {};
+    pinta(); return; }
+  if(b.dataset.uver){ uAbre(b.dataset.uver); return; }
+  if(b.dataset.uperfil){
+    /* Cambiar de perfil borra lo que se haya cambiado a mano: el borrador
+       vuelve a ser la plantilla, y la plantilla la manda el servidor. */
+    uRecogeInvitacion();
+    UPERFIL = b.dataset.uperfil; UMARCAS = {}; pinta(); return; }
+  if(b.id==='u_guarda'){ uGuarda(); return; }
+  if(b.id==='u_suspende'){ uSuspende(false); return; }
+  if(b.id==='u_libera'){ uSuspende(true); return; }
+  if(b.id==='u_invita'){ uInvita(); return; }
+  if(b.dataset.uretira){ uRetira(b.dataset.uretira); return; }
 
   /* tasas */
   /* v62 · AQUÍ SE MULTIPLICABA LA TASA POR CIEN.
@@ -14829,6 +15427,23 @@ window.NUBE = (function(){
          puerta se queda abierta en «ponga su clave nueva» hasta que la
          ponga. */
       if(RECUPERANDO){ abrePuerta(); modoPuertaGlobal('nueva'); return; }
+      /* EL PADRÓN DE USUARIOS NO SOBREVIVE A UN CAMBIO DE SESIÓN (039 · P-40).
+         `USU` lleva los correos de todo el personal, las invitaciones sin
+         usar y el correo del rescate —el que `core.entra()` deja entrar como
+         dueño—. Es exactamente lo que la 039 sacó del sobre para que no
+         viajara a toda sesión; dejarlo en una variable global de la página
+         después de que otra persona entre en la misma pestaña sería
+         devolverlo por la ventana.
+         Se limpia cuando NO hay sesión o cuando la que hay es de otra
+         persona; un refresco de token no toca nada, porque dejar la
+         pantalla en blanco a media edición sería el otro error. */
+      try{
+        const quien = ses && ses.user ? ses.user.id : null;
+        if(USU && USU.yo !== quien){
+          USU = null; USEL = null; UMARCAS = {}; UNUEVO = null; UERR = ''; UVISTA = 'lista';
+          if(quien && CSUB === 'usuarios') uPide();
+        }
+      }catch(e){}
       if(ses){ cierraPuerta(); sincroniza(); }
       else   { pon('sin-sesion'); abrePuerta(); }
     });
@@ -16055,6 +16670,31 @@ window.NUBE = (function(){
     nuevosIds: function(prefijo, cuantos){
       return opera('nuevos_ids', { prefijo: prefijo, cuantos: cuantos || 1 });
     },
+
+    /* ----------------------------------------------------------------
+       QUIÉN ENTRÓ Y QUÉ PUEDE (037 · 039)
+
+       `yo` es lo que contestó el servidor al cargar: uid, papel, nombre,
+       ficha de cajera y LA LISTA DE OPCIONES. La pantalla no la calcula
+       ni la guarda: la relee en cada carga. Esconder un botón no es un
+       permiso —la puerta se cierra por dentro, en `core.exige`— pero
+       enseñarle a la cajera un botón que el servidor le va a negar es
+       hacerla trabajar para nada.
+       ---------------------------------------------------------------- */
+    yo: function(){ return YO; },
+    puede: function(clave){
+      try{ return (YO && YO.opciones || []).indexOf(clave) >= 0; }
+      catch(e){ return false; }
+    },
+
+    /* LA ADMINISTRACIÓN DE USUARIOS (039 · P-40). Cuatro puertas: una que
+       lee y tres que escriben. Ninguna devuelve nada que la pantalla deba
+       guardar: después de cada una se vuelve a leer, porque lo que vale es
+       cómo quedó la casa y eso lo dice el servidor. */
+    usuarios:         function(){ return nucleo().usuarios(); },
+    invita:           function(carga){ return opera('invita', carga); },
+    cambiaAcceso:     function(carga){ return opera('cambia_acceso', carga); },
+    retiraInvitacion: function(carga){ return opera('retira_invitacion', carga); },
 
     fijaInv:   function(carga){ return opera('fija_inventario', carga); },
     retiraVar: function(carga){ return opera('retira_variante', carga); },
