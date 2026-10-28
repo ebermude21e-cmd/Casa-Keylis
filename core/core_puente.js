@@ -173,7 +173,14 @@ function aEstado(T){
                exento: n2(v.fis_exento), igtfPct: num(v.fis_igtf_pct),
                igtf: n2(v.fis_igtf), cobrado: n2(v.fis_cobrado) },
         lineas: (lin[v.num] || []).map(function(l){
-          return { id: txt(l.producto_id), sku: txt(l.sku), nom: txt(l.nom),
+          /* `lid` ES EL IDENTIFICADOR DEL RENGLÓN EN EL SERVIDOR, y hace
+             falta desde que la devolución sale por su puerta (Sprint 4 ·
+             P-27): `core.devuelve` pide `venta_linea_id`, y hasta hoy el
+             mapa no lo traía —`id` es el del PRODUCTO—, así que la pantalla
+             no tenía cómo decir qué renglón se devuelve. Sólo se lee: no
+             viaja de vuelta en ningún guardado. */
+          return { lid: num(l.id),
+                   id: txt(l.producto_id), sku: txt(l.sku), nom: txt(l.nom),
                    talla: txt(l.talla), color: txt(l.color),
                    cant: num(l.cant), desc: num(l.descontado),
                    precio: n4(l.precio), cat: txt(l.categoria),
