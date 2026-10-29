@@ -433,10 +433,85 @@ td.tdfoto{width:52px}
 .sinfoto{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;
   background:var(--sup2);font-size:19px}
 
+/* ==========================================================================
+   v67 · LA CONSULTA DE INVENTARIO
+   ========================================================================== */
+.cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.cif{background:var(--panel);border:1px solid var(--linea);border-radius:var(--r2);padding:15px 17px}
+.cif .r{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cif .v{font-size:24px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+.iatajos{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;align-items:center}
+.chip.at{cursor:pointer;border:1px solid var(--avi-bd,#ECDCB0);background:var(--avi-bg);color:var(--avi)}
+.chip.at:hover{filter:brightness(.97)}
+.chip.at.on{background:var(--marron);border-color:var(--marron);color:#fff}
+.icab{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  margin-bottom:13px;flex-wrap:wrap}
+.icab h2{font-size:17px;font-weight:600;margin:0}
+.ivacio{text-align:center;padding:44px 20px;color:var(--muted)}
+.ivacio b{display:block;color:var(--ink);font-size:16px;margin-bottom:5px}
+.ipie{margin-top:14px;padding-top:13px;border-top:1px solid var(--hair)}
+/* el encabezado que ordena: botón de verdad, dibujado como encabezado */
+th.ord{padding:0}
+.thord{font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  font-weight:600;color:var(--muted);background:none;border:0;cursor:pointer;
+  padding:0 10px 9px;white-space:nowrap}
+th.ord.n .thord{width:100%;text-align:right}
+.thord:hover{color:var(--ink)}
+.thord .fl{opacity:.5;font-size:9px;margin-left:3px}
+/* abrir la ficha: botón que se dibuja como el renglón */
+.iabre{font:inherit;font-size:14px;color:var(--ink);background:none;border:0;cursor:pointer;
+  padding:0;text-align:left;display:flex;align-items:center;gap:11px;width:100%}
+.iabre:hover{color:var(--marron)}
+.iabre .ico{width:34px;height:34px;flex:none;border-radius:9px;background:var(--sup2);
+  display:flex;align-items:center;justify-content:center;font-size:17px}
+table.dat.inv td{vertical-align:middle}
+table.dat.inv .n.rj{color:var(--mal-ink);font-weight:600}
+table.dat.inv .n.vd{color:var(--bien-ink,#1d5c33);font-weight:600}
+tr.iart.abierta td{background:var(--sup)}
+/* la ficha de la pieza */
+tr.ivars td{background:var(--sup);padding:0 10px 16px}
+.idet{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;padding-top:4px}
+.ifotocol{flex:0 0 200px;display:flex;flex-direction:column;gap:9px}
+.ifoto{width:200px;height:200px;border:1px solid var(--linea);border-radius:var(--r2);
+  background:var(--panel);display:grid;place-items:center;overflow:hidden}
+.ifoto img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.ifoto.sin{border-style:dashed;text-align:center;padding:14px}
+.ifoto.sin .g{font-size:46px;opacity:.5;line-height:1}
+.ifoto.sin .t{font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:8px}
+.idatos{flex:1 1 380px;min-width:0}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px;margin-bottom:13px}
+.dcel{background:var(--panel);border:1px solid var(--linea);border-radius:var(--r1);padding:10px 12px}
+.dcel .r{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.dcel .v{font-size:16px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+table.dat.vtab{width:auto;min-width:340px;background:var(--panel);
+  border:1px solid var(--linea);border-radius:var(--r1)}
+table.dat.vtab th{padding:9px 14px 7px}
+table.dat.vtab td{padding:8px 14px;font-size:13.5px}
+
 /* ---- v63 · la carga masiva de artículos ---- */
 #ai_dz .di{font-size:34px;opacity:.6}
 .tabwrap table.dat th, .tabwrap table.dat td{white-space:nowrap}
 .tabwrap table.dat td:nth-child(3){white-space:normal;min-width:180px}
+/* ===================================================================
+   v67 · EL MOTIVO DEL RECHAZO ES UNA FRASE, NO UNA ETIQUETA
+   (lo midió el dueño el 29/10 con 127 filas en rojo)
+
+   Arriba, `table.dat td .chip{white-space:nowrap}` está bien para los
+   rótulos cortos de esta tabla —«se agrega», «ya está · no se toca»—,
+   que partidos en dos renglones quedarían feos. Pero el motivo de una
+   fila mala no es un rótulo: es una oración entera, del tipo «El costo
+   (28,60) es mayor que el precio (10,00): esa venta daría pérdida».
+   Sin poder partirse, la píldora se sale de su celda y se pinta ENCIMA
+   del nombre del artículo, que es la columna de al lado. Se leían las
+   dos frases superpuestas y no se entendía ninguna de las dos — justo
+   en la pantalla que existe para explicar qué está mal.
+
+   La columna ya sabía partir (el renglón de arriba); lo que faltaba era
+   dejar partir a la píldora de adentro. Se acota a la tabla de la vista
+   previa para no tocar los rótulos cortos del resto del sistema. */
+.tabwrap table.dat.prev td:nth-child(3) .chip{
+  white-space:normal; display:inline-block; max-width:340px;
+  line-height:1.45; border-radius:10px; padding:5px 10px; text-align:left}
 
 /* ---- v62 · lo que encontró la auditoría de interfaz ----------------------
 
@@ -2213,6 +2288,12 @@ function selBanco(id,val,extra,o){
    a un clic, en el logo de la barra. Se fija de verdad más abajo, cuando ya
    está leída la configuración: aquí todavía no existe DB. */
 let TAB='vta', SUB='dia', PREV=null, MTXT='', MFILE='', CSUB='vend', PSEL=null, TSUB='vueltos', RSUB='dia', CIERRE=null;
+/* v67 · Inventario: qué subpestaña está abierta, y qué se escribió en el
+   buscador. IQ, ICAT e IEST son lo que la persona TECLEÓ: no se guardan en
+   el documento ni viajan al servidor, porque una búsqueda no es un dato de
+   la tienda. Se pierden al recargar, y está bien que se pierdan. */
+let ISUB = 'consulta', IQ = '', ICAT = '', IEST = '', IATAJO = '',
+    IORD = 'nom', IASC = true, IABIERTA = null;
 let VTA=null;
 
 /* ==========================================================================
@@ -2431,8 +2512,18 @@ function cliListo(){
 /* ==========================================================================
    Render
    ========================================================================== */
-const TABS=[['vta','Ventas'],['tes','Tesorería'],['trib','Tributos'],['conta','Contabilidad'],
-            ['bd','Base de datos'],['cfg','Configuración'],['ger','Gerencial']];
+/* v67 · INVENTARIO ES UNA SECCIÓN, NO UN AJUSTE (lo pidió el dueño el 29/10).
+
+   Artículos y Categorías vivían en Configuración, que es donde se decide
+   CÓMO trabaja la tienda: las tarifas, los canales, los permisos. El
+   catálogo no es eso: es el trabajo de todos los días de quien repone,
+   marca precios y busca una pieza. Y para buscarla no había pantalla —lo
+   más parecido era la lista de Artículos, hecha para corregir una, no para
+   encontrar entre ciento cuarenta y dos—.
+
+   Así que salen de Configuración y entran aquí, con la consulta delante. */
+const TABS=[['vta','Ventas'],['inv','Inventario'],['tes','Tesorería'],['trib','Tributos'],
+            ['conta','Contabilidad'],['bd','Base de datos'],['cfg','Configuración'],['ger','Gerencial']];
 function pinta(){
   aplicaTema();
   pintaMarca();
@@ -2459,6 +2550,7 @@ function pinta(){
   $('#app').innerHTML =
       TAB==='tes'?vistaTes(): TAB==='trib'?vistaTrib(): TAB==='conta'?vistaCont()
     : TAB==='bd'?vistaBD(): TAB==='cfg'?vistaCfg(): TAB==='ger'?vistaGer()
+    : TAB==='inv'?vistaInv()
     : vistaVentas();
   barra();
   guardar();
@@ -3287,7 +3379,7 @@ function pasoArts(){
     if(faltaPrecio(p)){
       h+='<div style="flex:1 0 100%" class="ayuda"><b>No se puede vender hasta ponerle '
         +'el precio.</b> Está en Configuración · Artículos. '
-        +'<button class="b sm gh" data-goto="cfg|prod">Ponérselo</button></div></div>';
+        +'<button class="b sm gh" data-goto="inv|prod">Ponérselo</button></div></div>';
       return;
     }
     if(vs.length){
@@ -7244,7 +7336,9 @@ function vistaCfg(){
   let h='<h1>Configuración</h1>'
     +'<p class="sub">Todo lo que la caja ofrece se administra aquí. Cambie una tarifa o agregue un canal y aparece en la venta al instante.</p>'
     +'<div class="subtabs">'
-    +[['emp','Empresa'],['tasas','Tasas de cambio'],['marca','Logo y colores'],['prod','Artículos'],['cat','Categorías'],
+    /* v67 · Artículos y Categorías se fueron a Inventario. Lo que queda aquí
+       es lo que de verdad es un ajuste de cómo trabaja la tienda. */
+    +[['emp','Empresa'],['tasas','Tasas de cambio'],['marca','Logo y colores'],
       ['vend','Vendedores'],['rep','Repartidores'],['zonas','Tarifas de delivery'],['can','Canales'],['caj','Cajeras'],
       ['dev','Devoluciones']]
       /* La pestaña de usuarios sólo se le ofrece a quien el servidor dijo
@@ -7260,8 +7354,6 @@ function vistaCfg(){
   if(CSUB==='emp')   return h + cfgEmpresa();
   if(CSUB==='tasas') return h + vistaTasas();
   if(CSUB==='marca') return h + cfgMarca();
-  if(CSUB==='prod')  return h + cfgProd();
-  if(CSUB==='cat')   return h + cfgCat();
   if(CSUB==='dev')    return h + cfgDevol();
 
 
@@ -7485,6 +7577,35 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b)return;
   if(b.dataset.tab){TAB=b.dataset.tab;if(CIERRE)CIERRE.clave='';PSEL=null;pinta();window.scrollTo(0,0);return;}
   if(b.dataset.sub){SUB=b.dataset.sub;PREV=null;pinta();return;}
+  /* ---- Inventario (v67) ---- */
+  if(b.dataset.isub){
+    pbufOlvida(); ISUB = b.dataset.isub; PRED = null; IABIERTA = null;
+    pinta(); window.scrollTo(0, 0); return; }
+  if(b.dataset.iatajo){
+    /* el atajo y el selector de estado dicen lo mismo: encender uno apaga
+       el otro, para que no haya dos filtros peleando en pantalla */
+    IATAJO = (IATAJO === b.dataset.iatajo) ? '' : b.dataset.iatajo;
+    IEST = ''; IABIERTA = null; pinta(); return; }
+  if(b.dataset.iart){
+    IABIERTA = (IABIERTA === b.dataset.iart) ? null : b.dataset.iart;
+    pinta(); return; }
+  if(b.dataset.iord){
+    const o = b.dataset.iord;
+    if(IORD === o) IASC = !IASC;
+    else { IORD = o; IASC = (o === 'nom' || o === 'sku' || o === 'cat'); }
+    IABIERTA = null; pinta(); return; }
+  if(b.dataset.iedit){
+    /* de la consulta a la ficha del artículo, con la pieza ya abierta */
+    ISUB = 'prod'; PSUB = 'uno'; PRED = b.dataset.iedit;
+    /* `pvarDesde` deja la rejilla de tallas y la foto como las tiene la
+       pieza: es el mismo camino que usa el botón de modificar del catálogo. */
+    pbufOlvida(); pvarDesde(DB.productos.find(function(p){ return p.id === PRED; }) || null);
+    pinta(); window.scrollTo(0, 0); return; }
+  if(b.id === 'i_limpia'){
+    IQ = ICAT = IEST = IATAJO = ''; IABIERTA = null; pinta();
+    try{ const c = $('#iq'); if(c) c.focus(); }catch(e){}
+    return; }
+
   if(b.dataset.csub){
     pbufOlvida();CSUB=b.dataset.csub;
     /* Entrar a usuarios es PREGUNTARLE AL SERVIDOR, no leer el documento:
@@ -9814,9 +9935,9 @@ function pasos(){
     {ok: tasaDeHoyCargada(), t:'Tasa de cambio confirmada',
      d:'Sin una tasa confirmada no se puede cobrar en bolívares.', tab:'cfg', sub:'tasas'},
     {ok: DB.categorias.length > 0, t:'Categorías del catálogo',
-     d:'Un artículo no se puede guardar sin categoría.', tab:'cfg', sub:'cat'},
+     d:'Un artículo no se puede guardar sin categoría.', tab:'inv', sub:'cat'},
     {ok: DB.productos.filter(p=>p.activo!==false).length > 0, t:'Artículos y precios',
-     d:'Costo y precio de cada artículo. De ahí sale el margen y la comisión.', tab:'cfg', sub:'prod'},
+     d:'Costo y precio de cada artículo. De ahí sale el margen y la comisión.', tab:'inv', sub:'prod'},
     {ok: DB.cfg.cajeras.some(k=>k.activo), t:'Al menos una cajera activa',
      d:'Cada venta queda firmada por quien la cobró.', tab:'cfg', sub:'caj'},
     {ok: DB.cfg.canales.length > 0, t:'Canales de venta',
@@ -10132,18 +10253,258 @@ function margen(p){
     ? Math.round((p.precio - p.costo) / p.precio * 1000) / 10 : null;
 }
 
-function cfgProd(){
-  /* v63 · dos maneras de cargar el catálogo: una por una, o el archivo
-     completo. Se separan en pestañas para que quien viene a corregir un
-     precio no se tropiece con la carga masiva, y al revés. */
-  let hh = '<div class="subtabs sub2">'
-    + '<button data-psub="uno" class="'+(PSUB==='uno'?'on':'')+'">Uno por uno</button>'
-    + '<button data-psub="masiva" class="'+(PSUB==='masiva'?'on':'')+'">Carga masiva</button>'
+/* ==========================================================================
+   INVENTARIO · v67
+
+   Cuatro pestañas y un orden que no es casual: primero CONSULTAR, que es lo
+   que se hace cien veces al día, y después las tres que se hacen de vez en
+   cuando. Antes había que entrar a Configuración —el sitio de las tarifas y
+   los permisos— para mirar si quedaba una talla M.
+
+   Artículos y Carga masiva son la MISMA pantalla de siempre (`cfgProd`) en
+   sus dos modos; lo único que cambió es quién manda el modo: antes una fila
+   de botones dentro de la pantalla, ahora la pestaña de arriba. Dos barras
+   de pestañas, una debajo de la otra, para elegir lo mismo, era una de más.
+   ========================================================================== */
+function vistaInv(){
+  const PES = [['consulta','Consulta'], ['prod','Artículos'],
+               ['cat','Categorías'], ['masiva','Carga masiva']];
+  let h = '<h1>Inventario</h1>'
+    + '<p class="sub">Lo que hay en el estante, con su costo y su precio. '
+    + 'Busque una pieza por nombre o por código sin salir de aquí.</p>'
+    + '<div class="subtabs">'
+    + PES.map(s => '<button data-isub="' + s[0] + '" class="' + (ISUB === s[0] ? 'on' : '') + '">'
+        + s[1] + '</button>').join('')
     + '</div>';
-  if(PSUB === 'masiva') return hh + cfgProdMasiva();
+
+  if(ISUB === 'cat')    return h + cfgCat();
+  if(ISUB === 'prod')   { PSUB = 'uno';    return h + cfgProd(); }
+  if(ISUB === 'masiva') { PSUB = 'masiva'; return h + cfgProd(); }
+  return h + invConsulta();
+}
+
+/* --------------------------------------------------------------------------
+   LA CONSULTA
+
+   No escribe nada. Ni en el documento, ni en el servidor: es una lectura de
+   `DB.productos` y de lo que la persona tecleó. Por eso no lleva `guardar()`
+   en ninguna parte, y la batería lo exige.
+   -------------------------------------------------------------------------- */
+
+/* Sin acentos y sin mayúsculas, para que «pantalon» encuentre «Pantalón».
+   Quien busca en una caja a las siete de la mañana no pone tildes. */
+function invNorm(s){
+  return String(s == null ? '' : s).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/* El estado de una pieza, en los términos en los que la tienda pregunta. */
+function invCumple(p, est){
+  const e = exi(p), m = margen(p);
+  if(est === 'con')     return e > 0;
+  if(est === 'cero')    return e === 0;
+  if(est === 'sinpre')  return !(p.precio > 0);
+  if(est === 'sinfoto') return !p.foto;
+  if(est === 'margen')  return m !== null && m < 30;
+  if(est === 'baja')    return p.activo === false;
+  return true;
+}
+
+function invFiltradas(){
+  const q = invNorm(IQ).trim();
+  const est = IEST || IATAJO;
+  const out = (DB.productos || []).filter(function(p){
+    /* un artículo de baja no se enseña salvo que se pida: no se puede
+       vender y ensucia la cuenta de lo que hay */
+    if(est !== 'baja' && p.activo === false) return false;
+    if(q && !(invNorm(p.nom).indexOf(q) >= 0 || invNorm(p.sku).indexOf(q) >= 0)) return false;
+    if(ICAT && p.cat !== ICAT) return false;
+    if(est && !invCumple(p, est)) return false;
+    return true;
+  });
+  out.sort(function(x, y){
+    let a, b;
+    if(IORD === 'exi'){ a = exi(x); b = exi(y); }
+    else if(IORD === 'margen'){ const mx = margen(x), my = margen(y);
+      a = (mx === null ? -1 : mx); b = (my === null ? -1 : my); }
+    else if(IORD === 'costo' || IORD === 'precio'){ a = +x[IORD] || 0; b = +y[IORD] || 0; }
+    else { a = invNorm(x[IORD]); b = invNorm(y[IORD]); }
+    if(a < b) return IASC ? -1 : 1;
+    if(a > b) return IASC ? 1 : -1;
+    return 0;
+  });
+  return out;
+}
+
+function invCuenta(est){
+  return (DB.productos || []).filter(function(p){
+    if(est !== 'baja' && p.activo === false) return false;
+    return invCumple(p, est);
+  }).length;
+}
+
+function invCifra(r, v){
+  return '<div class="cif"><div class="r">' + esc(r) + '</div><div class="v">' + v + '</div></div>';
+}
+function invDato(r, v){
+  return '<div class="dcel"><div class="r">' + esc(r) + '</div><div class="v">' + v + '</div></div>';
+}
+
+function invConsulta(){
+  const lista = invFiltradas();
+  const uds   = lista.reduce(function(t, p){ return t + exi(p); }, 0);
+  const cost  = lista.reduce(function(t, p){ return t + exi(p) * (+p.costo || 0); }, 0);
+  const vent  = lista.reduce(function(t, p){ return t + exi(p) * (+p.precio || 0); }, 0);
+  const mm    = lista.map(margen).filter(function(m){ return m !== null; });
+  const marg  = mm.length ? mm.reduce(function(t, m){ return t + m; }, 0) / mm.length : null;
+
+  let h = '<div class="cifras">'
+    + invCifra('Artículos', String(lista.length))
+    + invCifra('Unidades', (uds).toLocaleString('es-VE'))
+    + invCifra('Al costo', 'USD ' + fN(cost, 0))
+    + invCifra('A precio de venta', 'USD ' + fN(vent, 0))
+    + invCifra('Margen medio', marg === null ? '—' : fN(marg, 1) + ' %')
+    + '</div>';
+
+  /* ---- el buscador ---- */
+  const cats = (DB.categorias || []).slice().sort();
+  h += '<div class="card"><div class="fila">'
+    + '<div style="flex:3 1 320px;min-width:0"><label class="f" for="iq">Nombre o código</label>'
+    + '<input id="iq" type="search" value="' + esc(IQ) + '" autocomplete="off" maxlength="60" '
+    + 'placeholder="Escriba parte del nombre o el código"></div>'
+    + '<div style="flex:1 1 180px;min-width:0"><label class="f" for="icat">Categoría</label>'
+    + '<select id="icat"><option value="">Todas</option>'
+    + cats.map(function(c){ return '<option' + (ICAT === c ? ' selected' : '') + '>'
+        + esc(c) + '</option>'; }).join('')
+    + '</select></div>'
+    + '<div style="flex:1 1 180px;min-width:0"><label class="f" for="iest">Estado</label>'
+    + '<select id="iest">'
+    + [['','Todo'],['con','Con existencia'],['cero','Agotados'],['sinpre','Sin precio'],
+       ['sinfoto','Sin foto'],['baja','De baja']]
+        .map(function(o){ return '<option value="' + o[0] + '"' + (IEST === o[0] ? ' selected' : '')
+          + '>' + o[1] + '</option>'; }).join('')
+    + '</select></div>'
+    + '<button class="b gh" id="i_limpia">Limpiar</button>'
+    + '</div>';
+
+  const ATAJOS = [['sinpre','Sin precio'], ['sinfoto','Sin foto'], ['cero','Agotados'],
+                  ['margen','Margen bajo 30 %'], ['baja','De baja']];
+  h += '<div class="iatajos"><span class="mini">Atajos:</span>'
+    + ATAJOS.map(function(a){
+        return '<button class="chip at' + (IATAJO === a[0] ? ' on' : '') + '" data-iatajo="'
+          + a[0] + '">' + a[1] + ' · ' + invCuenta(a[0]) + '</button>'; }).join('')
+    + '</div></div>';
+
+  /* ---- la tabla ---- */
+  const nv = lista.reduce(function(t, p){ return t + vars(p).length; }, 0);
+  const ROT = {sku:'código', nom:'nombre', cat:'categoría', exi:'existencia',
+               costo:'costo', precio:'precio', margen:'margen'};
+  h += '<div class="card">'
+    + '<div class="icab"><h2>' + (lista.length === 0 ? 'Sin resultados'
+        : lista.length + (lista.length === 1 ? ' artículo · ' : ' artículos · ')
+          + nv + (nv === 1 ? ' variante' : ' variantes')) + '</h2>'
+    + '<span class="mini">Ordenado por ' + ROT[IORD] + (IASC ? ' ↑' : ' ↓') + '</span></div>';
+
+  if(!lista.length){
+    h += '<div class="ivacio"><b>No hay ninguna pieza que cumpla</b>'
+      + 'Pruebe con menos letras, o quite el filtro de categoría o de estado.</div></div>';
+    return h;
+  }
+
+  /* El encabezado que ordena es un BOTÓN de verdad dentro del `th`: con un
+     `th` a secas el teclado no llega, y ordenar una tabla con el teclado es
+     justo lo que hace quien no usa el ratón. */
+  const th = function(k, rot, num){
+    return '<th class="ord' + (num ? ' n' : '') + '">'
+      + '<button class="thord" data-iord="' + k + '" aria-label="Ordenar por ' + rot + '">'
+      + rot + '<span class="fl">' + (IORD === k ? (IASC ? '▲' : '▼') : '') + '</span></button></th>';
+  };
+  h += '<div class="tabwrap"><table class="dat inv"><thead><tr>'
+    + th('sku', 'Código') + th('nom', 'Artículo') + th('cat', 'Categoría')
+    + '<th>Variantes</th>'
+    + th('exi', 'Exist.', 1) + th('costo', 'Costo', 1) + th('precio', 'Precio', 1)
+    + th('margen', 'Margen', 1)
+    + '</tr></thead><tbody>';
+
+  lista.forEach(function(p){
+    const e = exi(p), m = margen(p), ab = (IABIERTA === p.id);
+    const vs = vars(p);
+    const res = vs.slice(0, 2).map(function(v){ return nombreVar(v.t, v.c) || 'único'; }).join(' · ')
+              + (vs.length > 2 ? ' +' + (vs.length - 2) : '');
+    /* el `tr` lleva `data-fila`, NO `data-iart`: con los dos marcados igual,
+       `querySelector('[data-iart]')` cae en el renglón —que no es un botón y
+       no abre nada— en vez de en el botón que sí abre. Lo cazó la batería. */
+    h += '<tr class="iart' + (ab ? ' abierta' : '') + '" data-fila="' + esc(p.id) + '">'
+      + '<td><b>' + esc(p.sku || '—') + '</b></td>'
+      /* Abrir la ficha es un botón, no un `tr` con un manejador encima: con
+         el `tr` el teclado pasa de largo y la pieza no se puede abrir sin
+         ratón. El botón se dibuja como el renglón entero. */
+      + '<td><button class="iabre" data-iart="' + esc(p.id) + '" aria-expanded="'
+        + (ab ? 'true' : 'false') + '"><span class="ico">' + icoSeguro(p) + '</span><span>'
+        + esc(p.nom)
+        + (p.foto ? '' : ' <span class="chip avi">falta foto</span>')
+        + (p.activo === false ? ' <span class="chip">de baja</span>' : '')
+        + '</span></button></td>'
+      + '<td class="mini">' + esc(p.cat || '—') + '</td>'
+      + '<td class="mini">' + esc(res) + '</td>'
+      + '<td class="n">' + (e === 0 ? '<span class="chip mal">0</span>' : e) + '</td>'
+      + '<td class="n">' + fN(p.costo || 0) + '</td>'
+      + '<td class="n">' + (p.precio > 0 ? '<b>' + fN(p.precio) + '</b>'
+                                         : '<span class="chip avi">falta</span>') + '</td>'
+      + '<td class="n' + (m === null ? '' : (m < 30 ? ' rj' : ' vd')) + '">'
+        + (m === null ? '—' : fN(m, 1) + ' %') + '</td>'
+      + '</tr>';
+    if(ab) h += invFicha(p, e, m, vs);
+  });
+  h += '</tbody></table></div>'
+    + '<div class="ipie"><span class="mini">Toque una fila para ver la foto de la pieza, '
+    + 'sus variantes y lo que vale.</span></div></div>';
+  return h;
+}
+
+/* La ficha que se abre al tocar una fila.
+
+   LA FOTO VA PRIMERA Y EN GRANDE, y no es un adorno: quien abre una ficha de
+   inventario casi siempre está comprobando que la pieza del estante es la de
+   la pantalla, y eso se hace mirando, no leyendo el código. Cuando falta, se
+   dice en el sitio donde estorba, con el botón para ponerla al lado. */
+function invFicha(p, e, m, vs){
+  const foto = fotoSegura(p.foto);
+  let h = '<tr class="ivars"><td colspan="8"><div class="idet">'
+    + '<div class="ifotocol">'
+    + (foto ? '<div class="ifoto"><img src="' + esc(foto) + '" alt="' + esc(p.nom) + '"></div>'
+            : '<div class="ifoto sin"><div><div class="g">' + icoSeguro(p) + '</div>'
+              + '<div class="t">Esta pieza no tiene foto</div></div></div>')
+    + '<button class="b sm gh" data-iedit="' + esc(p.id) + '">'
+    + (foto ? 'Cambiar la foto' : 'Cargar una foto') + '</button>'
+    + '<button class="b sm gh" data-iedit="' + esc(p.id) + '">Modificar el artículo</button>'
+    + '</div><div class="idatos"><div class="dgrid">'
+    + invDato('Existencia', String(e))
+    + invDato('Al costo', fN(e * (+p.costo || 0)))
+    + invDato('A precio', p.precio > 0 ? fN(e * p.precio) : '—')
+    + invDato('Margen', m === null ? '—' : fN(m, 1) + ' %')
+    + invDato('Variantes', String(vs.length))
+    + '</div><table class="dat vtab"><thead><tr><th>Variante</th>'
+    + '<th class="n">Existencia</th><th class="n">Al costo</th><th class="n">A precio</th>'
+    + '</tr></thead><tbody>';
+  vs.forEach(function(v){
+    const u = Math.max(0, +v.e || 0);
+    h += '<tr><td>' + esc(nombreVar(v.t, v.c) || 'único') + '</td>'
+      + '<td class="n">' + (u === 0 ? '<span class="chip mal">0</span>' : u) + '</td>'
+      + '<td class="n">' + fN(u * (+p.costo || 0)) + '</td>'
+      + '<td class="n">' + (p.precio > 0 ? fN(u * p.precio) : '—') + '</td></tr>';
+  });
+  return h + '</tbody></table></div></div></td></tr>';
+}
+
+function cfgProd(){
+  /* v67 · El modo lo manda la pestaña de Inventario, no una segunda fila de
+     botones dentro de esta pantalla. `PSUB` se queda porque lo lee la carga
+     masiva y lo escriben varios sitios; lo que se fue es la barra repetida. */
+  if(PSUB === 'masiva') return cfgProdMasiva();
 
   const ed = PRED ? DB.productos.find(p=>p.id===PRED) : null;
-  let h = hh + '<div class="card'+(ed?' editando':'')+'"><h2>'+(ed?'Modificar «'+esc(ed.nom)+'»':'Agregar artículo')+'</h2>'
+  let h = '<div class="card'+(ed?' editando':'')+'"><h2>'+(ed?'Modificar «'+esc(ed.nom)+'»':'Agregar artículo')+'</h2>'
     + '<p class="cap">El costo no sale en ningún recibo: sirve para el margen y para calcular la comisión del vendedor.</p>'
     + '<div class="fila">'
     + '<div><label class="f">Código</label><input id="np_sku" value="'+esc(pbufVal('sku', ed?ed.sku:''))+'" placeholder="Escriba el código" maxlength="16"></div>'
@@ -11180,7 +11541,14 @@ function irAcfg(tab, sub){
   const viejo = {caja:['vta','ing'], dev:['vta','dev'], rep:['vta','rep'],
                  correos:['bd','cli'], tasas:['cfg','tasas'], accion:['tes','acc']};
   if(viejo[tab]){ sub = sub || viejo[tab][1]; tab = viejo[tab][0]; }
+  /* v67 · Artículos y Categorías se mudaron a Inventario. Un enlace viejo a
+     `cfg|prod` sigue llevando a donde la persona quería ir, que es lo que un
+     enlace tiene que hacer aunque la casa se reordene. */
+  if(tab === 'cfg' && (sub === 'prod' || sub === 'cat')){
+    tab = 'inv'; ISUB = sub;
+  }
   TAB = tab;
+  if(tab==='inv'  && sub) ISUB = sub;
   if(tab==='vta'  && sub){ if(['dia','vtas','est'].indexOf(sub)>=0){ VSUB='rep'; RSUB=sub; } else VSUB = sub; }
   if(tab==='cfg'  && sub) CSUB = sub;
   if(tab==='tes'  && sub) TSUB = sub;
@@ -11530,7 +11898,32 @@ document.addEventListener('click', async e=>{
   if(b.id === 'rs_limpia'){ vaciaMovimientos(); return; }
 });
 
+/* ==========================================================================
+   EL BUSCADOR DEL INVENTARIO  (v67)
+
+   `pinta()` reescribe la pantalla entera en cada tecla, así que el campo que
+   se está escribiendo DESAPARECE y vuelve a nacer: sin devolverle el foco y
+   el cursor, la segunda letra se pierde y la persona escribe «p» cinco veces
+   sin entender por qué. Se guarda dónde estaba el cursor y se repone.
+   ========================================================================== */
+document.addEventListener('input', function(e){
+  if(e.target.id !== 'iq') return;
+  IQ = e.target.value;
+  IABIERTA = null;
+  let pos = null;
+  try{ pos = e.target.selectionStart; }catch(x){}
+  pinta();
+  try{
+    const c = $('#iq');
+    if(c){ c.focus(); if(pos !== null) c.setSelectionRange(pos, pos); }
+  }catch(x){}
+});
+
 document.addEventListener('change', e=>{
+  if(e.target.id === 'icat'){ ICAT = e.target.value; IABIERTA = null; pinta(); return; }
+  if(e.target.id === 'iest'){
+    /* el estado y el atajo son el mismo filtro por dos caminos */
+    IEST = e.target.value; IATAJO = ''; IABIERTA = null; pinta(); return; }
   if(e.target.id === 'mk_arch'){
     const f = e.target.files && e.target.files[0]; if(!f) return;
     leeLogo(f, function(dataUrl, pal, bg, barra){
