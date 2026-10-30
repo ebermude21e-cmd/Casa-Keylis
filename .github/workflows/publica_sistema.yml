@@ -1,0 +1,224 @@
+name: publicar la tienda
+
+# ===========================================================================
+# COPIA LA PANTALLA CERTIFICADA DE `core/` A `sistema/`.
+#
+# Desde el 29/10/2026 hay dos ambientes de verdad y cada uno tiene su camino
+# dentro de este mismo sitio:
+#
+#   casakeylis.com/core/      la pantalla contra el nucleo · base de CALIDAD
+#   casakeylis.com/sistema/   la tienda                     · base de PRODUCCION
+#
+# El archivo es EL MISMO. No hay una version «de produccion» y otra «de
+# calidad»: `app.html` mira en que camino esta y elige servidor solo. Un
+# archivo por ambiente se separa con el tiempo y entonces nadie sabe cual de
+# los dos se probo.
+#
+# Por eso publicar la tienda no es editar nada: es COPIAR lo que ya esta
+# certificado en `core/`. Y no corre solo nunca — solo cuando el dueno lo
+# pide y escribe la frase. Es la regla de siempre: nunca se escribe en
+# produccion, se compila a produccion cuando el dueno lo pide.
+#
+# ---------------------------------------------------------------------------
+# LO QUE ESTE FLUJO COMPRUEBA ANTES DE COPIAR
+#
+# El detector de ambiente de `app.html` manda a CALIDAD tres cosas —el
+# subdominio `pruebas.`, el camino `/calidad/` y el camino `/core/`— y
+# TODO LO DEMAS CAE EN LA TIENDA POR DESCARTE. Eso significa que:
+#
+#   · si alguien anade `/sistema/` a esa lista, la tienda empieza a escribir
+#     en la base de pruebas y las ventas del dia no existen;
+#   · si alguien quita `/core/` de esa lista, la pantalla de certificacion
+#     empieza a escribir en los libros del negocio.
+#
+# Las dos cosas se miran aqui, sobre el archivo que se va a copiar, y
+# cualquiera de las dos detiene la publicacion. Tambien se comprueba que el
+# servidor de la tienda sea el proyecto de produccion y no otro: el ref esta
+# escrito a mano en `app.html` y una letra cambiada no la ve nadie.
+#
+# Lo que este flujo NO mide, y hay que decirlo: que `core/app.html` sea la
+# version que las 262 comprobaciones dieron por buena. Eso lo mide el flujo
+# `la pantalla` del repositorio del nucleo, contra lo PUBLICADO. Se mira ese
+# verde antes de pulsar aqui.
+# ===========================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmacion:
+        description: 'Escriba exactamente:  si, publicar la tienda'
+        required: true
+        default: ''
+        type: string
+
+jobs:
+  publicar:
+    name: copiar core a sistema
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      REF_PRODUCCION: lbjpejudcixxkigztbib
+      REF_CALIDAD: itotudruqzgupvybvdnj
+
+    steps:
+      - name: traer el repositorio
+        uses: actions/checkout@v4
+
+      - name: comprobar la confirmacion
+        run: |
+          if [ "${{ inputs.confirmacion }}" != "si, publicar la tienda" ]; then
+            echo "Para publicar hay que escribir exactamente:"
+            echo "    si, publicar la tienda"
+            echo "No se copio nada."
+            exit 1
+          fi
+
+      - name: que exista lo que se va a copiar
+        run: |
+          test -f core/app.html || { echo "FALTA core/app.html"; exit 1; }
+          test -f core/supabase.js || { echo "FALTA core/supabase.js"; exit 1; }
+          test -f core/core_puente.js || { echo "FALTA core/core_puente.js"; exit 1; }
+          test -f core/core_transporte.js || { echo "FALTA core/core_transporte.js"; exit 1; }
+          test -f core/index.html || { echo "FALTA core/index.html"; exit 1; }
+          echo "los cinco archivos de la pantalla estan"
+
+      # ---------------------------------------------------------------- 1 --
+      # El detector: `/sistema/` NO puede estar en la lista de calidad, y
+      # `/calidad/` y `/core/` SI tienen que seguir estando.
+      - name: recortar el bloque que de verdad elige servidor
+        run: |
+          # Se mira SOLO el trozo de `window.NUBE` que detecta el ambiente y
+          # declara los dos servidores. Buscar en el archivo entero daria rojo
+          # el dia que un comentario cualquiera escriba «/sistema/», y un rojo
+          # que no significa nada es peor que no tener comprobacion.
+          awk '/window\.NUBE = \(function\(\)\{/,/const RIF_PRODUCCION/' core/app.html > /tmp/nube.txt
+          renglones=$(wc -l < /tmp/nube.txt)
+          echo "el bloque tiene $renglones renglones"
+          if [ "$renglones" -lt 10 ] || [ "$renglones" -gt 120 ]; then
+            echo "ROJO · no reconozco el bloque de window.NUBE (salieron $renglones renglones)."
+            echo "       Si el archivo se reestructuro, esta comprobacion dejo de"
+            echo "       medir lo que dice medir. No se publica a ciegas."
+            exit 1
+          fi
+
+      - name: el detector de ambiente manda la tienda a la tienda
+        run: |
+          fallos=0
+          if grep -q "'/sistema/'" /tmp/nube.txt; then
+            echo "ROJO · el detector NOMBRA /sistema/."
+            echo "       Si /sistema/ entra en la lista de calidad, la tienda"
+            echo "       escribe en la base de pruebas y las ventas del dia"
+            echo "       no existen. Revise el detector de window.NUBE."
+            fallos=$((fallos+1))
+          else
+            echo "bien · /sistema/ no esta nombrado: cae en la tienda por descarte"
+          fi
+          for camino in "/calidad/" "/core/"; do
+            if grep -q "'$camino'" /tmp/nube.txt; then
+              echo "bien · $camino sigue mandando a calidad"
+            else
+              echo "ROJO · $camino YA NO esta en el detector."
+              echo "       Esa pantalla pasaria a escribir en los libros del negocio."
+              fallos=$((fallos+1))
+            fi
+          done
+          [ "$fallos" = "0" ] || exit 1
+
+      # ---------------------------------------------------------------- 2 --
+      # Los dos servidores, cada uno el suyo. El ref va escrito a mano en el
+      # archivo y una letra cambiada no la ve nadie leyendo.
+      - name: cada ambiente con su servidor
+        run: |
+          fallos=0
+          # SRV_TIENDA tiene que ser el de produccion Y SRV_CALIDAD el de
+          # calidad: que los dos refs esten en el bloque no dice nada si estan
+          # cruzados. Se lee cada uno pegado a su rotulo.
+          tienda=$(awk '/const SRV_TIENDA/,/\}/' /tmp/nube.txt | grep -o '[a-z]\{20\}\.supabase\.co' | head -1)
+          calidad=$(awk '/const SRV_CALIDAD/,/\}/' /tmp/nube.txt | grep -o '[a-z]\{20\}\.supabase\.co' | head -1)
+          echo "SRV_TIENDA  -> ${tienda:-(no lo encontre)}"
+          echo "SRV_CALIDAD -> ${calidad:-(no lo encontre)}"
+          if [ "$tienda" = "$REF_PRODUCCION.supabase.co" ]; then
+            echo "bien · la tienda apunta a produccion"
+          else
+            echo "ROJO · SRV_TIENDA no es el proyecto de produccion ($REF_PRODUCCION)."
+            fallos=$((fallos+1))
+          fi
+          if [ "$calidad" = "$REF_CALIDAD.supabase.co" ]; then
+            echo "bien · calidad apunta a calidad"
+          else
+            echo "ROJO · SRV_CALIDAD no es el proyecto de calidad ($REF_CALIDAD)."
+            fallos=$((fallos+1))
+          fi
+          # El proyecto jubilado el 29/10. Si reaparece COMO SERVIDOR, alguien
+          # revirtio algo.
+          #
+          # Esto mira los dos VALORES que acaban de extraerse, no el texto del
+          # bloque. Buscar la cadena a pelo daba rojo por el comentario que
+          # explica precisamente por que ese proyecto se jubilo —el parrafo
+          # que explica el arreglo contiene el texto del arreglo, que es la
+          # misma trampa que ya costo tres comprobaciones en `prosrc`—.
+          for v in "$tienda" "$calidad"; do
+            case "$v" in
+              wqvvanakdbkgrfmlvvrh.*)
+                echo "ROJO · un ambiente apunta a wqvvanakdbkgrfmlvvrh."
+                echo "       Ese proyecto se jubilo el 29/10/2026 y esta pausado:"
+                echo "       una tienda apuntando ahi no vende."
+                fallos=$((fallos+1)) ;;
+            esac
+          done
+          [ "$fallos" = "0" ] || exit 1
+
+      - name: copiar
+        run: |
+          mkdir -p sistema
+          rsync -a --delete core/ sistema/
+          echo ""
+          echo "esto quedo en sistema/:"
+          ls -la sistema/
+
+      # La copia tiene que ser copia. `rsync` ya lo garantiza, pero el dia que
+      # alguien meta aqui una sustitucion «solo para produccion», esto lo canta.
+      - name: la copia es identica al original
+        run: |
+          if diff -r core sistema > /tmp/dif.txt; then
+            echo "bien · sistema/ es byte a byte lo mismo que core/"
+          else
+            echo "ROJO · la copia no quedo identica:"
+            cat /tmp/dif.txt
+            exit 1
+          fi
+
+      - name: subir el cambio
+        run: |
+          git config user.name  "publicar la tienda"
+          git config user.email "actions@github.com"
+          git add -A sistema
+          if git diff --cached --quiet; then
+            echo "SIN CAMBIOS · sistema/ ya era igual a core/. No se commiteo nada."
+            echo "SIN_CAMBIOS=si" >> "$GITHUB_ENV"
+          else
+            git commit -m "publicar la tienda: core -> sistema"
+            git push
+            echo "SIN_CAMBIOS=no" >> "$GITHUB_ENV"
+          fi
+
+      - name: resumen
+        if: always()
+        run: |
+          {
+            echo "### Publicar la tienda · $(date -u +%Y-%m-%d\ %H:%M) UTC"
+            echo ""
+            echo "- origen: \`core/\` (pantalla certificada · base de CALIDAD)"
+            echo "- destino: \`sistema/\` → **casakeylis.com/sistema/** (base de PRODUCCION)"
+            echo "- servidor de la tienda: \`$REF_PRODUCCION\`"
+            echo ""
+            if [ "${SIN_CAMBIOS:-}" = "si" ]; then
+              echo "**No habia nada que publicar**: la tienda ya tenia esta pantalla."
+            elif [ "${SIN_CAMBIOS:-}" = "no" ]; then
+              echo "**Publicado.** GitHub Pages tarda un minuto o dos en servirlo."
+            else
+              echo "**No se publico**: alguna comprobacion se planto. Mire los pasos de arriba."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
