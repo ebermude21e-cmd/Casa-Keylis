@@ -2585,16 +2585,27 @@ const ICO = {
   conta:'<path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17Z"/><path d="M17 7h2v12.5"/><path d="M8 8.5h6M8 11.5h6M8 14.5h4"/>',
   bd:'<circle cx="9.5" cy="8.5" r="3"/><path d="M3.5 19.5c0-3 2.7-4.8 6-4.8s6 1.8 6 4.8"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M17.5 15.2c1.9.6 3 2 3 4.3"/>',
   cfg:'<path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.2"/><circle cx="8" cy="16" r="2.2"/>',
-  ger:'<path d="M4 19.5V13M9.3 19.5V8M14.7 19.5v-6M20 19.5V5"/>'
+  ger:'<path d="M4 19.5V13M9.3 19.5V8M14.7 19.5v-6M20 19.5V5"/>',
+  /* v68 · la etiqueta colgando de la percha: es el catálogo, no un almacén */
+  inv:'<path d="M20.5 13.8 13.8 20.5a1.7 1.7 0 0 1-2.4 0l-7.9-7.9V4.5a1 1 0 0 1 1-1h8.1l7.9 7.9a1.7 1.7 0 0 1 0 2.4Z"/><circle cx="8.2" cy="8.2" r="1.6"/>'
 };
 
+/* EL MOSAICO DEL INICIO Y LA BARRA DE ARRIBA SON LA MISMA LISTA, Y EL 29/10
+   DEJARON DE SERLO. Ese día Inventario entró en `TABS` —la barra— y nadie lo
+   metió aquí: el dueño abrió la tienda el 30/10 y en la pantalla de inicio
+   había siete tarjetas, sin Inventario, mientras la barra de arriba lo
+   enseñaba. Dos listas escritas a mano que dicen lo mismo se desincronizan;
+   por eso abajo hay una comprobación que las obliga a cuadrar.
+   Y de paso: Configuración ya no guarda los artículos —se mudaron el 29/10—,
+   así que su descripción mentía. */
 const HOME_MOD = [
   ['vta',  'Ventas',        'Registrar una venta, devolver, anular y ver los reportes del día.'],
+  ['inv',  'Inventario',    'Buscar una pieza, el catálogo, las categorías y la carga masiva.'],
   ['tes',  'Tesorería',     'Vueltos, pagos al personal, cuenta del accionista y cierre de caja.'],
   ['trib', 'Tributos',      'Libro de ventas del SENIAT, ingresos brutos y configuración de impuestos.'],
   ['conta','Contabilidad',  'Plan de cuentas, modelos de asiento y los libros contables.'],
   ['bd',   'Base de datos', 'Los clientes de la tienda y sus datos de contacto.'],
-  ['cfg',  'Configuración', 'Tasas, artículos, personal, tarifas y la identidad de la empresa.'],
+  ['cfg',  'Configuración', 'Tasas, personal, tarifas, permisos y la identidad de la empresa.'],
   ['ger',  'Gerencial',     'Estado del sistema, seguridad, auditoría y respaldos.']
 ];
 
@@ -2616,6 +2627,17 @@ function homePend(k){
     if(l) p.push(l + (l === 1 ? ' cuenta contable por configurar' : ' cuentas contables por configurar'));
     const o = OPS.filter(x=>!ctaDe(x.k)).length;
     if(o) p.push(o + (o === 1 ? ' operación sin cuenta' : ' operaciones sin cuenta'));
+  }
+  /* v68 · El catálogo vacío no es un detalle de configuración: sin artículos
+     no hay nada que vender, y en una tienda recién abierta es lo primero que
+     falta. Se enciende la campana de Inventario, que es donde se arregla. */
+  if(k === 'inv'){
+    const n = (DB.productos || []).length;
+    if(!n) p.push('El catálogo está vacío');
+    else {
+      const sp = DB.productos.filter(x=>!(+x.precio > 0)).length;
+      if(sp) p.push(sp + (sp === 1 ? ' artículo sin precio' : ' artículos sin precio'));
+    }
   }
   if(k === 'cfg'){
     if(faltaTasaHoy()) p.push('Actualizar la tasa de cambio');
