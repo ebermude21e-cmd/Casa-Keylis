@@ -84,6 +84,42 @@ jobs:
           test -f core/index.html || { echo "FALTA core/index.html"; exit 1; }
           echo "los cinco archivos de la pantalla estan"
 
+      # ------------------------------------------------------------- 0b --
+      # LA PUERTA NO PUEDE LLEVAR UN SERVIDOR DENTRO.
+      #
+      # Medido el 2/11/2026: `core/index.html` eran 7 KB con su propio
+      # formulario de inicio, el conector de Supabase y la llave del
+      # proyecto escrita a mano. Este flujo copia `core/` entero con
+      # `rsync`, asi que la llave de CALIDAD viajaba tal cual a `sistema/`:
+      # `casakeylis.com/sistema/` —la direccion que se le da a una cajera—
+      # le hablaba al banco de pruebas. Las comprobaciones de aqui abajo
+      # miran el bloque `window.NUBE` de `app.html` y nada mas; este
+      # archivo paso por debajo de todas durante semanas.
+      #
+      # Se mira SIN COMENTARIOS: ese archivo explica dentro cual era el
+      # defecto, y el parrafo que lo cuenta contiene las palabras que esto
+      # busca. Es TST-10 otra vez.
+      - name: la puerta no lleva ningun servidor dentro
+        run: |
+          set -uo pipefail
+          limpio=$(perl -0777 -pe 's/<!--.*?-->//gs; s{/\*.*?\*/}{}gs' core/index.html)
+          rojo=0
+          for aguja in 'supabase.co' 'sb_publishable_' '<form' '<input'; do
+            if printf '%s' "$limpio" | grep -qi -- "$aguja"; then
+              echo "  ROJO   core/index.html contiene «$aguja»"
+              rojo=1
+            else
+              echo "  ok     core/index.html no contiene «$aguja»"
+            fi
+          done
+          if [ "$rojo" != "0" ]; then
+            echo
+            echo "La puerta publicada volvio a llevar un servidor o un formulario dentro."
+            echo "Si lleva una llave, el rsync la copia a sistema/ y la tienda termina"
+            echo "hablando con el ambiente equivocado. La puerta solo lleva a app.html."
+            exit 1
+          fi
+
       # ---------------------------------------------------------------- 1 --
       # El detector: `/sistema/` NO puede estar en la lista de calidad, y
       # `/calidad/` y `/core/` SI tienen que seguir estando.
