@@ -7683,9 +7683,7 @@ document.addEventListener('click',e=>{
       + (f===hoy ? ' · CONFÍRMELA abajo: hasta entonces la caja no puede cobrar en bolívares.'
                  : ' · confírmela abajo.'), f===hoy);
     pinta();return;}
-  if(b.dataset.conf){const x=DB.tasas.find(t=>t.fecha===b.dataset.conf);
-    if(x){x.estado='confirmada';bitacora('tasas','Tasa confirmada',fFecha(x.fecha)+' · Bs '+fN(x.bcv,2));aviso('Confirmada.');}
-    pinta();return;}
+  if(b.dataset.conf){ confirmaTasaCuerpo(b.dataset.conf); return; }
   if(b.id==='m_ej'){MTXT=[fFecha(dHoy(0))+'\t857,55\t912,30',
       fFecha(dHoy(3))+'\t851,10\t905,00', fFecha(dHoy(4))+'\t848,72',
       fFecha(dHoy(6))+'\t842,90\t894,00', fFecha(dHoy(7))+'\t840,15\t891,20',
@@ -13405,6 +13403,85 @@ async function registraReintegroCuerpo(){
    ninguna parte. `core.anota_correo` comprueba que la venta y la clienta
    existan, lo guarda y lo asienta.
    ========================================================================== */
+/* ==========================================================================
+   CONFIRMAR LA TASA  (042 · PAN-62, medido el 2/11/2026)
+
+   LO QUE HABÍA AQUÍ, Y LO ENCONTRÓ EL DUEÑO USÁNDOLO:
+
+     if(b.dataset.conf){ const x = DB.tasas.find(...);
+       if(x){ x.estado='confirmada'; bitacora(...); aviso('Confirmada.'); }
+       pinta(); return; }
+
+   Cambiaba el estado en el documento del NAVEGADOR, escribía un renglón de
+   bitácora que nunca subía y le decía a la persona «Confirmada.». Al
+   servidor no le llegaba nada: en la siguiente sincronización volvía la
+   verdad —«por confirmar»— y lo borraba. Era la OCTAVA operación que
+   escribía en local; las otras siete se cerraron en el Sprint 4.
+
+   Y no era sólo la pantalla: NO EXISTÍA PUERTA. La 042 la abrió —
+   `sicom_confirma_tasa`, que recibe sólo la fecha porque confirmar no es
+   fijar el número— y aquí se la llama.
+
+   Lo que costaba, medido en producción el 2/11: `sicom.fija_tasa` deja sin
+   confirmar la primera tasa de una base, la de mañana se compara contra la
+   última CONFIRMADA, y como nunca llegaba a haber ninguna, una instalación
+   nueva se quedaba sin poder facturar en bolívares para siempre.
+   ========================================================================== */
+let CONFIRMANDO_TASA = false;
+async function confirmaTasa(fecha){
+  /* DOS CLICS NO CONFIRMAN DOS VECES. El servidor además es idempotente
+     —la segunda llamada devuelve `cambio:false`— pero el cerrojo evita la
+     segunda lectura entera del documento, que es la llamada más pesada. */
+  if(CONFIRMANDO_TASA) return;
+  CONFIRMANDO_TASA = true;
+  try{ return await confirmaTasaCuerpoReal(fecha); }
+  finally{ CONFIRMANDO_TASA = false; }
+}
+/* El despachador de clics llama a ésta; se separa para que la batería pueda
+   medir el cuerpo sin pasar por el cerrojo cuando lo que mide es otra cosa. */
+function confirmaTasaCuerpo(fecha){ return confirmaTasa(fecha); }
+
+async function confirmaTasaCuerpoReal(fecha){
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  const x = DB.tasas.find(t => t.fecha === fecha);
+  if(!x) return aviso('Esa tasa ya no está en pantalla. Vuelva a entrar a Tasas.', true);
+  if(x.estado === 'confirmada') return aviso('Esa tasa ya estaba confirmada.');
+
+  /* SIN SERVIDOR NO SE CONFIRMA NADA, y se dice. Confirmar en local era
+     exactamente el defecto: la caja se destrancaba en la pantalla y seguía
+     trancada en el servidor. */
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'La tasa la confirma el servidor. Sin conexión no se puede: espere a que '
+      + 'vuelva. <b>Nada se ha tocado.</b>');
+
+  try{
+    await NUBE.confirmaTasa(fecha);
+  }catch(e){
+    /* SE RELEE ANTES DE DECIR NADA (PAN-36). La tasa pudo haber quedado
+       confirmada y la respuesta perderse: afirmar que no cambió nada sería
+       la mentira que esta casa le quitó a la venta, a la anulación y a la
+       devolución. */
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const m = mensajeDelServidor(e, 'confirma_tasa');
+    pinta();
+    if(m) return decision('La tasa NO quedó confirmada', esc(m)
+      + ' <b>No se tocó nada.</b>');
+    return decision('NO SE SABE si la tasa quedó confirmada',
+      'El servidor no respondió. Mire el estado de la tasa en esta misma '
+      + 'pantalla antes de volver a pulsar.',
+      [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+  }
+  /* `opera` ya sincroniza al volver de la puerta (PAN-46), así que lo que
+     se pinta ahora es lo que el servidor dice, no lo que esta pantalla
+     quisiera. Si el servidor no la confirmó, aquí se ve. */
+  pinta();
+  const y = DB.tasas.find(t => t.fecha === fecha);
+  if(y && y.estado === 'confirmada')
+    return aviso('Tasa del ' + fFecha(fecha) + ' confirmada en el servidor.');
+  return aviso('El servidor no la dejó confirmada. Mire el estado en la tabla.', true);
+}
+
 let ENVIANDO_CORREO = false;
 async function reenviaRecibo(){
   if(ENVIANDO_CORREO) return;
@@ -17348,6 +17425,12 @@ window.NUBE = (function(){
        confirmó. Sólo necesita el número de la venta; la dirección, si no se
        le pasa, la saca de la ficha de la clienta. */
     encolaRecibo: function(carga){ return opera('encola_recibo', carga); },
+
+    /* CONFIRMAR LA TASA (042 · 2/11/2026). Sólo la fecha: confirmar no es
+       fijar el número. Quien confirma se hace responsable de la cifra que
+       trajo la fuente, y por eso esta puerta sí la alcanza una persona
+       mientras `sicom_fija_tasa` sigue siendo del servicio. */
+    confirmaTasa: function(fecha){ return opera('confirma_tasa', { fecha: fecha }); },
 
     /* LOS IDENTIFICADORES LOS DA EL SERVIDOR (036 · ARQ-33). Devuelve una
        lista de textos ya acuñados del correlativo de la base. */

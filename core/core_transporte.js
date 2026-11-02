@@ -238,6 +238,14 @@ function crea(opciones){
        rechaza la llamada antes de salir y la pantalla ve un error que
        no viene del servidor. */
     'encola_recibo',
+    /* CONFIRMAR LA TASA (042 · 2/11/2026). Hasta hoy el botón «Confirmar»
+       de Configuración → Tasas cambiaba el estado en el documento del
+       navegador y no hablaba con nadie: la persona veía «Confirmada.» y en
+       la siguiente sincronización volvía «por confirmar». Era la octava
+       operación que escribía en local. La puerta nueva recibe SÓLO la
+       fecha —confirmar no es fijar el número— y sin este renglón el
+       transporte la rechazaría antes de salir. */
+    'confirma_tasa',
     /* EL REPARTIDOR DE IDENTIFICADORES (036, ARQ-33). No escribe en el libro
        y aun así es una operación y no un guardado: el correlativo es del
        servidor. La pantalla acuñaba los suyos con un contador que ninguna
