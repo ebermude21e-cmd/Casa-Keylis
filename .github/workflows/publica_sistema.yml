@@ -82,7 +82,9 @@ jobs:
           test -f core/core_puente.js || { echo "FALTA core/core_puente.js"; exit 1; }
           test -f core/core_transporte.js || { echo "FALTA core/core_transporte.js"; exit 1; }
           test -f core/index.html || { echo "FALTA core/index.html"; exit 1; }
-          echo "los cinco archivos de la pantalla estan"
+          # El logo viste la puerta ANTES de entrar desde el 2/11.
+          test -f core/logo.png || { echo "FALTA core/logo.png"; exit 1; }
+          echo "los seis archivos de la pantalla estan"
 
       # ------------------------------------------------------------- 0b --
       # LA PUERTA NO PUEDE LLEVAR UN SERVIDOR DENTRO.
