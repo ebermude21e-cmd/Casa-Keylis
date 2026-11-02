@@ -13423,18 +13423,16 @@ async function reenviaReciboCuerpo(){
     return decision('No hay servidor',
       'El envío lo anota el servidor. Sin conexión no se puede reenviar el recibo: '
       + 'espere a que vuelva. <b>Nada se ha tocado.</b>');
+  /* SIN NÚMERO DE VENTA NO HAY RECIBO QUE ARMAR. La puerta vieja aceptaba
+     `venta_num: null` y anotaba igual un correo que no era de ninguna venta.
+     La nueva arma el documento desde los libros, así que necesita saber de
+     qué venta. Se dice aquí y no se deja que lo diga el servidor en inglés. */
+  const num = (VTA.hecha || {}).num || null;
+  if(!num) return aviso('Todavía no hay una venta registrada que mandar.', true);
+
   ENVIANDO_CORREO = true;
   try{
-    await NUBE.anotaCorreo({
-      cliente_id: c.id || null,
-      cli_nom:    nomComp(c),
-      mail:       c.mail,
-      venta_num:  (VTA.hecha || {}).num || null,
-      arts:       VTA.lineas.reduce((a,l)=>a + l.cant, 0),
-      tipo:       'recibo',
-      estado:     'reenviado',
-      usuario:    (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
-    });
+    await NUBE.encolaRecibo({ venta_num: num, mail: c.mail });
   }catch(e){
     ENVIANDO_CORREO = false;
     /* SE RELEE ANTES DE MANDARLA A MIRAR (PAN-36, medido el 26/10). `opera`
@@ -13443,9 +13441,9 @@ async function reenviaReciboCuerpo(){
        operación: la respuesta es «no bajó» siempre, aunque el servidor lo
        haya cobrado, y el siguiente paso es pagar dos veces. */
     try{ await NUBE.sincroniza(); }catch(_){}
-    const m = mensajeDelServidor(e, 'anota_correo');
-    if(m) return decision('El reenvío NO quedó anotado', esc(m)
-      + ' <b>No quedó constancia del envío.</b>');
+    const m = mensajeDelServidor(e, 'encola_recibo');
+    if(m) return decision('El recibo NO quedó en cola', esc(m)
+      + ' <b>No se mandó nada y no quedó constancia.</b>');
     return decision('NO SE SABE si el reenvío quedó anotado',
       'El servidor no respondió. Mire los correos de la clienta antes de volver '
       + 'a mandarlo.', [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
@@ -13460,7 +13458,15 @@ async function reenviaReciboCuerpo(){
      puerta: la segunda lectura pagaba otra vez la llamada más pesada del
      sistema y abría la ventana del segundo clic. */
   ENVIANDO_CORREO = false;
-  aviso('Recibo reenviado a ' + c.mail);
+  /* LO QUE SE DICE ES LO QUE PASÓ, NI UNA PALABRA MÁS.
+     Hasta el 30/10/2026 esto decía «Recibo reenviado a clienta@correo.com»
+     y era falso: el sistema no tenía remitente y no enviaba nada. El correo
+     ahora SÍ sale, pero no en este instante: queda en la cola y el
+     despachador lo manda en el minuto siguiente. Decir «enviado» aquí
+     volvería a adelantar un hecho que todavía no ocurrió, que es la misma
+     mentira con otro retraso. Quien quiera saber si salió lo mira en la
+     cola, que es donde el servidor escribe lo que Resend contestó. */
+  aviso('Recibo en cola para ' + c.mail + ' · sale en menos de un minuto');
   pinta();
 }
 
@@ -17331,6 +17337,17 @@ window.NUBE = (function(){
        por hecho escribiéndolo en su documento; ahora lo anota el servidor,
        que comprueba que la venta y la clienta existan. Devuelve el id. */
     anotaCorreo: function(carga){ return opera('anota_correo', carga); },
+
+    /* EL RECIBO QUE DE VERDAD SALE (041 · 30/10/2026). `anotaCorreo` escribe
+       un renglón que dice «enviado» y no envía nada: hasta el 30/10 el
+       sistema no tenía remitente, y la pantalla le decía a la cajera
+       «Recibo reenviado a clienta@correo.com» mientras la clienta no
+       recibía nunca nada. Esta puerta ARMA el recibo desde los libros, lo
+       deja en la cola como PENDIENTE, y un despachador que corre dentro de
+       la base lo manda por Resend y escribe «enviado» sólo cuando Resend lo
+       confirmó. Sólo necesita el número de la venta; la dirección, si no se
+       le pasa, la saca de la ficha de la clienta. */
+    encolaRecibo: function(carga){ return opera('encola_recibo', carga); },
 
     /* LOS IDENTIFICADORES LOS DA EL SERVIDOR (036 · ARQ-33). Devuelve una
        lista de textos ya acuñados del correlativo de la base. */
