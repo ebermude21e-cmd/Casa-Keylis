@@ -1598,7 +1598,7 @@ try{
       <input id="npc_mail" type="email" required autocomplete="username"
              inputmode="email" autocapitalize="none" spellcheck="false">
       <label class="npf" for="npc_clave">Su clave nueva
-        <span class="npayuda" style="text-decoration:none;cursor:default">8 o más</span>
+        <a href="#" class="npayuda" data-sugiere="npc">Sugerir una segura</a>
       </label>
       <div class="npclave">
         <input id="npc_clave" type="password" required autocomplete="new-password" minlength="8">
@@ -1625,7 +1625,7 @@ try{
     <!-- LA CLAVE NUEVA · sólo se llega aquí por el enlace del correo -->
     <form id="np_form_nueva" autocomplete="on" data-pane="nueva" hidden>
       <label class="npf" for="npn_clave">Su clave nueva
-        <span class="npayuda" style="text-decoration:none;cursor:default">8 o más</span>
+        <a href="#" class="npayuda" data-sugiere="npn">Sugerir una segura</a>
       </label>
       <div class="npclave">
         <input id="npn_clave" type="password" required autocomplete="new-password" minlength="8">
@@ -16355,6 +16355,14 @@ window.NUBE = (function(){
     liga('np_ir_olvide', 'olvide');
     liga('np_ir_entrar', 'entrar');
 
+    /* «Sugerir una segura», en los dos formularios que piden clave nueva. */
+    [].forEach.call(document.querySelectorAll('[data-sugiere]'), function(a){
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        ponClaveSugerida(a.getAttribute('data-sugiere'));
+      });
+    });
+
     /* ==================================================================
        EL OJO Y EL BLOQ MAYÚS  (v65)
 
@@ -16422,9 +16430,17 @@ window.NUBE = (function(){
        de la mañana con la cola esperando. */
     function diceQuePaso(msg){
       const t = String(msg || '');
-      if(/pwned|leaked|compromis/i.test(t))
+      /* «weak» Y «easy to guess» FALTABAN, Y ERA EL CASO DE VERDAD (PAN-61,
+         2/11/2026). Supabase contesta «Password is known to be weak and easy
+         to guess, please choose a different one» cuando la clave está en las
+         listas de brechas, y ninguna de las tres palabras de arriba aparece
+         ahí: el mensaje caía al `return t` del final y la persona leía
+         inglés crudo. El dueño se topó con él tres veces seguidas intentando
+         estrenar su clave. */
+      if(/pwned|leaked|compromis|weak|easy to guess/i.test(t))
         return 'Esa clave aparece en listas de claves filtradas en internet. '
-             + 'Elija otra: cualquiera que no haya usado en otro sitio.';
+             + 'No es por corta: es que esa combinación ya la tiene cualquiera. '
+             + 'Pulse «Sugerir una segura» aquí arriba y listo.';
       if(/at least|should be at least|length/i.test(t))
         return 'La clave tiene que tener al menos 8 caracteres.';
       if(/already registered|already been registered|User already/i.test(t))
@@ -16436,6 +16452,68 @@ window.NUBE = (function(){
       if(/fetch|network|failed to/i.test(t))
         return 'No hay conexión con el servidor. Revise la conexión y vuelva a intentar.';
       return t;
+    }
+    /* ==================================================================
+       UNA CLAVE SEGURA, HECHA AQUÍ  (2/11/2026)
+
+       El 2/11 el dueño intentó estrenar su clave tres veces y las tres se
+       las rechazó el servidor: «Password is known to be weak and easy to
+       guess». No es un capricho del sistema —el proyecto tiene encendido
+       «Prevent use of leaked passwords», que compara contra las listas de
+       brechas públicas, y hay que dejarlo encendido—, pero sí es un camino
+       sin salida si la persona no tiene un gestor de contraseñas a mano.
+       Mandarla a pelear con el menú del navegador no es una respuesta: en
+       la tienda van a entrar cajeras, no administradores de sistemas.
+
+       Así que la clave se genera AQUÍ, en su computadora, con el generador
+       de números aleatorios del propio navegador. No pasa por ningún
+       servidor, no la ve nadie más, y se le enseña en pantalla para que la
+       guarde antes de seguir.
+
+       Sin ambiguas —0/O, 1/l/I— porque esta clave se copia a mano más de
+       una vez, y una «l» que se lee «1» es una llamada de soporte.
+       ================================================================== */
+    function claveSugerida(){
+      const LETRAS = 'abcdefghijkmnopqrstuvwxyz';
+      const MAYUS  = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const NUM    = '23456789';
+      const SIG    = '!@#$%&*+=?';
+      const TODO   = LETRAS + MAYUS + NUM + SIG;
+      const al = n => {
+        const v = new Uint32Array(n);
+        (window.crypto || window.msCrypto).getRandomValues(v);
+        return v;
+      };
+      /* Se arma con al menos una de cada clase y se baraja: así ninguna
+         política de «tiene que llevar un número» la rechaza por casualidad. */
+      const base = [LETRAS, MAYUS, NUM, SIG].map(function(c, i){
+        return c[al(1)[0] % c.length];
+      });
+      const r = al(12);
+      for(let i = 0; i < 12; i++) base.push(TODO[r[i] % TODO.length]);
+      const mezcla = al(base.length);
+      for(let i = base.length - 1; i > 0; i--){
+        const j = mezcla[i] % (i + 1);
+        const t = base[i]; base[i] = base[j]; base[j] = t;
+      }
+      return base.join('');
+    }
+    function ponClaveSugerida(pref){
+      const c1 = document.getElementById(pref + '_clave');
+      const c2 = document.getElementById(pref + '_clave2');
+      if(!c1 || !c2) return;
+      const nueva = claveSugerida();
+      c1.value = nueva; c2.value = nueva;
+      /* SE ENSEÑA. Una clave que la persona no llega a ver es una clave que
+         no puede guardar, y la siguiente pantalla se la va a pedir. */
+      c1.type = 'text'; c2.type = 'text';
+      const ojo = document.getElementById(pref + '_ver');
+      if(ojo){ ojo.textContent = 'Ocultar'; ojo.setAttribute('aria-pressed', 'true'); }
+      avisa(pref + '_err', pref + '_ok', false,
+            'Clave sugerida y escrita en los dos campos. CÓPIELA Y GUÁRDELA ahora '
+          + '—en su gestor de contraseñas o donde guarde lo suyo— antes de pulsar '
+          + 'el botón: después de guardarla no se vuelve a enseñar.');
+      c1.focus(); c1.select();
     }
     function avisa(idErr, idOk, malo, texto){
       const er = document.getElementById(idErr);
