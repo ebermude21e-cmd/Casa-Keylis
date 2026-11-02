@@ -1544,11 +1544,25 @@ try{
      ==================================================================== -->
 <div class="nubepuerta" id="nube_puerta">
   <div class="npcaja">
+    <!-- EL LOGO ESTÁ EN LA PUERTA, NO DETRÁS DE ELLA (2/11/2026).
+         Hasta hoy la puerta se vestía con `DB.empresa.logo`, que sólo llega
+         DESPUÉS de entrar: quien abría el sistema en una pestaña nueva veía
+         un cuadro con una «S» y «Sistema comercial y contable», y el logo
+         de la casa aparecía recién al otro lado. El dueño lo dijo como lo
+         que es: «el front donde me logueo sigue con el diseño viejo». No
+         era un diseño viejo; era la pantalla sin saber todavía de qué
+         empresa se trata.
+         `logo.png` viaja junto a `app.html` en los dos caminos publicados,
+         así que se pone de entrada. Si falta el archivo, `onerror` devuelve
+         el monograma y la puerta sigue sirviendo: una imagen rota no deja a
+         nadie fuera. Y en cuanto el documento llega, el bloque de más abajo
+         lo reemplaza por el que tenga la empresa cargado. -->
     <div class="npmarca" id="np_marca_box">
-      <div class="nplogo" id="np_ini">S</div>
+      <div class="nplogo conimg" id="np_ini"><img src="logo.png" alt="Casa Keylis Boutique Femine"
+        onerror="this.parentNode.className='nplogo';this.parentNode.textContent='S';"></div>
     </div>
-    <h2 id="np_marca">SICOM</h2>
-    <p class="npsub" id="np_lema">Sistema comercial y contable</p>
+    <h2 id="np_marca" hidden>SICOM</h2>
+    <p class="npsub" id="np_lema">Casa Keylis Boutique Femine, C.A.</p>
     <p class="npsub npsub2" id="np_lead">Entre con su correo y su clave para trabajar con los datos de la empresa.</p>
 
     <!-- ENTRAR · lo de siempre -->
@@ -16185,32 +16199,40 @@ window.NUBE = (function(){
       const e        = (typeof DB !== 'undefined' && DB) ? DB.empresa : null;
       const nom      = nombreEmpresaReal();
 
-      if(e && e.logo){
-        cajaLogo.className = 'nplogo conimg';
-        cajaLogo.innerHTML = '';
-        const im = document.createElement('img');
-        im.src = e.logo;
-        im.alt = nom || 'SICOM';
-        cajaLogo.appendChild(im);
-      }else{
+      /* EL LOGO PUBLICADO ES EL PISO, NO EL MONOGRAMA (2/11/2026).
+         Antes, sin logo en el documento —que es SIEMPRE el caso de una
+         pestaña nueva, porque el documento llega después de entrar— esto
+         pintaba la inicial en un cuadro. La persona veía una puerta
+         genérica y el logo de la casa recién al otro lado.
+         Ahora el piso es `logo.png`, que viaja junto a `app.html`; el del
+         documento lo reemplaza en cuanto llega, por si un día la empresa
+         carga otro desde Configuración; y la inicial queda sólo para
+         cuando ni siquiera el archivo esté, que es el último recurso y no
+         el caso normal. */
+      const src = (e && e.logo) ? e.logo : 'logo.png';
+      cajaLogo.className = 'nplogo conimg';
+      cajaLogo.innerHTML = '';
+      const im = document.createElement('img');
+      im.src = src;
+      im.alt = nom || 'Casa Keylis Boutique Femine';
+      im.onerror = function(){
         cajaLogo.className = 'nplogo';
         cajaLogo.textContent = nom ? nom.trim()[0].toUpperCase() : 'S';
-      }
+      };
+      cajaLogo.appendChild(im);
 
       /* Si el logo ya trae escrito el nombre —que es lo normal en un logo de
          tienda— repetirlo debajo sobra. Se deja el RIF, que el logo no dice. */
-      if(e && e.logo){
-        tit.hidden = true;
-        lema.textContent = e.rif ? ('RIF ' + e.rif) : (nom || 'Sistema comercial y contable');
-      }else if(nom){
-        tit.hidden = false;
-        tit.textContent = nom;
-        lema.textContent = (e && e.rif) ? ('RIF ' + e.rif) : 'Sistema comercial y contable';
-      }else{
-        tit.hidden = false;
-        tit.textContent = 'SICOM';
-        lema.textContent = 'Sistema comercial y contable';
-      }
+      /* El logo ya trae escrito el nombre, así que repetirlo debajo sobra:
+         se deja el RIF, que el logo no dice. Sin documento todavía no se
+         sabe el RIF —lo manda el servidor— y queda la razón social, que es
+         lo que está escrito en el propio archivo publicado. NUNCA se pinta
+         «Su tienda»: es el relleno interno del sistema, no el nombre de
+         nadie. */
+      tit.hidden = true;
+      if(e && e.rif)      lema.textContent = 'RIF ' + e.rif;
+      else if(nom)        lema.textContent = nom;
+      else                lema.textContent = 'Casa Keylis Boutique Femine, C.A.';
     }catch(err){}
 
     const b = document.getElementById('np_entrar');
