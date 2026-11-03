@@ -2547,6 +2547,8 @@ function cliListo(){
 const TABS=[['vta','Ventas'],['inv','Inventario'],['tes','Tesorería'],['trib','Tributos'],
             ['conta','Contabilidad'],['bd','Base de datos'],['cfg','Configuración'],['ger','Gerencial']];
 function pinta(){
+  /* PAN-63 · ver arriba: después de dibujar no queda nada escrito a medias. */
+  HAY_TECLEADO = false;
   aplicaTema();
   pintaMarca();
   /* mientras no esté puesta en marcha, no hay sistema que mostrar */
@@ -8458,6 +8460,59 @@ let TXAVISO = 0;        /* la revisión más alta que nos consta que alcanzó ot
    hacia arriba: lo que se está escribiendo es justamente lo que acaba de
    bajar. Sin esto, cada bajada provocaba una subida y una revisión de más. */
 let ADOPTANDO = false;
+
+/* ==========================================================================
+   LO QUE SE ESTÁ ESCRIBIENDO NO SE PISA  (PAN-63, 3/11/2026)
+
+   Lo contó el dueño: «sales de la pantalla a consultar otra cosa, vuelves,
+   el sistema se pone al día con el servidor y deja vacío el formulario que
+   estabas llenando».
+
+   El camino, medido: al volver a la pestaña el conector de Supabase refresca
+   el token → `onAuthStateChange` → `sincroniza()` → `adopta()` → `pinta()`.
+   `pinta()` redibuja el formulario desde el documento, y lo tecleado —que
+   hasta pulsar guardar vive SÓLO en el DOM, y está bien que así sea, porque
+   el servidor se toca al guardar la operación— se va con el repintado.
+
+   La regla que queda: **ponerse al día actualiza el documento siempre; lo
+   que se aplaza es el REPINTADO, y sólo mientras haya algo escrito a medias.**
+   El documento nuevo ya está dentro: la próxima operación se valida contra
+   él, y el servidor recalcula toda cifra de todos modos. Lo que se evita es
+   que un refresco automático —que nadie pidió— borre trabajo.
+
+   TRES COSAS QUE NO HACE, A PROPÓSITO:
+     · No aplaza nada si no hay nada escrito: ahí repinta como siempre.
+     · No se queda aplazado para siempre: en cuanto el formulario se vacía,
+       se guarda o se cambia de pantalla, el repintado pendiente sale.
+     · No guarda lo tecleado en ningún sitio. Si la persona cierra la
+       pestaña, se pierde, como antes: esto no es un borrador, es no pisar.
+   ========================================================================== */
+let HAY_TECLEADO = false;      /* alguien escribió y todavía no guardó */
+
+/* SE MARCA DESDE EL DOM, NO DESDE CADA FORMULARIO. Hacerlo formulario por
+   formulario sería una lista que se desincroniza: el día que alguien añada
+   una pantalla nueva, se olvidaría de apuntarla y el defecto volvería sin
+   que nada se encienda. Un solo oyente en la raíz cubre lo que haya hoy y
+   lo que venga. */
+document.addEventListener('input', function(e){
+  const t = e.target;
+  if(!t || !t.closest) return;
+  if(!t.closest('#app')) return;                 /* la puerta no cuenta */
+  if(!/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  HAY_TECLEADO = true;
+}, true);
+
+/* Y SE OLVIDA AL PRINCIPIO DE CADA `pinta()`, no al final y no en cada
+   guardado. Cualquier repintado rehace el formulario desde cero, así que
+   después de él no queda nada escrito a medias, venga de donde venga el
+   repintado: una navegación, un guardado, un botón. Una sola línea, en el
+   único sitio por el que pasan todos. Dibujar no dispara eventos `input`,
+   así que limpiarlo ANTES de dibujar es seguro.
+
+   Lo que NO se hace: encolar el repintado aplazado para dispararlo solo.
+   El documento ya está adoptado; en cuanto la persona toque cualquier cosa
+   la pantalla se redibuja con lo del servidor. Un repintado que salta solo
+   mientras alguien escribe es exactamente el defecto que esto cierra. */
 /* El testigo distingue nuestras escrituras de las ajenas. ALMACEN se
    comparte entre procesos y una lectura puede llegar rezagada unos
    milisegundos: por eso no basta con mirar antes de escribir, hay que releer
@@ -16881,7 +16936,12 @@ window.NUBE = (function(){
          desde qué equipo vino— no le sirve a la cajera y suena a que alguien
          anduvo metido en sus cosas. El semáforo de la cinta ya lo dice, y la
          bitácora lo guarda para quien quiera revisarlo. */
-      try{ pinta(); }catch(e){}
+      /* AQUÍ SE APLAZA EL REPINTADO SI HAY ALGO ESCRITO A MEDIAS (PAN-63).
+         El documento ya se adoptó arriba —`DB` es el del servidor— y se
+         guardó en disco: lo único que no ocurre todavía es volver a dibujar
+         la pantalla encima de lo que la persona está tecleando. Sale en
+         cuanto el formulario se vacíe, se guarde o se cambie de pantalla. */
+      if(!HAY_TECLEADO){ try{ pinta(); }catch(e){} }
       /* v56 · LO QUE HAY AQUÍ ES LO DEL SERVIDOR: queda anotado.
 
          Se anota AL FINAL, después de pintar, no antes. Pintar normaliza
