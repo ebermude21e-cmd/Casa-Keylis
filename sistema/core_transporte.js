@@ -259,7 +259,12 @@ function crea(opciones){
        donde van las operaciones: el servidor valida, asienta y firma. La
        cuarta —`lee_usuarios`— no lleva carga y tiene su propia función más
        abajo. */
-    'invita', 'cambia_acceso', 'retira_invitacion'
+    'invita', 'cambia_acceso', 'retira_invitacion',
+    /* LA 043. Reenviar una invitación no es «volver a mandar el mismo
+       correo»: RENUEVA el vencimiento y encola uno nuevo, así que reparte —y
+       por eso va por donde van las operaciones, con `core.exige` en la puerta
+       y otro dentro, y asentando quién lo hizo. */
+    'reenvia_invitacion'
   ];
 
   /* La puerta publicada de cada operación lleva el prefijo `sicom_`. No es

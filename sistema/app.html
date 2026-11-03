@@ -6908,6 +6908,45 @@ function uAbre(uid){
   pinta();
 }
 
+/* LA VIGENCIA DE UNA INVITACIÓN, DICHA CON LO QUE MANDÓ EL SERVIDOR.
+
+   `vigente` lo calcula el servidor y no esta función (043). Parece un
+   detalle y no lo es: el reloj del navegador de quien administra no es el
+   reloj con el que `core.entra` va a decidir, y con dos relojes distintos la
+   pantalla pinta «vigente» sobre una invitación que el servidor ya no canjea
+   —o al revés—. Aquí sólo se escribe la hora, que para eso sí sirve el reloj
+   de cualquiera.
+
+   Y una invitación SIN fecha es de antes de la 043: se dice así, no se
+   inventa una. */
+function uVigencia(i){
+  const cad = i && i.caduca_en ? new Date(i.caduca_en) : null;
+  const avi = i && i.avisada_en ? new Date(i.avisada_en) : null;
+  const cuando = function(d){
+    if(!d || isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-VE') + ' ' +
+           d.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+  };
+  let pie;
+  if(!i || !i.avisos){
+    /* NO SE DICE «le llegó»: se dice lo que el sistema sabe, que es que lo
+       dejó encolado. Quién lo recibió y cuándo lo sabe el proveedor, no
+       nosotros. */
+    pie = 'nunca se le mandó el correo';
+  }else{
+    pie = 'último correo ' + cuando(avi) +
+          (i.avisos > 1 ? ' · ' + i.avisos + ' envíos' : '');
+  }
+  const chip = (i && i.vigente === false)
+    ? '<span class="chip">caducada</span>'
+    : (cad ? '<span class="chip ok">vigente</span>' : '<span class="chip">sin fecha</span>');
+  const linea = (i && i.vigente === false)
+    ? 'caducó el ' + cuando(cad)
+    : (cad ? 'hasta el ' + cuando(cad) : 'de antes de que las invitaciones caducaran');
+  return chip + '<div class="mini">' + esc(linea) + '</div>'
+       + '<div class="mini">' + esc(pie) + '</div>';
+}
+
 /* ---------- la lista ---------- */
 function uVistaLista(){
   const us = (USU && USU.usuarios) || [];
@@ -6939,17 +6978,22 @@ function uVistaLista(){
   h += '</tbody></table></div>';
 
   h += '<div class="card"><h2>Invitaciones sin usar</h2>'
-    + '<p class="cap">Mientras no entren, se pueden retirar. Al entrar con ese correo, el sistema les aplica lo marcado.</p>'
-    + '<table class="dat" id="u_inv"><thead><tr><th>Correo</th><th>Perfil</th><th>Opciones</th><th></th></tr></thead><tbody>';
+    + '<p class="cap">Al invitar, a esa persona le llega un correo con lo que tiene que hacer. '
+    + 'La invitación caduca; si se le pasó la hora o el correo no le llegó, <b>Reenviar</b> le manda otra vigente. '
+    + 'Mientras no entre, se puede retirar.</p>'
+    + '<table class="dat" id="u_inv"><thead><tr><th>Correo</th><th>Perfil</th><th>Opciones</th>'
+    + '<th>Vigencia</th><th></th></tr></thead><tbody>';
   inv.forEach(function(i){
     const ef = uDelServidor(i).length;
     h += '<tr><td><b>' + esc(i.correo) + '</b>'
       + (i.nombre ? '<div class="mini">' + esc(i.nombre) + '</div>' : '') + '</td>'
       + '<td>' + esc(uPerfilRotulo(i.papel)) + '</td>'
       + '<td>' + ef + ' de ' + tot + '</td>'
-      + '<td class="n"><button class="b sm gh" data-uretira="' + esc(i.correo) + '">Retirar</button></td></tr>';
+      + '<td>' + uVigencia(i) + '</td>'
+      + '<td class="n"><button class="b sm" data-ureenvia="' + esc(i.correo) + '">Reenviar</button> '
+      + '<button class="b sm gh" data-uretira="' + esc(i.correo) + '">Retirar</button></td></tr>';
   });
-  if(!inv.length) h += '<tr><td colspan="4" class="mini">No hay invitaciones pendientes.</td></tr>';
+  if(!inv.length) h += '<tr><td colspan="5" class="mini">No hay invitaciones pendientes.</td></tr>';
   h += '</tbody></table></div>';
 
   h += '<div class="nota">El correo <b>' + esc((USU && USU.rescate) || '—') + '</b> es el del rescate: '
@@ -7363,6 +7407,39 @@ async function uInvita(){
   UOCUPADO = false;
 }
 
+/* REENVIAR.
+
+   No remanda el texto de antes: le pide al servidor que RENUEVE la invitación
+   y mande una nueva. Es lo que el dueño pidió por su nombre —«es importante
+   que la que reenvíes esté vigente»—: un correo con una hora de caducidad ya
+   pasada es un papel vencido con sello nuevo.
+
+   El cerrojo `UOCUPADO` es el mismo que llevan invitar y retirar: dos clics
+   seguidos sobre el mismo renglón no pueden mandar dos correos.
+
+   Y NO SE ESCRIBE NADA EN EL NAVEGADOR. La fecha nueva, el contador de envíos
+   y la vigencia salen de `uPide()`, que vuelve a preguntarle al servidor.
+   Adelantar aquí la hora de caducidad sería la pantalla decidiendo, que es
+   justo lo que PAN-62 costó. */
+async function uReenvia(correo){
+  if(UOCUPADO) return;
+  if(!uHayServidor()) return;
+  UOCUPADO = true;
+  const suelta = ocupa(document.querySelector('[data-ureenvia="' + correo + '"]'),
+                       'Mandando…');
+  try{
+    const r = await NUBE.reenviaInvitacion({ correo: correo });
+    await uPide();
+    /* LA FRASE DICE LO QUE EL SERVIDOR CONTESTÓ, no lo que la pantalla
+       esperaba: los minutos vienen en la respuesta. */
+    const min = r && r.minutos ? r.minutos : null;
+    aviso('Invitación reenviada a ' + correo +
+          (min ? ' · vigente ' + min + ' minutos más' : '') + '.');
+  }catch(e){ await uFallo(e, 'reenvia_invitacion', 'El reenvío de la invitación'); }
+  suelta();
+  UOCUPADO = false;
+}
+
 async function uRetira(correo){
   if(UOCUPADO) return;
   if(!uHayServidor()) return;
@@ -7682,6 +7759,7 @@ document.addEventListener('click',e=>{
   if(b.id==='u_suspende'){ uSuspende(false); return; }
   if(b.id==='u_libera'){ uSuspende(true); return; }
   if(b.id==='u_invita'){ uInvita(); return; }
+  if(b.dataset.ureenvia){ uReenvia(b.dataset.ureenvia); return; }
   if(b.dataset.uretira){ uRetira(b.dataset.uretira); return; }
 
   /* tasas */
@@ -17630,6 +17708,7 @@ window.NUBE = (function(){
     invita:           function(carga){ return opera('invita', carga); },
     cambiaAcceso:     function(carga){ return opera('cambia_acceso', carga); },
     retiraInvitacion: function(carga){ return opera('retira_invitacion', carga); },
+    reenviaInvitacion: function(carga){ return opera('reenvia_invitacion', carga); },
 
     fijaInv:   function(carga){ return opera('fija_inventario', carga); },
     retiraVar: function(carga){ return opera('retira_variante', carga); },
