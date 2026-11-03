@@ -1544,11 +1544,25 @@ try{
      ==================================================================== -->
 <div class="nubepuerta" id="nube_puerta">
   <div class="npcaja">
+    <!-- EL LOGO ESTÁ EN LA PUERTA, NO DETRÁS DE ELLA (2/11/2026).
+         Hasta hoy la puerta se vestía con `DB.empresa.logo`, que sólo llega
+         DESPUÉS de entrar: quien abría el sistema en una pestaña nueva veía
+         un cuadro con una «S» y «Sistema comercial y contable», y el logo
+         de la casa aparecía recién al otro lado. El dueño lo dijo como lo
+         que es: «el front donde me logueo sigue con el diseño viejo». No
+         era un diseño viejo; era la pantalla sin saber todavía de qué
+         empresa se trata.
+         `logo.png` viaja junto a `app.html` en los dos caminos publicados,
+         así que se pone de entrada. Si falta el archivo, `onerror` devuelve
+         el monograma y la puerta sigue sirviendo: una imagen rota no deja a
+         nadie fuera. Y en cuanto el documento llega, el bloque de más abajo
+         lo reemplaza por el que tenga la empresa cargado. -->
     <div class="npmarca" id="np_marca_box">
-      <div class="nplogo" id="np_ini">S</div>
+      <div class="nplogo conimg" id="np_ini"><img src="logo.png" alt="Casa Keylis Boutique Femine"
+        onerror="this.parentNode.className='nplogo';this.parentNode.textContent='S';"></div>
     </div>
-    <h2 id="np_marca">SICOM</h2>
-    <p class="npsub" id="np_lema">Sistema comercial y contable</p>
+    <h2 id="np_marca" hidden>SICOM</h2>
+    <p class="npsub" id="np_lema">Casa Keylis Boutique Femine, C.A.</p>
     <p class="npsub npsub2" id="np_lead">Entre con su correo y su clave para trabajar con los datos de la empresa.</p>
 
     <!-- ENTRAR · lo de siempre -->
@@ -1584,7 +1598,7 @@ try{
       <input id="npc_mail" type="email" required autocomplete="username"
              inputmode="email" autocapitalize="none" spellcheck="false">
       <label class="npf" for="npc_clave">Su clave nueva
-        <span class="npayuda" style="text-decoration:none;cursor:default">8 o más</span>
+        <a href="#" class="npayuda" data-sugiere="npc">Sugerir una segura</a>
       </label>
       <div class="npclave">
         <input id="npc_clave" type="password" required autocomplete="new-password" minlength="8">
@@ -1611,7 +1625,7 @@ try{
     <!-- LA CLAVE NUEVA · sólo se llega aquí por el enlace del correo -->
     <form id="np_form_nueva" autocomplete="on" data-pane="nueva" hidden>
       <label class="npf" for="npn_clave">Su clave nueva
-        <span class="npayuda" style="text-decoration:none;cursor:default">8 o más</span>
+        <a href="#" class="npayuda" data-sugiere="npn">Sugerir una segura</a>
       </label>
       <div class="npclave">
         <input id="npn_clave" type="password" required autocomplete="new-password" minlength="8">
@@ -2585,16 +2599,27 @@ const ICO = {
   conta:'<path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17Z"/><path d="M17 7h2v12.5"/><path d="M8 8.5h6M8 11.5h6M8 14.5h4"/>',
   bd:'<circle cx="9.5" cy="8.5" r="3"/><path d="M3.5 19.5c0-3 2.7-4.8 6-4.8s6 1.8 6 4.8"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M17.5 15.2c1.9.6 3 2 3 4.3"/>',
   cfg:'<path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.2"/><circle cx="8" cy="16" r="2.2"/>',
-  ger:'<path d="M4 19.5V13M9.3 19.5V8M14.7 19.5v-6M20 19.5V5"/>'
+  ger:'<path d="M4 19.5V13M9.3 19.5V8M14.7 19.5v-6M20 19.5V5"/>',
+  /* v68 · la etiqueta colgando de la percha: es el catálogo, no un almacén */
+  inv:'<path d="M20.5 13.8 13.8 20.5a1.7 1.7 0 0 1-2.4 0l-7.9-7.9V4.5a1 1 0 0 1 1-1h8.1l7.9 7.9a1.7 1.7 0 0 1 0 2.4Z"/><circle cx="8.2" cy="8.2" r="1.6"/>'
 };
 
+/* EL MOSAICO DEL INICIO Y LA BARRA DE ARRIBA SON LA MISMA LISTA, Y EL 29/10
+   DEJARON DE SERLO. Ese día Inventario entró en `TABS` —la barra— y nadie lo
+   metió aquí: el dueño abrió la tienda el 30/10 y en la pantalla de inicio
+   había siete tarjetas, sin Inventario, mientras la barra de arriba lo
+   enseñaba. Dos listas escritas a mano que dicen lo mismo se desincronizan;
+   por eso abajo hay una comprobación que las obliga a cuadrar.
+   Y de paso: Configuración ya no guarda los artículos —se mudaron el 29/10—,
+   así que su descripción mentía. */
 const HOME_MOD = [
   ['vta',  'Ventas',        'Registrar una venta, devolver, anular y ver los reportes del día.'],
+  ['inv',  'Inventario',    'Buscar una pieza, el catálogo, las categorías y la carga masiva.'],
   ['tes',  'Tesorería',     'Vueltos, pagos al personal, cuenta del accionista y cierre de caja.'],
   ['trib', 'Tributos',      'Libro de ventas del SENIAT, ingresos brutos y configuración de impuestos.'],
   ['conta','Contabilidad',  'Plan de cuentas, modelos de asiento y los libros contables.'],
   ['bd',   'Base de datos', 'Los clientes de la tienda y sus datos de contacto.'],
-  ['cfg',  'Configuración', 'Tasas, artículos, personal, tarifas y la identidad de la empresa.'],
+  ['cfg',  'Configuración', 'Tasas, personal, tarifas, permisos y la identidad de la empresa.'],
   ['ger',  'Gerencial',     'Estado del sistema, seguridad, auditoría y respaldos.']
 ];
 
@@ -2616,6 +2641,17 @@ function homePend(k){
     if(l) p.push(l + (l === 1 ? ' cuenta contable por configurar' : ' cuentas contables por configurar'));
     const o = OPS.filter(x=>!ctaDe(x.k)).length;
     if(o) p.push(o + (o === 1 ? ' operación sin cuenta' : ' operaciones sin cuenta'));
+  }
+  /* v68 · El catálogo vacío no es un detalle de configuración: sin artículos
+     no hay nada que vender, y en una tienda recién abierta es lo primero que
+     falta. Se enciende la campana de Inventario, que es donde se arregla. */
+  if(k === 'inv'){
+    const n = (DB.productos || []).length;
+    if(!n) p.push('El catálogo está vacío');
+    else {
+      const sp = DB.productos.filter(x=>!(+x.precio > 0)).length;
+      if(sp) p.push(sp + (sp === 1 ? ' artículo sin precio' : ' artículos sin precio'));
+    }
   }
   if(k === 'cfg'){
     if(faltaTasaHoy()) p.push('Actualizar la tasa de cambio');
@@ -7661,9 +7697,7 @@ document.addEventListener('click',e=>{
       + (f===hoy ? ' · CONFÍRMELA abajo: hasta entonces la caja no puede cobrar en bolívares.'
                  : ' · confírmela abajo.'), f===hoy);
     pinta();return;}
-  if(b.dataset.conf){const x=DB.tasas.find(t=>t.fecha===b.dataset.conf);
-    if(x){x.estado='confirmada';bitacora('tasas','Tasa confirmada',fFecha(x.fecha)+' · Bs '+fN(x.bcv,2));aviso('Confirmada.');}
-    pinta();return;}
+  if(b.dataset.conf){ confirmaTasaCuerpo(b.dataset.conf); return; }
   if(b.id==='m_ej'){MTXT=[fFecha(dHoy(0))+'\t857,55\t912,30',
       fFecha(dHoy(3))+'\t851,10\t905,00', fFecha(dHoy(4))+'\t848,72',
       fFecha(dHoy(6))+'\t842,90\t894,00', fFecha(dHoy(7))+'\t840,15\t891,20',
@@ -13383,6 +13417,85 @@ async function registraReintegroCuerpo(){
    ninguna parte. `core.anota_correo` comprueba que la venta y la clienta
    existan, lo guarda y lo asienta.
    ========================================================================== */
+/* ==========================================================================
+   CONFIRMAR LA TASA  (042 · PAN-62, medido el 2/11/2026)
+
+   LO QUE HABÍA AQUÍ, Y LO ENCONTRÓ EL DUEÑO USÁNDOLO:
+
+     if(b.dataset.conf){ const x = DB.tasas.find(...);
+       if(x){ x.estado='confirmada'; bitacora(...); aviso('Confirmada.'); }
+       pinta(); return; }
+
+   Cambiaba el estado en el documento del NAVEGADOR, escribía un renglón de
+   bitácora que nunca subía y le decía a la persona «Confirmada.». Al
+   servidor no le llegaba nada: en la siguiente sincronización volvía la
+   verdad —«por confirmar»— y lo borraba. Era la OCTAVA operación que
+   escribía en local; las otras siete se cerraron en el Sprint 4.
+
+   Y no era sólo la pantalla: NO EXISTÍA PUERTA. La 042 la abrió —
+   `sicom_confirma_tasa`, que recibe sólo la fecha porque confirmar no es
+   fijar el número— y aquí se la llama.
+
+   Lo que costaba, medido en producción el 2/11: `sicom.fija_tasa` deja sin
+   confirmar la primera tasa de una base, la de mañana se compara contra la
+   última CONFIRMADA, y como nunca llegaba a haber ninguna, una instalación
+   nueva se quedaba sin poder facturar en bolívares para siempre.
+   ========================================================================== */
+let CONFIRMANDO_TASA = false;
+async function confirmaTasa(fecha){
+  /* DOS CLICS NO CONFIRMAN DOS VECES. El servidor además es idempotente
+     —la segunda llamada devuelve `cambio:false`— pero el cerrojo evita la
+     segunda lectura entera del documento, que es la llamada más pesada. */
+  if(CONFIRMANDO_TASA) return;
+  CONFIRMANDO_TASA = true;
+  try{ return await confirmaTasaCuerpoReal(fecha); }
+  finally{ CONFIRMANDO_TASA = false; }
+}
+/* El despachador de clics llama a ésta; se separa para que la batería pueda
+   medir el cuerpo sin pasar por el cerrojo cuando lo que mide es otra cosa. */
+function confirmaTasaCuerpo(fecha){ return confirmaTasa(fecha); }
+
+async function confirmaTasaCuerpoReal(fecha){
+  if(TRANCA) return aviso('Resuelva primero el aviso que está en pantalla.', true);
+  const x = DB.tasas.find(t => t.fecha === fecha);
+  if(!x) return aviso('Esa tasa ya no está en pantalla. Vuelva a entrar a Tasas.', true);
+  if(x.estado === 'confirmada') return aviso('Esa tasa ya estaba confirmada.');
+
+  /* SIN SERVIDOR NO SE CONFIRMA NADA, y se dice. Confirmar en local era
+     exactamente el defecto: la caja se destrancaba en la pantalla y seguía
+     trancada en el servidor. */
+  if(typeof NUBE === 'undefined' || !NUBE.enLinea())
+    return decision('No hay servidor',
+      'La tasa la confirma el servidor. Sin conexión no se puede: espere a que '
+      + 'vuelva. <b>Nada se ha tocado.</b>');
+
+  try{
+    await NUBE.confirmaTasa(fecha);
+  }catch(e){
+    /* SE RELEE ANTES DE DECIR NADA (PAN-36). La tasa pudo haber quedado
+       confirmada y la respuesta perderse: afirmar que no cambió nada sería
+       la mentira que esta casa le quitó a la venta, a la anulación y a la
+       devolución. */
+    try{ await NUBE.sincroniza(); }catch(_){}
+    const m = mensajeDelServidor(e, 'confirma_tasa');
+    pinta();
+    if(m) return decision('La tasa NO quedó confirmada', esc(m)
+      + ' <b>No se tocó nada.</b>');
+    return decision('NO SE SABE si la tasa quedó confirmada',
+      'El servidor no respondió. Mire el estado de la tasa en esta misma '
+      + 'pantalla antes de volver a pulsar.',
+      [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
+  }
+  /* `opera` ya sincroniza al volver de la puerta (PAN-46), así que lo que
+     se pinta ahora es lo que el servidor dice, no lo que esta pantalla
+     quisiera. Si el servidor no la confirmó, aquí se ve. */
+  pinta();
+  const y = DB.tasas.find(t => t.fecha === fecha);
+  if(y && y.estado === 'confirmada')
+    return aviso('Tasa del ' + fFecha(fecha) + ' confirmada en el servidor.');
+  return aviso('El servidor no la dejó confirmada. Mire el estado en la tabla.', true);
+}
+
 let ENVIANDO_CORREO = false;
 async function reenviaRecibo(){
   if(ENVIANDO_CORREO) return;
@@ -13401,18 +13514,16 @@ async function reenviaReciboCuerpo(){
     return decision('No hay servidor',
       'El envío lo anota el servidor. Sin conexión no se puede reenviar el recibo: '
       + 'espere a que vuelva. <b>Nada se ha tocado.</b>');
+  /* SIN NÚMERO DE VENTA NO HAY RECIBO QUE ARMAR. La puerta vieja aceptaba
+     `venta_num: null` y anotaba igual un correo que no era de ninguna venta.
+     La nueva arma el documento desde los libros, así que necesita saber de
+     qué venta. Se dice aquí y no se deja que lo diga el servidor en inglés. */
+  const num = (VTA.hecha || {}).num || null;
+  if(!num) return aviso('Todavía no hay una venta registrada que mandar.', true);
+
   ENVIANDO_CORREO = true;
   try{
-    await NUBE.anotaCorreo({
-      cliente_id: c.id || null,
-      cli_nom:    nomComp(c),
-      mail:       c.mail,
-      venta_num:  (VTA.hecha || {}).num || null,
-      arts:       VTA.lineas.reduce((a,l)=>a + l.cant, 0),
-      tipo:       'recibo',
-      estado:     'reenviado',
-      usuario:    (function(){ try{ return cajeraNom(DB.turno); }catch(e){ return ''; } })()
-    });
+    await NUBE.encolaRecibo({ venta_num: num, mail: c.mail });
   }catch(e){
     ENVIANDO_CORREO = false;
     /* SE RELEE ANTES DE MANDARLA A MIRAR (PAN-36, medido el 26/10). `opera`
@@ -13421,9 +13532,9 @@ async function reenviaReciboCuerpo(){
        operación: la respuesta es «no bajó» siempre, aunque el servidor lo
        haya cobrado, y el siguiente paso es pagar dos veces. */
     try{ await NUBE.sincroniza(); }catch(_){}
-    const m = mensajeDelServidor(e, 'anota_correo');
-    if(m) return decision('El reenvío NO quedó anotado', esc(m)
-      + ' <b>No quedó constancia del envío.</b>');
+    const m = mensajeDelServidor(e, 'encola_recibo');
+    if(m) return decision('El recibo NO quedó en cola', esc(m)
+      + ' <b>No se mandó nada y no quedó constancia.</b>');
     return decision('NO SE SABE si el reenvío quedó anotado',
       'El servidor no respondió. Mire los correos de la clienta antes de volver '
       + 'a mandarlo.', [{k:'ok', t:'Cerrar', oro:true}], 'nosesabe');
@@ -13438,7 +13549,15 @@ async function reenviaReciboCuerpo(){
      puerta: la segunda lectura pagaba otra vez la llamada más pesada del
      sistema y abría la ventana del segundo clic. */
   ENVIANDO_CORREO = false;
-  aviso('Recibo reenviado a ' + c.mail);
+  /* LO QUE SE DICE ES LO QUE PASÓ, NI UNA PALABRA MÁS.
+     Hasta el 30/10/2026 esto decía «Recibo reenviado a clienta@correo.com»
+     y era falso: el sistema no tenía remitente y no enviaba nada. El correo
+     ahora SÍ sale, pero no en este instante: queda en la cola y el
+     despachador lo manda en el minuto siguiente. Decir «enviado» aquí
+     volvería a adelantar un hecho que todavía no ocurrió, que es la misma
+     mentira con otro retraso. Quien quiera saber si salió lo mira en la
+     cola, que es donde el servidor escribe lo que Resend contestó. */
+  aviso('Recibo en cola para ' + c.mail + ' · sale en menos de un minuto');
   pinta();
 }
 
@@ -16080,32 +16199,40 @@ window.NUBE = (function(){
       const e        = (typeof DB !== 'undefined' && DB) ? DB.empresa : null;
       const nom      = nombreEmpresaReal();
 
-      if(e && e.logo){
-        cajaLogo.className = 'nplogo conimg';
-        cajaLogo.innerHTML = '';
-        const im = document.createElement('img');
-        im.src = e.logo;
-        im.alt = nom || 'SICOM';
-        cajaLogo.appendChild(im);
-      }else{
+      /* EL LOGO PUBLICADO ES EL PISO, NO EL MONOGRAMA (2/11/2026).
+         Antes, sin logo en el documento —que es SIEMPRE el caso de una
+         pestaña nueva, porque el documento llega después de entrar— esto
+         pintaba la inicial en un cuadro. La persona veía una puerta
+         genérica y el logo de la casa recién al otro lado.
+         Ahora el piso es `logo.png`, que viaja junto a `app.html`; el del
+         documento lo reemplaza en cuanto llega, por si un día la empresa
+         carga otro desde Configuración; y la inicial queda sólo para
+         cuando ni siquiera el archivo esté, que es el último recurso y no
+         el caso normal. */
+      const src = (e && e.logo) ? e.logo : 'logo.png';
+      cajaLogo.className = 'nplogo conimg';
+      cajaLogo.innerHTML = '';
+      const im = document.createElement('img');
+      im.src = src;
+      im.alt = nom || 'Casa Keylis Boutique Femine';
+      im.onerror = function(){
         cajaLogo.className = 'nplogo';
         cajaLogo.textContent = nom ? nom.trim()[0].toUpperCase() : 'S';
-      }
+      };
+      cajaLogo.appendChild(im);
 
       /* Si el logo ya trae escrito el nombre —que es lo normal en un logo de
          tienda— repetirlo debajo sobra. Se deja el RIF, que el logo no dice. */
-      if(e && e.logo){
-        tit.hidden = true;
-        lema.textContent = e.rif ? ('RIF ' + e.rif) : (nom || 'Sistema comercial y contable');
-      }else if(nom){
-        tit.hidden = false;
-        tit.textContent = nom;
-        lema.textContent = (e && e.rif) ? ('RIF ' + e.rif) : 'Sistema comercial y contable';
-      }else{
-        tit.hidden = false;
-        tit.textContent = 'SICOM';
-        lema.textContent = 'Sistema comercial y contable';
-      }
+      /* El logo ya trae escrito el nombre, así que repetirlo debajo sobra:
+         se deja el RIF, que el logo no dice. Sin documento todavía no se
+         sabe el RIF —lo manda el servidor— y queda la razón social, que es
+         lo que está escrito en el propio archivo publicado. NUNCA se pinta
+         «Su tienda»: es el relleno interno del sistema, no el nombre de
+         nadie. */
+      tit.hidden = true;
+      if(e && e.rif)      lema.textContent = 'RIF ' + e.rif;
+      else if(nom)        lema.textContent = nom;
+      else                lema.textContent = 'Casa Keylis Boutique Femine, C.A.';
     }catch(err){}
 
     const b = document.getElementById('np_entrar');
@@ -16228,6 +16355,14 @@ window.NUBE = (function(){
     liga('np_ir_olvide', 'olvide');
     liga('np_ir_entrar', 'entrar');
 
+    /* «Sugerir una segura», en los dos formularios que piden clave nueva. */
+    [].forEach.call(document.querySelectorAll('[data-sugiere]'), function(a){
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        ponClaveSugerida(a.getAttribute('data-sugiere'));
+      });
+    });
+
     /* ==================================================================
        EL OJO Y EL BLOQ MAYÚS  (v65)
 
@@ -16295,9 +16430,17 @@ window.NUBE = (function(){
        de la mañana con la cola esperando. */
     function diceQuePaso(msg){
       const t = String(msg || '');
-      if(/pwned|leaked|compromis/i.test(t))
+      /* «weak» Y «easy to guess» FALTABAN, Y ERA EL CASO DE VERDAD (PAN-61,
+         2/11/2026). Supabase contesta «Password is known to be weak and easy
+         to guess, please choose a different one» cuando la clave está en las
+         listas de brechas, y ninguna de las tres palabras de arriba aparece
+         ahí: el mensaje caía al `return t` del final y la persona leía
+         inglés crudo. El dueño se topó con él tres veces seguidas intentando
+         estrenar su clave. */
+      if(/pwned|leaked|compromis|weak|easy to guess/i.test(t))
         return 'Esa clave aparece en listas de claves filtradas en internet. '
-             + 'Elija otra: cualquiera que no haya usado en otro sitio.';
+             + 'No es por corta: es que esa combinación ya la tiene cualquiera. '
+             + 'Pulse «Sugerir una segura» aquí arriba y listo.';
       if(/at least|should be at least|length/i.test(t))
         return 'La clave tiene que tener al menos 8 caracteres.';
       if(/already registered|already been registered|User already/i.test(t))
@@ -16309,6 +16452,68 @@ window.NUBE = (function(){
       if(/fetch|network|failed to/i.test(t))
         return 'No hay conexión con el servidor. Revise la conexión y vuelva a intentar.';
       return t;
+    }
+    /* ==================================================================
+       UNA CLAVE SEGURA, HECHA AQUÍ  (2/11/2026)
+
+       El 2/11 el dueño intentó estrenar su clave tres veces y las tres se
+       las rechazó el servidor: «Password is known to be weak and easy to
+       guess». No es un capricho del sistema —el proyecto tiene encendido
+       «Prevent use of leaked passwords», que compara contra las listas de
+       brechas públicas, y hay que dejarlo encendido—, pero sí es un camino
+       sin salida si la persona no tiene un gestor de contraseñas a mano.
+       Mandarla a pelear con el menú del navegador no es una respuesta: en
+       la tienda van a entrar cajeras, no administradores de sistemas.
+
+       Así que la clave se genera AQUÍ, en su computadora, con el generador
+       de números aleatorios del propio navegador. No pasa por ningún
+       servidor, no la ve nadie más, y se le enseña en pantalla para que la
+       guarde antes de seguir.
+
+       Sin ambiguas —0/O, 1/l/I— porque esta clave se copia a mano más de
+       una vez, y una «l» que se lee «1» es una llamada de soporte.
+       ================================================================== */
+    function claveSugerida(){
+      const LETRAS = 'abcdefghijkmnopqrstuvwxyz';
+      const MAYUS  = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const NUM    = '23456789';
+      const SIG    = '!@#$%&*+=?';
+      const TODO   = LETRAS + MAYUS + NUM + SIG;
+      const al = n => {
+        const v = new Uint32Array(n);
+        (window.crypto || window.msCrypto).getRandomValues(v);
+        return v;
+      };
+      /* Se arma con al menos una de cada clase y se baraja: así ninguna
+         política de «tiene que llevar un número» la rechaza por casualidad. */
+      const base = [LETRAS, MAYUS, NUM, SIG].map(function(c, i){
+        return c[al(1)[0] % c.length];
+      });
+      const r = al(12);
+      for(let i = 0; i < 12; i++) base.push(TODO[r[i] % TODO.length]);
+      const mezcla = al(base.length);
+      for(let i = base.length - 1; i > 0; i--){
+        const j = mezcla[i] % (i + 1);
+        const t = base[i]; base[i] = base[j]; base[j] = t;
+      }
+      return base.join('');
+    }
+    function ponClaveSugerida(pref){
+      const c1 = document.getElementById(pref + '_clave');
+      const c2 = document.getElementById(pref + '_clave2');
+      if(!c1 || !c2) return;
+      const nueva = claveSugerida();
+      c1.value = nueva; c2.value = nueva;
+      /* SE ENSEÑA. Una clave que la persona no llega a ver es una clave que
+         no puede guardar, y la siguiente pantalla se la va a pedir. */
+      c1.type = 'text'; c2.type = 'text';
+      const ojo = document.getElementById(pref + '_ver');
+      if(ojo){ ojo.textContent = 'Ocultar'; ojo.setAttribute('aria-pressed', 'true'); }
+      avisa(pref + '_err', pref + '_ok', false,
+            'Clave sugerida y escrita en los dos campos. CÓPIELA Y GUÁRDELA ahora '
+          + '—en su gestor de contraseñas o donde guarde lo suyo— antes de pulsar '
+          + 'el botón: después de guardarla no se vuelve a enseñar.');
+      c1.focus(); c1.select();
     }
     function avisa(idErr, idOk, malo, texto){
       const er = document.getElementById(idErr);
@@ -17309,6 +17514,23 @@ window.NUBE = (function(){
        por hecho escribiéndolo en su documento; ahora lo anota el servidor,
        que comprueba que la venta y la clienta existan. Devuelve el id. */
     anotaCorreo: function(carga){ return opera('anota_correo', carga); },
+
+    /* EL RECIBO QUE DE VERDAD SALE (041 · 30/10/2026). `anotaCorreo` escribe
+       un renglón que dice «enviado» y no envía nada: hasta el 30/10 el
+       sistema no tenía remitente, y la pantalla le decía a la cajera
+       «Recibo reenviado a clienta@correo.com» mientras la clienta no
+       recibía nunca nada. Esta puerta ARMA el recibo desde los libros, lo
+       deja en la cola como PENDIENTE, y un despachador que corre dentro de
+       la base lo manda por Resend y escribe «enviado» sólo cuando Resend lo
+       confirmó. Sólo necesita el número de la venta; la dirección, si no se
+       le pasa, la saca de la ficha de la clienta. */
+    encolaRecibo: function(carga){ return opera('encola_recibo', carga); },
+
+    /* CONFIRMAR LA TASA (042 · 2/11/2026). Sólo la fecha: confirmar no es
+       fijar el número. Quien confirma se hace responsable de la cifra que
+       trajo la fuente, y por eso esta puerta sí la alcanza una persona
+       mientras `sicom_fija_tasa` sigue siendo del servicio. */
+    confirmaTasa: function(fecha){ return opera('confirma_tasa', { fecha: fecha }); },
 
     /* LOS IDENTIFICADORES LOS DA EL SERVIDOR (036 · ARQ-33). Devuelve una
        lista de textos ya acuñados del correlativo de la base. */
