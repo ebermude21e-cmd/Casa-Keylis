@@ -1001,8 +1001,16 @@ body.enhome .barra{display:none !important}
   animation:campana 3.4s ease-in-out infinite
 }
 .hcamp svg{width:15px;height:15px}
-.hmod.avisa{border-color:var(--avi)}
-.hmod.avisa:hover{border-color:var(--oro)}
+/* EL BORDE ES EL MISMO EN LAS OCHO (3/11/2026).
+   Hasta hoy el módulo con algo pendiente llevaba además el borde en color
+   de aviso —`.hmod.avisa{border-color:var(--avi)}`—, así que el mosaico de
+   entrada salía con cuatro tarjetas de un borde y cuatro de otro. El dueño
+   lo pidió parejo y tiene razón: la campana ya dice cuál tiene algo
+   esperando, y decirlo dos veces con dos lenguajes distintos hace que el
+   conjunto se lea como si la mitad estuviera mal. El aviso no se pierde:
+   la campana sigue, y sigue moviéndose.
+   Si algún día hace falta volver a distinguirlos, que sea con la campana
+   —tamaño, color— y no con el borde de la tarjeta. */
 @keyframes campana{
   0%,88%,100%{transform:rotate(0)}
   90%{transform:rotate(-11deg)} 93%{transform:rotate(9deg)}
