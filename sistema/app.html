@@ -16571,6 +16571,14 @@ window.NUBE = (function(){
        de la mañana con la cola esperando. */
     function diceQuePaso(msg){
       const t = String(msg || '');
+      /* LA SESIÓN QUE FALTA VA PRIMERA, y va primera a propósito: su mensaje
+         más común —«invalid claim»— lo atraparía la regla de «invalid» de
+         más abajo y la persona leería «Ese correo no parece válido» sobre un
+         enlace vencido, que manda a arreglar lo que no está roto.
+         (4/11/2026, el dueño leyendo «Auth session missing!» en rojo.) */
+      if(/auth session missing|session missing|session_not_found|session not found|jwt expired|invalid claim|refresh token/i.test(t))
+        return 'El enlace del correo ya venció o ya se usó, así que no hay a quién '
+             + 'cambiarle la clave. Pida uno nuevo con «Olvidé mi clave».';
       /* «weak» Y «easy to guess» FALTABAN, Y ERA EL CASO DE VERDAD (PAN-61,
          2/11/2026). Supabase contesta «Password is known to be weak and easy
          to guess, please choose a different one» cuando la clave está en las
@@ -16728,6 +16736,22 @@ window.NUBE = (function(){
       if(c1 !== c2){ avisa('npn_err','npn_ok', true, 'Las dos claves no son iguales.'); return; }
       if(c1.length < 8){ avisa('npn_err','npn_ok', true, 'La clave tiene que tener al menos 8 caracteres.'); return; }
       if(!sb){ avisa('npn_err','npn_ok', true, 'No hay conexión con el servidor.'); return; }
+      /* ¿HAY A QUIÉN CAMBIARLE LA CLAVE?  (4/11/2026)
+         La sesión del enlace puede haberse caído entre que se abrió el
+         formulario y que se pulsó el botón —el enlace dura una hora—. Sin
+         esto, lo que la persona lee es «Auth session missing!», que no dice
+         ni que fue el enlace ni qué hacer. Es un cinturón sobre el arreglo
+         de `tomaEnlaceDelCorreo`, no en su lugar: aquel impide que el
+         formulario se ofrezca, éste cubre el rato en que ya está ofrecido. */
+      let haySesion = null;
+      try{ const g = await sb.auth.getSession(); haySesion = g && g.data ? g.data.session : null; }
+      catch(x){ haySesion = null; }
+      if(!haySesion){
+        avisa('npn_err','npn_ok', true,
+          'El enlace del correo ya venció o ya se usó, así que no hay a quién cambiarle la clave. '
+          + 'Pida uno nuevo con «Olvidé mi clave».');
+        return;
+      }
       b.disabled = true; b.textContent = 'Guardando…';
       let res;
       try{ res = await sb.auth.updateUser({ password: c1 }); }
@@ -16802,8 +16826,48 @@ window.NUBE = (function(){
     const at = p.get('access_token'), rt = p.get('refresh_token');
     if(!at || !rt || !sb) return false;
     RECUPERANDO = true;
-    try{ await sb.auth.setSession({ access_token: at, refresh_token: rt }); }
-    catch(e){ RECUPERANDO = false; return false; }
+
+    /* SE MIRA LO QUE CONTESTÓ, Y NO SÓLO SI REVENTÓ  (4/11/2026)
+
+       Aquí había un `try/catch` suelto, y no servía de nada: `setSession`
+       NO LANZA cuando el enlace está vencido o ya se usó — devuelve
+       `{ data:{session:null}, error:{...} }`, como todo el cliente de
+       Supabase—. El `catch` no se enteraba nunca, la función seguía como si
+       la sesión estuviera puesta, y la pantalla le ofrecía a la persona el
+       formulario de «ponga su clave nueva» sin tener a quién cambiársela.
+       Tecleaba la clave dos veces, pulsaba Guardar, y el servidor contestaba
+       «Auth session missing!» en inglés y en rojo.
+
+       Lo vivió el dueño el 4/11, con el agravante de que el mensaje no dice
+       nada de un enlace vencido: parece que la clave está mal. Es la misma
+       mentira de siempre —la pantalla prometiendo lo que el servidor no
+       dio— por una puerta nueva.
+
+       Se exige la sesión de verdad, no la ausencia de excepción: sin
+       `data.session` no hay sesión, diga lo que diga el resto. */
+    let ses;
+    try{ ses = await sb.auth.setSession({ access_token: at, refresh_token: rt }); }
+    catch(e){ ses = { error: { message: String(e && e.message || e) } }; }
+
+    if(!ses || ses.error || !(ses.data && ses.data.session)){
+      /* No hay sesión: no se ofrece el formulario que no puede funcionar. Se
+         devuelve a «olvidé mi clave», que es lo único que la saca de aquí, y
+         se dice por qué con las mismas palabras que el enlace que vuelve con
+         el error escrito dentro. */
+      RECUPERANDO = false;
+      limpia();
+      abrePuerta();
+      try{
+        modoPuertaGlobal('olvide');
+        const er = document.getElementById('npo_err');
+        if(er){
+          er.textContent = 'Ese enlace ya venció o ya se usó. Pida uno nuevo aquí abajo.';
+          er.hidden = false;
+        }
+      }catch(e){}
+      return true;
+    }
+
     limpia();
     abrePuerta();
     try{ modoPuertaGlobal('nueva'); }catch(e){}
