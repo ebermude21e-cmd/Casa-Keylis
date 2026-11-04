@@ -5959,16 +5959,55 @@ function filasDeTexto(txt){
   });
 }
 
+/* v68 · ¿EN QUÉ FILA ESTÁN LOS TÍTULOS?
+
+   No tiene por qué ser la primera. Cualquier archivo con un membrete encima
+   —el logo de la tienda, un «Inventario al 4/11», una fila en blanco— tenía
+   antes la misma respuesta: «no trae las columnas del inventario», que es un
+   mensaje que manda a buscar el error donde no está. Y lo encontró la propia
+   plantilla que este sistema reparte: lleva membrete, así que el sistema no
+   sabía leer lo que él mismo escribe.
+
+   La regla vive AQUÍ y nada más: la usan el que elige la hoja del Excel y el
+   que arma la vista previa. Escrita dos veces, el día que una cambie el
+   sistema elige una hoja y lee otra.
+
+   El tope es corto a propósito: más abajo ya no es un membrete, es otra
+   tabla. Y se exige código Y nombre: con sólo una de las dos, una fila
+   cualquiera que diga «codigo» en una explicación pasaría por cabecera. */
+const TOPE_CAB = 20;
+function filaDeTitulos(filas){
+  for(let k = 0; k < Math.min((filas || []).length, TOPE_CAB); k++){
+    const m = {};
+    (filas[k] || []).forEach(function(x, i){
+      const n = normEnc(x);
+      if(COL_ART[n] !== undefined) m[COL_ART[n]] = i;
+    });
+    if(m.sku !== undefined && m.nom !== undefined) return { fila:k, mapa:m };
+  }
+  return null;
+}
+
 /* Revisa fila por fila y arma la vista previa. No toca el catálogo: sólo
    dice qué pasaría. */
 function parseArts(filas, opt){
   opt = opt || {};
   if(!filas || !filas.length) return { filas:[], arts:[], sinCab:true };
-  const cab = (filas[0] || []).map(normEnc);
-  const mapa = {};
-  cab.forEach(function(c, i){ if(COL_ART[c] !== undefined) mapa[COL_ART[c]] = i; });
-  if(mapa.sku === undefined || mapa.nom === undefined)
-    return { filas:[], arts:[], sinCab:true };
+
+  /* v68 · LA FILA DE TÍTULOS NO TIENE POR QUÉ SER LA PRIMERA.
+     Antes se leía `filas[0]` y punto. Cualquier archivo con un membrete
+     encima —el logo de la tienda, un «Inventario al 4/11», una fila en
+     blanco— contestaba «no trae las columnas del inventario», que es un
+     mensaje que manda a buscar el error donde no está. Y lo encontró la
+     propia plantilla que este sistema reparte: lleva membrete, así que el
+     sistema no sabía leer lo que él mismo escribe.
+     Se busca la fila de títulos entre las primeras, y lo que esté encima se
+     descarta. El tope es corto a propósito: más abajo ya no es un membrete,
+     es otra tabla. */
+  const halla = filaDeTitulos(filas);
+  if(!halla) return { filas:[], arts:[], sinCab:true };
+  const mapa = halla.mapa;
+  filas = filas.slice(halla.fila);
 
   /* v66 · sin prototipo: una categoría llamada «constructor» encontraba la
      función heredada de Object y se colaba como si existiera */
@@ -10089,11 +10128,1279 @@ async function filasDeExcel(file){
   let mejor = null;
   for(let i = 0; i < hojas.length; i++){
     const filas = hojaAFilas(z[hojas[i]], comunes);
-    const cab = (filas[0] || []).map(function(x){ return normEnc(x); });
-    if(cab.indexOf('codigo') >= 0){ mejor = filas; break; }
+    /* La hoja buena es la que tiene fila de títulos, esté donde esté. Un
+       libro con portada delante —o con una hoja de instrucciones, como la
+       plantilla de esta casa— ya no manda a leer la hoja equivocada. */
+    if(filaDeTitulos(filas)){ mejor = filas; break; }
     if(!mejor && filas.length > 1) mejor = filas;
   }
   return mejor || [];
+}
+
+/* ==========================================================================
+   ESCRIBIR UN EXCEL SIN MANDARLO A NINGUNA PARTE
+
+   La otra mitad de `filasDeExcel`, aquí arriba. El navegador sabe comprimir
+   —`CompressionStream`— igual que sabe descomprimir, así que el libro se
+   arma aquí dentro y no sale de esta computadora.
+
+   Por qué a mano y no con una librería: la única gratuita que sabe dar
+   formato a las celdas pesa casi lo que pesa el sistema entero, y aquí todo
+   lo que carga la pantalla está servido desde el propio sitio.
+   ========================================================================== */
+
+/* Todo el armador vive ENCERRADO. Hacia afuera sólo salen `libroEjecutivo`
+   y `libroPlantilla`: dentro hay nombres cortos y corrientes —`col`, `xe`,
+   `C`, `Hoja`, `membrete`— y sueltos en la página pisarían a los del
+   sistema. Ya pasó en el taller: `r2` y `bajaArchivo` quedaron pisadas, y
+   `r2` es la del redondeo del dinero. */
+const XLSX = (function(){
+
+/* ==========================================================================
+   SICOM · ESCRIBIR UN EXCEL SIN MANDARLO A NINGUNA PARTE
+
+   La otra mitad de `filasDeExcel`. Un .xlsx es un comprimido con unos
+   cuantos XML adentro; el navegador sabe comprimir desde hace años
+   —`CompressionStream`— así que no hace falta ninguna librería de fuera ni
+   subir nada a ningún servidor: el inventario de la tienda no sale de esta
+   computadora.
+
+   Por qué a mano y no con una librería: la única gratuita que sabe dar
+   formato a las celdas pesa casi lo que pesa el sistema entero, y aquí todo
+   lo que carga la pantalla está servido desde el propio sitio. Esto son unas
+   cuantas líneas y son las mismas para siempre: el formato no cambia.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- el ZIP --
+   Un comprimido es: cada archivo con su cabecera, y al final un índice que
+   dice dónde empieza cada uno. Nada más. */
+
+const TABLA_CRC = (function(){
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = TABLA_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function aBytes(x){
+  return typeof x === 'string' ? new TextEncoder().encode(x) : new Uint8Array(x);
+}
+
+/* Comprime de verdad cuando el navegador puede. Si no, se guarda tal cual:
+   un .xlsx sin comprimir es un .xlsx válido, sólo que más grande. Nunca se
+   devuelve un archivo a medias por no poder comprimir. */
+async function desinfla(bytes){
+  if(typeof CompressionStream !== 'function') return null;
+  try{
+    const cs = new CompressionStream('deflate-raw');
+    const buf = await new Response(new Blob([bytes]).stream().pipeThrough(cs)).arrayBuffer();
+    const out = new Uint8Array(buf);
+    /* Si comprimir no ahorra nada —pasa con los PNG— se guarda sin comprimir. */
+    return out.length < bytes.length ? out : null;
+  }catch(e){ return null; }
+}
+
+async function armaZip(entradas){
+  const piezas = [], indice = [];
+  let desp = 0;
+
+  for(let i = 0; i < entradas.length; i++){
+    const nombre = aBytes(entradas[i].nombre);
+    const crudo  = aBytes(entradas[i].datos);
+    const comp   = await desinfla(crudo);
+    const cuerpo = comp || crudo;
+    const metodo = comp ? 8 : 0;
+    const suma   = crc32(crudo);
+
+    const loc = new Uint8Array(30 + nombre.length);
+    const dv  = new DataView(loc.buffer);
+    dv.setUint32(0, 0x04034b50, true);
+    dv.setUint16(4, 20, true);            /* versión necesaria */
+    dv.setUint16(6, 0x0800, true);        /* el nombre va en UTF-8 */
+    dv.setUint16(8, metodo, true);
+    dv.setUint16(10, 0, true);            /* hora */
+    dv.setUint16(12, 0x2821, true);       /* fecha fija: el archivo no cambia
+                                             de huella por la hora en que se
+                                             bajó */
+    dv.setUint32(14, suma, true);
+    dv.setUint32(18, cuerpo.length, true);
+    dv.setUint32(22, crudo.length, true);
+    dv.setUint16(26, nombre.length, true);
+    dv.setUint16(28, 0, true);
+    loc.set(nombre, 30);
+
+    piezas.push(loc, cuerpo);
+    indice.push({ nombre: nombre, metodo: metodo, suma: suma,
+                  comp: cuerpo.length, crudo: crudo.length, desp: desp });
+    desp += loc.length + cuerpo.length;
+  }
+
+  const centrales = [];
+  let largoCentral = 0;
+  for(let i = 0; i < indice.length; i++){
+    const e = indice[i];
+    const c = new Uint8Array(46 + e.nombre.length);
+    const dv = new DataView(c.buffer);
+    dv.setUint32(0, 0x02014b50, true);
+    dv.setUint16(4, 20, true);
+    dv.setUint16(6, 20, true);
+    dv.setUint16(8, 0x0800, true);
+    dv.setUint16(10, e.metodo, true);
+    dv.setUint16(12, 0, true);
+    dv.setUint16(14, 0x2821, true);
+    dv.setUint32(16, e.suma, true);
+    dv.setUint32(20, e.comp, true);
+    dv.setUint32(24, e.crudo, true);
+    dv.setUint16(28, e.nombre.length, true);
+    dv.setUint32(42, e.desp, true);
+    c.set(e.nombre, 46);
+    centrales.push(c);
+    largoCentral += c.length;
+  }
+
+  const fin = new Uint8Array(22);
+  const dvf = new DataView(fin.buffer);
+  dvf.setUint32(0, 0x06054b50, true);
+  dvf.setUint16(8, indice.length, true);
+  dvf.setUint16(10, indice.length, true);
+  dvf.setUint32(12, largoCentral, true);
+  dvf.setUint32(16, desp, true);
+
+  const todo = piezas.concat(centrales, [fin]);
+  let total = 0;
+  todo.forEach(function(p){ total += p.length; });
+  const out = new Uint8Array(total);
+  let p = 0;
+  todo.forEach(function(t){ out.set(t, p); p += t.length; });
+  return out;
+}
+
+/* --------------------------------------------------------------- el XML --
+   Cinco caracteres y nada más; lo que entra aquí son nombres de artículos
+   que la dueña escribió, así que un «&» o un «<» sueltos rompen el archivo
+   entero y Excel dice sólo «contenido ilegible». */
+function xe(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+    /* Excel no admite los caracteres de control; llegan pegados desde copiar
+       y pegar y dejan el archivo ilegible sin decir por qué. */
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
+/* La letra de la columna: 1 -> A, 27 -> AA. */
+function col(n){
+  let s = '';
+  while(n > 0){ const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = (n - r - 1) / 26; }
+  return s;
+}
+
+/* ==========================================================================
+   SICOM · EL LIBRO DE EXCEL, ARMADO A MANO
+
+   Encima del ZIP (`armador.js`) va esto: las hojas, los estilos y el
+   membrete. Un .xlsx son siete u ocho XML con nombres fijos; lo único que
+   cambia de un libro a otro es el contenido de las hojas.
+
+   LOS ESTILOS NO SE NUMERAN A MANO. Excel los referencia por su posición en
+   una lista, y numerar a mano una lista de veinte estilos es garantizar que
+   el día que se añada uno en medio, media hoja cambie de color sin que nadie
+   toque esa parte. Aquí se piden por nombre —`est('total')`— y la lista se
+   arma sola con lo que se haya pedido.
+   ========================================================================== */
+
+/* ---- la paleta de la casa, la misma del prototipo ---- */
+const C = {
+  CREMA:'FFFAF7F0', PANEL:'FFF7F2E7', ORO:'FFC8A24A', ORO_OSC:'FF9C7C2E',
+  TINTA:'FF22180F', GRIS:'FF776E5A', LINEA:'FFE2D8C4', BLANCO:'FFFFFFFF',
+  AMARILLO:'FFFFF4CC', AZULCL:'FFEAF1FB', AZUL:'FF0000FF', CASIBLANCO:'FFFFFDF2'
+};
+
+const FMT = { moneda:'#,##0.00', entero:'#,##0', pct:'0.0%', texto:'@' };
+
+/* ------------------------------------------------------- la hoja de estilos */
+function Estilos(){
+  const fuentes = [], rellenos = [], bordes = [], formatos = [], xfs = [];
+  const idx = {};
+
+  /* Los dos primeros rellenos son obligatorios y Excel los exige en ese
+     orden exacto: sin ellos el archivo abre con los colores corridos. */
+  rellenos.push('<fill><patternFill patternType="none"/></fill>');
+  rellenos.push('<fill><patternFill patternType="gray125"/></fill>');
+
+  function mete(lista, xml){
+    const i = lista.indexOf(xml);
+    if(i >= 0) return i;
+    lista.push(xml);
+    return lista.length - 1;
+  }
+
+  function fuente(o){
+    o = o || {};
+    return mete(fuentes, '<font>'
+      + '<sz val="' + (o.tam || 10) + '"/>'
+      + '<color rgb="' + (o.color || C.TINTA) + '"/>'
+      + '<name val="' + (o.nom || 'Arial') + '"/>'
+      + (o.negrita ? '<b/>' : '') + (o.cursiva ? '<i/>' : '')
+      + '</font>');
+  }
+  function relleno(c){
+    if(!c) return 0;
+    return mete(rellenos, '<fill><patternFill patternType="solid">'
+      + '<fgColor rgb="' + c + '"/><bgColor indexed="64"/></patternFill></fill>');
+  }
+  function borde(o){
+    o = o || {};
+    const lado = function(n, d){
+      return d ? '<' + n + ' style="' + d.g + '"><color rgb="' + d.c + '"/></' + n + '>'
+               : '<' + n + '/>';
+    };
+    return mete(bordes, '<border>' + lado('left', o.izq) + lado('right', o.der)
+      + lado('top', o.arr) + lado('bottom', o.aba) + '<diagonal/></border>');
+  }
+  function formato(f){
+    if(!f) return 0;
+    const i = formatos.indexOf(f);
+    return 164 + (i >= 0 ? i : (formatos.push(f) - 1));
+  }
+
+  /* Un estilo es la mezcla de todo eso. Se pide por nombre y se guarda. */
+  function define(nombre, o){
+    const xml = '<xf numFmtId="' + formato(o.fmt) + '" fontId="' + fuente(o.fuente)
+      + '" fillId="' + relleno(o.relleno) + '" borderId="' + borde(o.borde) + '" xfId="0"'
+      + (o.fmt ? ' applyNumberFormat="1"' : '') + ' applyFont="1"'
+      + (o.relleno ? ' applyFill="1"' : '') + (o.borde ? ' applyBorder="1"' : '')
+      + (o.al || o.ajusta ? ' applyAlignment="1"' : '') + '>'
+      + (o.al || o.ajusta
+          ? '<alignment' + (o.al ? ' horizontal="' + o.al + '"' : '')
+            + ' vertical="' + (o.vert || 'center') + '"'
+            + (o.ajusta ? ' wrapText="1"' : '') + '/>'
+          : '')
+      + '</xf>';
+    xfs.push(xml);
+    idx[nombre] = xfs.length - 1;
+    return idx[nombre];
+  }
+
+  return {
+    define: define,
+    de: function(nombre){
+      if(!(nombre in idx)) throw new Error('estilo sin definir: ' + nombre);
+      return idx[nombre];
+    },
+    xml: function(){
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        + (formatos.length
+            ? '<numFmts count="' + formatos.length + '">'
+              + formatos.map(function(f, i){
+                  return '<numFmt numFmtId="' + (164 + i) + '" formatCode="' + xe(f) + '"/>';
+                }).join('') + '</numFmts>'
+            : '')
+        + '<fonts count="' + fuentes.length + '">' + fuentes.join('') + '</fonts>'
+        + '<fills count="' + rellenos.length + '">' + rellenos.join('') + '</fills>'
+        + '<borders count="' + bordes.length + '">' + bordes.join('') + '</borders>'
+        + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        + '<cellXfs count="' + xfs.length + '">' + xfs.join('') + '</cellXfs>'
+        + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+        + '</styleSheet>';
+    }
+  };
+}
+
+/* ------------------------------------------------------------- una hoja --
+   Las celdas se guardan por fila y columna; el XML sale ordenado al final,
+   porque Excel exige las filas en orden y se planta —sin decir por qué— si
+   llegan desordenadas. */
+function Hoja(nombre){
+  const celdas = {};          /* fila -> columna -> celda */
+  const anchos = [];
+  const altos = {};
+  const unidas = [];
+  const validaciones = [];
+  let filtro = null, congela = null, repiteFila = null;
+  let maxF = 0, maxC = 0;
+
+  function pon(f, c, celda){
+    if(!celdas[f]) celdas[f] = {};
+    celdas[f][c] = celda;
+    if(f > maxF) maxF = f;
+    if(c > maxC) maxC = c;
+  }
+
+  const api = {
+    nombre: nombre,
+    /* v = número o texto; `formula` lleva además su valor ya calculado, para
+       que el archivo se vea bien sin que Excel tenga que recalcular. */
+    texto: function(f, c, v, est){ pon(f, c, {t:'s', v:v, s:est}); return api; },
+    numero: function(f, c, v, est){ pon(f, c, {t:'n', v:v, s:est}); return api; },
+    formula: function(f, c, fx, valor, est){ pon(f, c, {t:'f', fx:fx, v:valor, s:est}); return api; },
+    vacia: function(f, c, est){ pon(f, c, {t:'v', s:est}); return api; },
+    /* Para pintar el fondo SIN borrar lo que ya está escrito: el crema se
+       extiende hasta donde llega la vista, y si pisa una celda con contenido
+       la deja muda. */
+    vaciaSiLibre: function(f, c, est){
+      if(!(celdas[f] && celdas[f][c])) pon(f, c, {t:'v', s:est});
+      return api;
+    },
+    ancho: function(c, w){ anchos.push({c:c, w:w}); return api; },
+    alto: function(f, h){ altos[f] = h; return api; },
+    une: function(f1, c1, f2, c2){ unidas.push(col(c1)+f1+':'+col(c2)+f2); return api; },
+    autofiltro: function(r){ filtro = r; return api; },
+    congelaEn: function(f){ congela = f; return api; },
+    repite: function(f){ repiteFila = f; return api; },
+    valida: function(o){ validaciones.push(o); return api; },
+    filaRepetida: function(){ return repiteFila; },
+    ultima: function(){ return maxF; },
+
+    xml: function(){
+      const filas = Object.keys(celdas).map(Number).sort(function(a,b){ return a-b; });
+      let cuerpo = '';
+      for(let i = 0; i < filas.length; i++){
+        const f = filas[i];
+        const cols = Object.keys(celdas[f]).map(Number).sort(function(a,b){ return a-b; });
+        let cs = '';
+        for(let j = 0; j < cols.length; j++){
+          const c = cols[j], d = celdas[f][c], ref = col(c) + f;
+          const s = d.s == null ? '' : ' s="' + d.s + '"';
+          if(d.t === 'v')      cs += '<c r="' + ref + '"' + s + '/>';
+          else if(d.t === 's') cs += '<c r="' + ref + '"' + s + ' t="inlineStr"><is><t xml:space="preserve">'
+                                   + xe(d.v) + '</t></is></c>';
+          else if(d.t === 'n') cs += '<c r="' + ref + '"' + s + '><v>' + numXml(d.v) + '</v></c>';
+          else                 cs += '<c r="' + ref + '"' + s + '><f>' + xe(d.fx) + '</f>'
+                                   + (d.v == null ? '' : '<v>' + numXml(d.v) + '</v>') + '</c>';
+        }
+        cuerpo += '<row r="' + f + '"' + (altos[f] ? ' ht="' + altos[f] + '" customHeight="1"' : '')
+                + '>' + cs + '</row>';
+      }
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        + '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>'
+        + '<sheetViews><sheetView workbookViewId="0" showGridLines="0"'
+        + (congela ? '><pane ySplit="' + (congela-1) + '" topLeftCell="A' + congela
+            + '" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView>'
+          : '/>')
+        + '</sheetViews>'
+        + '<sheetFormatPr defaultRowHeight="15"/>'
+        + (anchos.length
+            ? '<cols>' + anchos.map(function(a){
+                return '<col min="' + a.c + '" max="' + a.c + '" width="' + a.w + '" customWidth="1"/>';
+              }).join('') + '</cols>'
+            : '')
+        + '<sheetData>' + cuerpo + '</sheetData>'
+        + (filtro ? '<autoFilter ref="' + filtro + '"/>' : '')
+        + (unidas.length
+            ? '<mergeCells count="' + unidas.length + '">'
+              + unidas.map(function(u){ return '<mergeCell ref="' + u + '"/>'; }).join('')
+              + '</mergeCells>'
+            : '')
+        + (validaciones.length
+            ? '<dataValidations count="' + validaciones.length + '">'
+              + validaciones.map(function(v){
+                  return '<dataValidation type="' + v.tipo + '"'
+                    + (v.op ? ' operator="' + v.op + '"' : '')
+                    + ' allowBlank="1" showInputMessage="1" showErrorMessage="1"'
+                    + (v.titulo ? ' errorTitle="' + xe(v.titulo) + '"' : '')
+                    + (v.error ? ' error="' + xe(v.error) + '"' : '')
+                    + ' sqref="' + v.donde + '">'
+                    + '<formula1>' + xe(v.f1) + '</formula1>'
+                    + (v.f2 ? '<formula2>' + xe(v.f2) + '</formula2>' : '')
+                    + '</dataValidation>';
+                }).join('')
+              + '</dataValidations>'
+            : '')
+        + '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>'
+        + '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>'
+        + (api.dibujo ? '<drawing r:id="rId1"/>' : '')
+        + '</worksheet>';
+    }
+  };
+  return api;
+}
+
+/* Excel no admite notación exponencial ni `NaN` en un valor numérico: el
+   archivo abre «con contenido ilegible» y no dice cuál celda. */
+function numXml(v){
+  const n = Number(v);
+  if(!isFinite(n)) return '0';
+  return (Math.round(n * 1e10) / 1e10).toFixed(10).replace(/\.?0+$/, '') || '0';
+}
+
+/* ==========================================================================
+   SICOM · EL PAQUETE
+
+   Junta las hojas, los estilos, el logo y el gráfico en el comprimido final.
+   Los nombres de los archivos de adentro son fijos: Excel los busca por
+   nombre y no perdona uno mal escrito.
+   ========================================================================== */
+
+const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const TIPO = {
+  hoja:   'http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet',
+  estilo: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles',
+  dibujo: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing',
+  imagen: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
+  grafico:'http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart'
+};
+
+const EMU = 9525;   /* un pixel son 9525 EMU; Excel mide así los dibujos */
+
+/* ------------------------------------------------------------ el dibujo --
+   Lo que flota por encima de la rejilla: el logo y el gráfico. */
+function dibujoXml(piezas){
+  let s = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"'
+    + ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">';
+  piezas.forEach(function(p, i){
+    const id = i + 2;
+    s += '<xdr:oneCellAnchor>'
+      + '<xdr:from><xdr:col>' + p.col + '</xdr:col><xdr:colOff>' + (p.dx || 0) * EMU + '</xdr:colOff>'
+      + '<xdr:row>' + p.fila + '</xdr:row><xdr:rowOff>' + (p.dy || 0) * EMU + '</xdr:rowOff></xdr:from>'
+      + '<xdr:ext cx="' + p.ancho * EMU + '" cy="' + p.alto * EMU + '"/>';
+    if(p.tipo === 'imagen'){
+      s += '<xdr:pic><xdr:nvPicPr>'
+        + '<xdr:cNvPr id="' + id + '" name="' + xe(p.nombre || 'logo') + '"/>'
+        + '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>'
+        + '<xdr:blipFill><a:blip xmlns:r="' + NS_R + '" r:embed="' + p.rid + '"/>'
+        + '<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+        + '<xdr:spPr><a:xfrm><a:off x="0" y="0"/>'
+        + '<a:ext cx="' + p.ancho * EMU + '" cy="' + p.alto * EMU + '"/></a:xfrm>'
+        + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>';
+    } else {
+      s += '<xdr:graphicFrame><xdr:nvGraphicFramePr>'
+        + '<xdr:cNvPr id="' + id + '" name="' + xe(p.nombre || 'grafico') + '"/>'
+        + '<xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>'
+        + '<xdr:xfrm><a:off x="0" y="0"/>'
+        + '<a:ext cx="' + p.ancho * EMU + '" cy="' + p.alto * EMU + '"/></xdr:xfrm>'
+        + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+        + '<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"'
+        + ' xmlns:r="' + NS_R + '" r:id="' + p.rid + '"/>'
+        + '</a:graphicData></a:graphic></xdr:graphicFrame>';
+    }
+    s += '<xdr:clientData/></xdr:oneCellAnchor>';
+  });
+  return s + '</xdr:wsDr>';
+}
+
+/* ------------------------------------------------------------ el gráfico --
+   Barras horizontales, en el oro de la casa, con las categorías en el mismo
+   orden que la tabla de arriba —que es al revés de como Excel las dibuja por
+   omisión—. */
+function graficoXml(g){
+  const ref = function(h, r){ return xe("'" + h + "'!" + r); };
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"'
+    + ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+    + '<c:chart>'
+    + '<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:pPr><a:defRPr sz="1100" b="1">'
+    + '<a:solidFill><a:srgbClr val="' + g.colorTitulo + '"/></a:solidFill>'
+    + '<a:latin typeface="Georgia"/></a:defRPr></a:pPr>'
+    + '<a:r><a:t>' + xe(g.titulo) + '</a:t></a:r></a:p></c:rich></c:tx>'
+    + '<c:overlay val="0"/></c:title>'
+    + '<c:autoTitleDeleted val="0"/>'
+    + '<c:plotArea><c:layout/>'
+    + '<c:barChart><c:barDir val="bar"/><c:grouping val="clustered"/><c:varyColors val="0"/>'
+    + '<c:ser><c:idx val="0"/><c:order val="0"/>'
+    + '<c:tx><c:strRef><c:f>' + ref(g.hoja, g.refTitulo) + '</c:f></c:strRef></c:tx>'
+    + '<c:spPr><a:solidFill><a:srgbClr val="' + g.color + '"/></a:solidFill>'
+    + '<a:ln><a:solidFill><a:srgbClr val="' + g.colorBorde + '"/></a:solidFill></a:ln></c:spPr>'
+    + '<c:cat><c:strRef><c:f>' + ref(g.hoja, g.refCategorias) + '</c:f></c:strRef></c:cat>'
+    + '<c:val><c:numRef><c:f>' + ref(g.hoja, g.refValores) + '</c:f></c:numRef></c:val>'
+    + '</c:ser>'
+    + '<c:gapWidth val="60"/><c:axId val="111"/><c:axId val="222"/></c:barChart>'
+    /* el eje de las categorías: invertido, para que se lea como la tabla */
+    + '<c:catAx><c:axId val="111"/><c:scaling><c:orientation val="maxMin"/></c:scaling>'
+    + '<c:delete val="0"/><c:axPos val="l"/>'
+    + '<c:txPr><a:bodyPr/><a:p><a:pPr><a:defRPr sz="800"/></a:pPr><a:endParaRPr lang="es"/></a:p></c:txPr>'
+    + '<c:crossAx val="222"/></c:catAx>'
+    + '<c:valAx><c:axId val="222"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
+    + '<c:delete val="0"/><c:axPos val="b"/><c:numFmt formatCode="#,##0" sourceLinked="0"/>'
+    + '<c:majorGridlines/>'
+    + '<c:txPr><a:bodyPr/><a:p><a:pPr><a:defRPr sz="800"/></a:pPr><a:endParaRPr lang="es"/></a:p></c:txPr>'
+    + '<c:crossAx val="111"/></c:valAx>'
+    + '</c:plotArea><c:plotVisOnly val="1"/></c:chart></c:chartSpace>';
+}
+
+/* ------------------------------------------------------------ el paquete --
+   hojas: [Hoja]
+   adornos: { <indice de hoja>: { logo: bytes|null, logoAncho, logoAlto,
+                                  logoCol, logoFila, grafico: {...} } }
+*/
+async function empaqueta(hojas, estilos, adornos){
+  adornos = adornos || {};
+  const entradas = [];
+  const tiposExtra = [];
+  let nGrafico = 0;
+
+  /* ---- los dibujos, hoja por hoja ---- */
+  hojas.forEach(function(h, i){
+    const a = adornos[i];
+    if(!a) return;
+    const piezas = [], rels = [];
+    if(a.logo){
+      const ruta = 'xl/media/logo.png';
+      if(!entradas.some(function(e){ return e.nombre === ruta; }))
+        entradas.push({ nombre: ruta, datos: a.logo });
+      rels.push('<Relationship Id="rId1" Type="' + TIPO.imagen + '" Target="/' + ruta + '"/>');
+      piezas.push({ tipo:'imagen', rid:'rId1', col:a.logoCol, fila:a.logoFila,
+                    ancho:a.logoAncho, alto:a.logoAlto, nombre:'logo' });
+    }
+    if(a.grafico){
+      nGrafico++;
+      const ruta = 'xl/charts/chart' + nGrafico + '.xml';
+      entradas.push({ nombre: ruta, datos: graficoXml(a.grafico) });
+      tiposExtra.push('<Override PartName="/' + ruta
+        + '" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>');
+      const rid = 'rId' + (rels.length + 1);
+      rels.push('<Relationship Id="' + rid + '" Type="' + TIPO.grafico + '" Target="/' + ruta + '"/>');
+      piezas.push({ tipo:'grafico', rid:rid, col:a.grafico.col, fila:a.grafico.fila,
+                    ancho:a.grafico.ancho, alto:a.grafico.alto, nombre:'grafico' });
+    }
+    if(!piezas.length) return;
+    const nd = i + 1;
+    h.dibujo = true;
+    entradas.push({ nombre: 'xl/drawings/drawing' + nd + '.xml', datos: dibujoXml(piezas) });
+    entradas.push({ nombre: 'xl/drawings/_rels/drawing' + nd + '.xml.rels',
+      datos: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + rels.join('') + '</Relationships>' });
+    tiposExtra.push('<Override PartName="/xl/drawings/drawing' + nd
+      + '.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>');
+    h.relDibujo = '<Relationship Id="rId1" Type="' + TIPO.dibujo
+      + '" Target="../drawings/drawing' + nd + '.xml"/>';
+  });
+
+  /* ---- las hojas (su XML se arma DESPUÉS de marcarles el dibujo) ---- */
+  hojas.forEach(function(h, i){
+    entradas.push({ nombre: 'xl/worksheets/sheet' + (i+1) + '.xml', datos: h.xml() });
+    if(h.relDibujo)
+      entradas.push({ nombre: 'xl/worksheets/_rels/sheet' + (i+1) + '.xml.rels',
+        datos: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          + h.relDibujo + '</Relationships>' });
+  });
+
+  entradas.push({ nombre: 'xl/styles.xml', datos: estilos.xml() });
+
+  /* ---- el libro y sus nombres definidos (la fila que se repite al imprimir) ---- */
+  const defs = [];
+  hojas.forEach(function(h, i){
+    const fr = h.filaRepetida();
+    if(fr) defs.push('<definedName name="_xlnm.Print_Titles" localSheetId="' + i + '">'
+      + xe("'" + h.nombre + "'!$" + fr + ':$' + fr) + '</definedName>');
+  });
+
+  entradas.push({ nombre: 'xl/workbook.xml',
+    datos: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+      + ' xmlns:r="' + NS_R + '"><sheets>'
+      + hojas.map(function(h, i){
+          return '<sheet name="' + xe(h.nombre) + '" sheetId="' + (i+1)
+               + '" r:id="rId' + (i+1) + '"/>';
+        }).join('')
+      + '</sheets>'
+      + (defs.length ? '<definedNames>' + defs.join('') + '</definedNames>' : '')
+      /* Que Excel recalcule al abrir: los valores van escritos, pero si la
+         dueña corrige una existencia, el resumen tiene que moverse solo. */
+      + '<calcPr calcId="0" fullCalcOnLoad="1"/>'
+      + '</workbook>' });
+
+  entradas.push({ nombre: 'xl/_rels/workbook.xml.rels',
+    datos: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + hojas.map(function(h, i){
+          return '<Relationship Id="rId' + (i+1) + '" Type="' + TIPO.hoja
+               + '" Target="worksheets/sheet' + (i+1) + '.xml"/>';
+        }).join('')
+      + '<Relationship Id="rIdEst" Type="' + TIPO.estilo + '" Target="styles.xml"/>'
+      + '</Relationships>' });
+
+  entradas.push({ nombre: '_rels/.rels',
+    datos: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Target="xl/workbook.xml"'
+      + ' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"/>'
+      + '</Relationships>' });
+
+  entradas.push({ nombre: '[Content_Types].xml',
+    datos: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Default Extension="png" ContentType="image/png"/>'
+      + '<Override PartName="/xl/workbook.xml"'
+      + ' ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + hojas.map(function(h, i){
+          return '<Override PartName="/xl/worksheets/sheet' + (i+1) + '.xml"'
+               + ' ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+        }).join('')
+      + '<Override PartName="/xl/styles.xml"'
+      + ' ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      + tiposExtra.join('')
+      + '</Types>' });
+
+  /* `[Content_Types].xml` va de primero en el comprimido. No es capricho:
+     algunos lectores lo exigen y el de Excel entre ellos. */
+  entradas.sort(function(a, b){
+    return (a.nombre === '[Content_Types].xml' ? -1 : 0) - (b.nombre === '[Content_Types].xml' ? -1 : 0);
+  });
+
+  return armaZip(entradas);
+}
+
+/* ==========================================================================
+   SICOM · LOS DOS LIBROS DEL INVENTARIO
+
+   A · el ejecutivo, para mirar y presentar
+   B · la plantilla de carga, con el formato que el sistema ya acepta
+
+   Las cuentas son LAS MISMAS que la pantalla enseña: `exi(p)` por artículo,
+   el costo y la venta multiplicando por esa existencia. No se recalcula nada
+   por otro camino: dos cuentas paralelas se separan, y entonces el Excel y
+   la pantalla dicen cifras distintas del mismo día.
+
+   EL MARGEN VA SOBRE EL PRECIO, no sobre el costo. Es la definición que
+   `margen(p)` usa en la pantalla —(precio − costo) ÷ precio— y la que se
+   enseña en el catálogo. Con la otra, la de sobre el costo, el mismo
+   artículo sale 90 % en el Excel y 47 % en la pantalla, y entonces una de
+   las dos miente sin que se sepa cuál.
+   ========================================================================== */
+
+
+
+/* El catálogo de estilos, UNA vez para los dos libros. */
+function catalogoEstilos(){
+  const E = Estilos();
+  const neg = C.TINTA, bl = C.BLANCO;
+
+  E.define('fondo',     {relleno:C.CREMA});
+  E.define('marca',     {fuente:{nom:'Georgia', tam:14, negrita:true, color:neg}, relleno:C.CREMA, al:'left'});
+  E.define('rif',       {fuente:{tam:9, color:C.GRIS}, relleno:C.CREMA, al:'left'});
+  E.define('titulo',    {fuente:{nom:'Georgia', tam:20, negrita:true, color:neg}, relleno:C.CREMA, al:'left'});
+  E.define('subtitulo', {fuente:{tam:10, color:C.ORO_OSC}, relleno:C.CREMA, al:'left'});
+  E.define('filete',    {relleno:C.ORO});
+  E.define('seccion',   {fuente:{nom:'Georgia', tam:13, negrita:true, color:neg}, relleno:C.CREMA, al:'left'});
+
+  E.define('cab',       {fuente:{tam:9, negrita:true, color:bl}, relleno:C.TINTA,
+                         borde:{aba:{g:'thin', c:C.ORO}}, al:'center', ajusta:true});
+
+  /* el cuerpo: dos tonos alternos × cuatro alineaciones/formatos */
+  [['bl', C.BLANCO], ['pa', C.PANEL]].forEach(function(t){
+    const n = t[0], f = t[1], b = {aba:{g:'thin', c:C.LINEA}};
+    E.define(n+'_txt',  {fuente:{tam:9}, relleno:f, borde:b, al:'left'});
+    E.define(n+'_txtb', {fuente:{tam:9, negrita:true}, relleno:f, borde:b, al:'left'});
+    E.define(n+'_cen',  {fuente:{tam:9}, relleno:f, borde:b, al:'center'});
+    E.define(n+'_ent',  {fuente:{tam:9}, relleno:f, borde:b, al:'center', fmt:FMT.entero});
+    E.define(n+'_mon',  {fuente:{tam:9}, relleno:f, borde:b, al:'right',  fmt:FMT.moneda});
+    E.define(n+'_pct',  {fuente:{tam:9}, relleno:f, borde:b, al:'center', fmt:FMT.pct});
+    /* la plantilla escribe con letra un punto mayor */
+    E.define(n+'_p10',  {fuente:{tam:10}, relleno:f, borde:b, al:'left'});
+  });
+
+  const bt = {arr:{g:'medium', c:C.ORO}};
+  E.define('tot_txt', {fuente:{tam:10, negrita:true, color:bl}, relleno:C.TINTA, borde:bt, al:'left'});
+  E.define('tot_ent', {fuente:{tam:10, negrita:true, color:bl}, relleno:C.TINTA, borde:bt, al:'center', fmt:FMT.entero});
+  E.define('tot_mon', {fuente:{tam:10, negrita:true, color:bl}, relleno:C.TINTA, borde:bt, al:'right',  fmt:FMT.moneda});
+  E.define('tot_pct', {fuente:{tam:10, negrita:true, color:bl}, relleno:C.TINTA, borde:bt, al:'center', fmt:FMT.pct});
+  E.define('tot_vac', {relleno:C.TINTA, borde:bt});
+
+  /* las cifras de cabecera */
+  const bk = {aba:{g:'medium', c:C.ORO}};
+  E.define('kpi_rot',  {fuente:{tam:8, negrita:true, color:C.ORO_OSC}, relleno:C.PANEL, al:'center'});
+  E.define('kpi_ent',  {fuente:{nom:'Georgia', tam:16, negrita:true, color:neg}, relleno:C.PANEL, borde:bk, al:'center', fmt:FMT.entero});
+  E.define('kpi_mon',  {fuente:{nom:'Georgia', tam:13, negrita:true, color:neg}, relleno:C.PANEL, borde:bk, al:'center', fmt:FMT.moneda});
+  E.define('kpi_pct',  {fuente:{nom:'Georgia', tam:16, negrita:true, color:neg}, relleno:C.PANEL, borde:bk, al:'center', fmt:FMT.pct});
+  /* las de bolívares, en otro tono: son derivadas, no cargadas */
+  E.define('kpiBs_rot',{fuente:{tam:8, negrita:true, color:C.ORO_OSC}, relleno:C.CREMA, al:'center'});
+  E.define('kpiBs_mon',{fuente:{nom:'Georgia', tam:11, negrita:true, color:neg}, relleno:C.CREMA, borde:bk, al:'center', fmt:FMT.moneda});
+
+  E.define('notaT',  {fuente:{nom:'Georgia', tam:11, negrita:true, color:neg}, relleno:C.CREMA, al:'left'});
+  E.define('nota',   {fuente:{tam:8, color:C.GRIS}, relleno:C.CREMA, al:'left', vert:'top', ajusta:true});
+  E.define('pie',    {fuente:{tam:7, color:C.GRIS}, relleno:C.CREMA, al:'left'});
+
+  /* la plantilla de carga */
+  E.define('guia_col', {fuente:{nom:'Consolas', tam:10, negrita:true, color:C.ORO_OSC}, relleno:C.BLANCO, borde:{aba:{g:'thin', c:C.LINEA}}, al:'left'});
+  E.define('guia_col2',{fuente:{nom:'Consolas', tam:10, negrita:true, color:C.ORO_OSC}, relleno:C.PANEL,  borde:{aba:{g:'thin', c:C.LINEA}}, al:'left'});
+  E.define('ejemplo',  {fuente:{tam:10, cursiva:true, color:C.AZUL}, relleno:C.AZULCL, borde:{aba:{g:'thin', c:C.LINEA}}, al:'left'});
+  E.define('ejemplo_c',{fuente:{tam:10, cursiva:true, color:C.AZUL}, relleno:C.AZULCL, borde:{aba:{g:'thin', c:C.LINEA}}, al:'center'});
+  E.define('ejemplo_m',{fuente:{tam:10, cursiva:true, color:C.AZUL}, relleno:C.AZULCL, borde:{aba:{g:'thin', c:C.LINEA}}, al:'right', fmt:FMT.moneda});
+  E.define('ejemplo_e',{fuente:{tam:10, cursiva:true, color:C.AZUL}, relleno:C.AZULCL, borde:{aba:{g:'thin', c:C.LINEA}}, al:'center', fmt:FMT.entero});
+  E.define('ejemplo_n',{fuente:{tam:8, cursiva:true, color:C.AZUL}, relleno:C.CREMA, al:'left'});
+  E.define('vac_txt',  {fuente:{tam:10}, relleno:C.CASIBLANCO, borde:{aba:{g:'thin', c:C.LINEA}}, al:'left'});
+  E.define('vac_cen',  {fuente:{tam:10}, relleno:C.CASIBLANCO, borde:{aba:{g:'thin', c:C.LINEA}}, al:'center'});
+  E.define('vac_ent',  {fuente:{tam:10}, relleno:C.CASIBLANCO, borde:{aba:{g:'thin', c:C.LINEA}}, al:'center', fmt:FMT.entero});
+  E.define('vac_mon',  {fuente:{tam:10}, relleno:C.CASIBLANCO, borde:{aba:{g:'thin', c:C.LINEA}}, al:'right',  fmt:FMT.moneda});
+  E.define('aviso',    {fuente:{tam:9, negrita:true, color:neg}, relleno:C.AMARILLO, al:'left', vert:'center', ajusta:true});
+  E.define('regla',    {fuente:{tam:9}, relleno:C.CREMA, al:'left', vert:'top', ajusta:true});
+  return E;
+}
+
+/* El membrete, igual en todas las hojas. Devuelve la fila donde sigue el
+   contenido. */
+function membrete(h, E, emp, titulo, subtitulo, anchoCols){
+  for(let f = 1; f <= 8; f++)
+    for(let c = 1; c <= anchoCols; c++) h.vacia(f, c, E.de('fondo'));
+  h.texto(2, 4, emp.nom, E.de('marca'));
+  h.texto(3, 4, 'RIF ' + emp.rif + '  ·  ' + emp.cond, E.de('rif'));
+  h.texto(5, 4, titulo, E.de('titulo'));
+  h.texto(6, 4, subtitulo, E.de('subtitulo'));
+  for(let c = 2; c <= anchoCols; c++) h.vacia(8, c, E.de('filete'));
+  h.alto(2, 20).alto(5, 26).alto(8, 3);
+  return 10;
+}
+
+/* Redondeo a dos para las celdas del libro. NO se llama `r2`: así se llama
+   la de la contabilidad —que lleva un empujón de 1e-9 contra el redondeo de
+   la coma flotante— y declarar otra con ese nombre la pisa en todo el
+   sistema. Dentro de este bloque no hace falta esa precisión: aquí sólo se
+   escribe el valor que Excel va a recalcular igual. */
+function red2(x){ return Math.round(x * 100) / 100; }
+
+/* ==========================================================================
+   A · EL LIBRO EJECUTIVO
+   ========================================================================== */
+function libroEjecutivo(arts, opc){
+  const E = catalogoEstilos();
+  const emp = opc.empresa;
+  const hoy = opc.fecha;
+  /* Una base recién montada no tiene tasa confirmada todavía. Con `tasa = 0`
+     el libro saldría diciendo «Bs 0,0000 por USD» y dos cifras en cero, que
+     es peor que no decir nada: parece un inventario que no vale nada. */
+  const hayTasa = +opc.tasa > 0, tasa = hayTasa ? +opc.tasa : 0;
+  const tasaTxt = hayTasa
+    ? 'Bs ' + tasa.toLocaleString('es-VE', {minimumFractionDigits:4}) + ' por USD'
+    : 'sin tasa confirmada';
+
+  /* ------------------------------------------------ hoja 2 · el detalle --
+     Se arma primero porque el resumen la referencia, pero va de segunda en
+     el libro: al abrirlo se ve el resumen. */
+  const wd = Hoja('Inventario');
+  const COLS = [
+    ['#',                        6,  'cen'],
+    ['Código',                  14,  'cen'],
+    ['Artículo',                60,  'txtb'],
+    ['Categoría',               22,  'txt'],
+    ['Variantes\n(talla/color)',11,  'ent'],
+    ['Existencia\n(unidades)',  12,  'ent'],
+    ['Costo unit.\n(USD)',      12,  'mon'],
+    ['Precio unit.\n(USD)',     12,  'mon'],
+    ['Valor al costo\n(USD)',   14,  'mon'],
+    ['Valor a la venta\n(USD)', 15,  'mon'],
+    ['Margen',                  10,  'pct'],
+    ['IVA',                      9,  'cen'],
+    ['Estado',                  11,  'cen']
+  ];
+  const ANCHO = COLS.length + 1;           /* columna A estrecha + las 13 */
+  const F0 = membrete(wd, E, emp, 'Inventario cargado',
+                      'Detalle por artículo  ·  al ' + hoy, ANCHO);
+
+  wd.ancho(1, 2);
+  COLS.forEach(function(c, i){ wd.ancho(2 + i, c[1]); });
+  COLS.forEach(function(c, i){ wd.texto(F0, 2 + i, c[0], E.de('cab')); });
+  wd.alto(F0, 30);
+
+  const orden = arts.slice().sort(function(a, b){
+    return a.categoria === b.categoria
+      ? (a.nombre < b.nombre ? -1 : a.nombre > b.nombre ? 1 : 0)
+      : (a.categoria < b.categoria ? -1 : 1);
+  });
+
+  let f = F0 + 1;
+  orden.forEach(function(a, i){
+    const t = (i % 2 === 0) ? 'bl' : 'pa';
+    const vc = red2(a.existencia * a.costo), vv = red2(a.existencia * a.precio);
+    wd.numero(f, 2,  i + 1,          E.de(t+'_cen'));
+    wd.texto (f, 3,  a.sku,          E.de(t+'_cen'));
+    wd.texto (f, 4,  a.nombre,       E.de(t+'_txtb'));
+    wd.texto (f, 5,  a.categoria,    E.de(t+'_txt'));
+    wd.numero(f, 6,  a.variantes,    E.de(t+'_ent'));
+    wd.numero(f, 7,  a.existencia,   E.de(t+'_ent'));
+    wd.numero(f, 8,  a.costo,        E.de(t+'_mon'));
+    wd.numero(f, 9,  a.precio,       E.de(t+'_mon'));
+    wd.formula(f, 10, 'G'+f+'*H'+f, vc, E.de(t+'_mon'));
+    wd.formula(f, 11, 'G'+f+'*I'+f, vv, E.de(t+'_mon'));
+    wd.formula(f, 12, 'IFERROR((K'+f+'-J'+f+')/K'+f+',"")',
+               vv > 0 ? (vv - vc) / vv : null, E.de(t+'_pct'));
+    wd.texto (f, 13, a.exento ? 'Exento' : 'Grava',   E.de(t+'_cen'));
+    wd.texto (f, 14, a.activo ? 'Activo' : 'De baja', E.de(t+'_cen'));
+    f++;
+  });
+  const ULT = f - 1, FTOT = f;
+
+  const sum = function(k){ return arts.reduce(function(t, a){ return t + k(a); }, 0); };
+  const TU = sum(function(a){ return a.existencia; });
+  const TV = sum(function(a){ return a.variantes; });
+  const TC = red2(sum(function(a){ return a.existencia * a.costo; }));
+  const TP = red2(sum(function(a){ return a.existencia * a.precio; }));
+  const TM = TP > 0 ? (TP - TC) / TP : null;
+
+  for(let c = 2; c <= ANCHO; c++) wd.vacia(FTOT, c, E.de('tot_vac'));
+  wd.texto(FTOT, 2, 'TOTAL', E.de('tot_txt'));
+  wd.formula(FTOT, 6,  'SUM(F'+(F0+1)+':F'+ULT+')', TV, E.de('tot_ent'));
+  wd.formula(FTOT, 7,  'SUM(G'+(F0+1)+':G'+ULT+')', TU, E.de('tot_ent'));
+  wd.formula(FTOT, 10, 'SUM(J'+(F0+1)+':J'+ULT+')', TC, E.de('tot_mon'));
+  wd.formula(FTOT, 11, 'SUM(K'+(F0+1)+':K'+ULT+')', TP, E.de('tot_mon'));
+  wd.formula(FTOT, 12, 'IFERROR((K'+FTOT+'-J'+FTOT+')/K'+FTOT+',"")', TM, E.de('tot_pct'));
+
+  wd.autofiltro('B'+F0+':N'+ULT).congelaEn(F0 + 1).repite(F0);
+
+  const fn = FTOT + 2;
+  for(let c = 2; c <= ANCHO; c++) wd.vacia(fn, c, E.de('nota'));
+  wd.texto(fn, 2, 'El margen es (valor a la venta − valor al costo) ÷ valor al costo. '
+    + 'Las cifras en USD son las del catálogo; la conversión a bolívares se hace con la tasa '
+    + 'del día (' + hoy + ': Bs ' + tasa.toLocaleString('es-VE', {minimumFractionDigits:4}) + ' por USD).',
+    E.de('nota'));
+  wd.une(fn, 2, fn, ANCHO);
+  wd.alto(fn, 24);
+
+  /* ------------------------------------------------ hoja 1 · el resumen -- */
+  const wr = Hoja('Resumen');
+  const ANCHO_R = 8;
+  const FR = membrete(wr, E, emp, 'Inventario · resumen ejecutivo',
+    'Al ' + hoy + '  ·  ' + (hayTasa ? 'tasa BCV ' + tasaTxt : tasaTxt), 10);
+  wr.ancho(1, 2).ancho(2, 28).ancho(3, 13).ancho(4, 16).ancho(5, 18)
+    .ancho(6, 18).ancho(7, 19).ancho(8, 19);
+
+  /* las cifras de cabecera: las cinco del catálogo y las dos en bolívares */
+  const KPI = [
+    ['Artículos',        'COUNTA(Inventario!C'+(F0+1)+':C'+ULT+')', arts.length, 'kpi_ent'],
+    ['Unidades',         'Inventario!G'+FTOT, TU, 'kpi_ent'],
+    ['Al costo (USD)',   'Inventario!J'+FTOT, TC, 'kpi_mon'],
+    ['A la venta (USD)', 'Inventario!K'+FTOT, TP, 'kpi_mon'],
+    ['Margen',           'Inventario!L'+FTOT, TM, 'kpi_pct']
+  ];
+  if(hayTasa) KPI.push(
+    ['Al costo (Bs)',    'Inventario!J'+FTOT+'*'+tasa, red2(TC*tasa), 'kpiBs_mon'],
+    ['A la venta (Bs)',  'Inventario!K'+FTOT+'*'+tasa, red2(TP*tasa), 'kpiBs_mon']);
+  KPI.forEach(function(k, i){
+    const c = 2 + i, esBs = k[3].indexOf('Bs') >= 0;
+    wr.texto(FR, c, k[0], E.de(esBs ? 'kpiBs_rot' : 'kpi_rot'));
+    wr.formula(FR + 1, c, k[1], k[2], E.de(k[3]));
+  });
+  wr.alto(FR + 1, 30);
+
+  /* ---- por categoría ---- */
+  const cats = [];
+  arts.forEach(function(a){ if(cats.indexOf(a.categoria) < 0) cats.push(a.categoria); });
+  cats.sort();
+
+  const RC = 'Inventario!$E$'+(F0+1)+':$E$'+ULT;
+  const RU = 'Inventario!$G$'+(F0+1)+':$G$'+ULT;
+  const RK = 'Inventario!$J$'+(F0+1)+':$J$'+ULT;
+  const RV = 'Inventario!$K$'+(F0+1)+':$K$'+ULT;
+
+  let fc = FR + 4;
+  wr.texto(fc, 2, 'Por categoría', E.de('seccion'));
+  for(let c = 3; c <= ANCHO_R; c++) wr.vacia(fc, c, E.de('fondo'));
+  fc++;
+  ['Categoría','Artículos','Unidades','Valor al costo (USD)','Valor a la venta (USD)','Margen','% del inventario']
+    .forEach(function(t, i){ wr.texto(fc, 2 + i, t, E.de('cab')); });
+  wr.alto(fc, 30);
+
+  const porCat = {};
+  arts.forEach(function(a){
+    const g = porCat[a.categoria] || (porCat[a.categoria] = {n:0, u:0, c:0, v:0});
+    g.n++; g.u += a.existencia;
+    g.c += a.existencia * a.costo; g.v += a.existencia * a.precio;
+  });
+
+  let fx = fc + 1;
+  const FCAT0 = fx;
+  cats.forEach(function(cat, i){
+    const t = (i % 2 === 0) ? 'bl' : 'pa', g = porCat[cat];
+    wr.texto  (fx, 2, cat, E.de(t+'_txtb'));
+    wr.formula(fx, 3, 'COUNTIF('+RC+',$B'+fx+')',          g.n,     E.de(t+'_ent'));
+    wr.formula(fx, 4, 'SUMIF('+RC+',$B'+fx+','+RU+')',     g.u,     E.de(t+'_ent'));
+    wr.formula(fx, 5, 'SUMIF('+RC+',$B'+fx+','+RK+')',     red2(g.c), E.de(t+'_mon'));
+    wr.formula(fx, 6, 'SUMIF('+RC+',$B'+fx+','+RV+')',     red2(g.v), E.de(t+'_mon'));
+    wr.formula(fx, 7, 'IFERROR((F'+fx+'-E'+fx+')/F'+fx+',"")',
+               g.v > 0 ? (g.v - g.c) / g.v : null, E.de(t+'_pct'));
+    fx++;
+  });
+  const FCATT = fx;
+  cats.forEach(function(cat, i){
+    wr.formula(FCAT0 + i, 8, 'IFERROR(F'+(FCAT0+i)+'/$F$'+FCATT+',"")',
+               TP > 0 ? porCat[cat].v / TP : null,
+               E.de(((i % 2 === 0) ? 'bl' : 'pa') + '_pct'));
+  });
+
+  for(let c = 2; c <= ANCHO_R; c++) wr.vacia(FCATT, c, E.de('tot_vac'));
+  wr.texto(FCATT, 2, 'TOTAL', E.de('tot_txt'));
+  wr.formula(FCATT, 3, 'SUM(C'+FCAT0+':C'+(FCATT-1)+')', arts.length, E.de('tot_ent'));
+  wr.formula(FCATT, 4, 'SUM(D'+FCAT0+':D'+(FCATT-1)+')', TU, E.de('tot_ent'));
+  wr.formula(FCATT, 5, 'SUM(E'+FCAT0+':E'+(FCATT-1)+')', TC, E.de('tot_mon'));
+  wr.formula(FCATT, 6, 'SUM(F'+FCAT0+':F'+(FCATT-1)+')', TP, E.de('tot_mon'));
+  wr.formula(FCATT, 7, 'IFERROR((F'+FCATT+'-E'+FCATT+')/F'+FCATT+',"")', TM, E.de('tot_pct'));
+  wr.numero (FCATT, 8, 1, E.de('tot_pct'));
+
+  /* ---- por estado y por condición de IVA ----
+     Hoy puede que todo esté activo y todo exento, pero el renglón del otro
+     valor se escribe igual: una segmentación que sólo muestra lo que hay no
+     sirve para ver el día en que aparezca lo que no hay. */
+  function segmenta(f0, titulo, rotulo, rango, valores, cuenta){
+    wr.texto(f0, 2, titulo, E.de('seccion'));
+    for(let c = 3; c <= ANCHO_R; c++) wr.vacia(f0, c, E.de('fondo'));
+    [rotulo,'Artículos','Unidades','Valor al costo (USD)','Valor a la venta (USD)']
+      .forEach(function(t, i){ wr.texto(f0 + 1, 2 + i, t, E.de('cab')); });
+    for(let c = 7; c <= ANCHO_R; c++) wr.vacia(f0 + 1, c, E.de('fondo'));
+    wr.alto(f0 + 1, 30);
+    valores.forEach(function(v, k){
+      const f = f0 + 2 + k, t = (k % 2 === 0) ? 'bl' : 'pa', g = cuenta(v);
+      wr.texto  (f, 2, v, E.de(t+'_txtb'));
+      wr.formula(f, 3, 'COUNTIF('+rango+',$B'+f+')',      g.n,     E.de(t+'_ent'));
+      wr.formula(f, 4, 'SUMIF('+rango+',$B'+f+','+RU+')', g.u,     E.de(t+'_ent'));
+      wr.formula(f, 5, 'SUMIF('+rango+',$B'+f+','+RK+')', red2(g.c), E.de(t+'_mon'));
+      wr.formula(f, 6, 'SUMIF('+rango+',$B'+f+','+RV+')', red2(g.v), E.de(t+'_mon'));
+      for(let c = 7; c <= ANCHO_R; c++) wr.vacia(f, c, E.de('fondo'));
+    });
+    return f0 + 2 + valores.length;
+  }
+  const agrupa = function(filtro){
+    const g = {n:0, u:0, c:0, v:0};
+    arts.filter(filtro).forEach(function(a){
+      g.n++; g.u += a.existencia;
+      g.c += a.existencia * a.costo; g.v += a.existencia * a.precio;
+    });
+    return g;
+  };
+  const RE = 'Inventario!$N$'+(F0+1)+':$N$'+ULT;
+  const RI = 'Inventario!$M$'+(F0+1)+':$M$'+ULT;
+
+  let fs = segmenta(FCATT + 2, 'Por estado', 'Estado', RE, ['Activo','De baja'],
+    function(v){ return agrupa(function(a){ return (v === 'Activo') === !!a.activo; }); });
+  fs = segmenta(fs + 2, 'Por condición de IVA', 'IVA', RI, ['Exento','Grava'],
+    function(v){ return agrupa(function(a){ return (v === 'Exento') === !!a.exento; }); });
+
+  /* ---- el gráfico ---- */
+  const FG = fs + 2;
+
+  /* ---- las notas ---- */
+  const FN = FG + 17;
+  wr.texto(FN, 2, 'Notas', E.de('notaT'));
+  for(let c = 3; c <= ANCHO_R; c++) wr.vacia(FN, c, E.de('fondo'));
+  const NOTAS = [
+    'Las cifras salen de la hoja «Inventario» con fórmulas: si usted corrige una existencia '
+      + 'o un precio allá, este resumen se actualiza solo.',
+    hayTasa
+      ? 'Tasa usada para cualquier conversión a bolívares: ' + tasaTxt + ', del ' + hoy
+        + ', confirmada en el sistema.'
+      : 'No hay ninguna tasa confirmada en el sistema, así que este libro va sólo en dólares. '
+        + 'Confirme la tasa del día y vuelva a bajarlo si necesita los bolívares.',
+    'Los precios y costos del catálogo están en dólares. El margen es '
+      + '(valor a la venta − valor al costo) ÷ valor al costo.',
+    'La columna «IVA» de este informe dice «Exento» o «Grava». La plantilla de carga usa otra '
+      + 'escritura para lo mismo: «no» es exento y «si» es gravado.'
+  ];
+  NOTAS.forEach(function(t, i){
+    wr.texto(FN + 1 + i, 2, '·  ' + t, E.de('nota'));
+    wr.une(FN + 1 + i, 2, FN + 1 + i, ANCHO_R);
+    wr.alto(FN + 1 + i, 24);
+  });
+  const FP = FN + NOTAS.length + 2;
+  wr.texto(FP, 2, emp.nom + '  ·  ' + emp.dir, E.de('pie'));
+  wr.une(FP, 2, FP, ANCHO_R);
+
+  /* el crema del resto de la hoja */
+  for(let fz = FR; fz <= FP; fz++)
+    for(let c = 2; c <= ANCHO_R; c++) wr.vaciaSiLibre(fz, c, E.de('fondo'));
+
+  return empaqueta([wr, wd], E, {
+    0: {
+      logo: opc.logo, logoCol: 1, logoFila: 1, logoAncho: 118, logoAlto: 76, dx: 6, dy: 6,
+      grafico: {
+        titulo: 'Valor a la venta por categoría (USD)', hoja: 'Resumen',
+        refTitulo: '$F$' + fc, refCategorias: '$B$'+FCAT0+':$B$'+(FCATT-1),
+        refValores: '$F$'+FCAT0+':$F$'+(FCATT-1),
+        color: 'C8A24A', colorBorde: '9C7C2E', colorTitulo: '22180F',
+        col: 1, fila: FG - 1, ancho: 640, alto: 290
+      }
+    },
+    1: { logo: opc.logo, logoCol: 1, logoFila: 1, logoAncho: 118, logoAlto: 76, dx: 6, dy: 6 }
+  });
+}
+
+/* ==========================================================================
+   SICOM · LA PLANTILLA DE CARGA EN EXCEL
+
+   Las mismas diez columnas, en el mismo orden, que `modeloArts()` escribe en
+   el CSV. El orden NO se escribe dos veces: entra por parámetro desde quien
+   llama, que lo saca de ahí. Una lista copiada es una lista que se
+   desincroniza el día que alguien añada una columna.
+   ========================================================================== */
+
+
+
+const GUIA = {
+  codigo:     ['sí', 'El código con el que usted identifica el artículo. Las filas que comparten '
+                   + 'código son el MISMO artículo en distinta talla o color.'],
+  nombre:     ['sí', 'El nombre que verá la cajera en la pantalla de venta.'],
+  categoria:  ['sí', 'Una de las que ya existen (la celda se la ofrece en lista). Si escribe una '
+                   + 'nueva, el sistema le pregunta antes de crearla.'],
+  talla:      ['no', 'S, M, L, 38, 40… Déjela vacía si el artículo no tiene tallas.'],
+  color:      ['no', 'Negro, Rojo… Déjela vacía si el artículo no tiene colores.'],
+  existencia: ['sí', 'Cuántas unidades HAY de esa talla y ese color. Número entero.'],
+  costo:      ['sí', 'Lo que a usted le costó la unidad, en dólares.'],
+  precio:     ['sí', 'A cuánto la vende, en dólares.'],
+  iva:        ['sí', '«si» = el artículo GRAVA IVA  ·  «no» = está EXENTO. Si la deja vacía, '
+                   + 'manda el botón de la pantalla de importación.'],
+  icono:      ['no', 'Un emoji para reconocerlo de un vistazo en la caja. Opcional.']
+};
+
+/* Qué alineación lleva cada columna, por nombre y no por posición. */
+const ALIN = { existencia:'ent', costo:'mon', precio:'mon', iva:'cen', icono:'cen', talla:'cen' };
+const ANCHOS = { codigo:14, nombre:46, categoria:22, talla:10, color:16,
+                 existencia:12, costo:12, precio:12, iva:8, icono:8 };
+
+function libroPlantilla(columnas, cats, cuentaPorCat, opc){
+  const E = catalogoEstilos();
+  const emp = opc.empresa;
+
+  /* ---------------------------------------------- hoja 1 · cómo se llena */
+  const wi = Hoja('Cómo se llena');
+  const F1 = membrete(wi, E, emp, 'Plantilla de carga de inventario',
+                      'El mismo formato que el sistema ya acepta', 5);
+  wi.ancho(1, 2).ancho(2, 18).ancho(3, 14).ancho(4, 66);
+
+  wi.texto(F1, 2, 'Las ' + columnas.length + ' columnas, en este orden', E.de('seccion'));
+  wi.vacia(F1, 3, E.de('fondo')).vacia(F1, 4, E.de('fondo'));
+  let f = F1 + 1;
+  ['Columna','¿Obligatoria?','Qué va ahí'].forEach(function(t, i){
+    wi.texto(f, 2 + i, t, E.de('cab'));
+  });
+  wi.alto(f, 30);
+
+  columnas.forEach(function(nom, i){
+    f++;
+    const g = GUIA[nom] || ['', ''];
+    const t = (i % 2 === 0) ? 'bl' : 'pa';
+    wi.texto(f, 2, nom,  E.de(i % 2 === 0 ? 'guia_col' : 'guia_col2'));
+    wi.texto(f, 3, g[0], E.de(t+'_cen'));
+    wi.texto(f, 4, g[1], E.de(t+'_txt'));
+    /* La altura la manda el texto: un renglón fijo le corta la tercera línea
+       a la explicación del IVA, que es justo la que se presta a error. */
+    wi.alto(f, g[1].length <= 110 ? 28 : 46);
+  });
+
+  f += 3;
+  wi.texto(f, 2, 'Tres reglas que evitan la mayoría de los errores', E.de('seccion'));
+  [ 'UN ARTÍCULO CON TRES COLORES SON TRES FILAS, las tres con el mismo «codigo» y el '
+      + 'mismo «nombre». El sistema las junta solo.',
+    'LOS DECIMALES VAN CON COMA (12,50) y los miles sin punto. Es como Excel escribe en '
+      + 'Venezuela, así que normalmente no hay nada que hacer.',
+    'NO BORRE NI MUEVA LA FILA DE TÍTULOS. El sistema la busca por nombre; si cambia '
+      + '«existencia» por «cantidad», esa columna no entra.'
+  ].forEach(function(t){
+    f++;
+    wi.texto(f, 2, '·  ' + t, E.de('regla'));
+    wi.une(f, 2, f, 4);
+    wi.alto(f, 26);
+  });
+
+  f += 2;
+  wi.texto(f, 2, 'PUEDE SUBIRLO ASÍ COMO ESTÁ:  el sistema abre archivos de Excel (.xlsx) '
+    + 'directamente, sin convertir nada. Llénelo, guárdelo y arrástrelo a «Cargar el inventario '
+    + 'desde un archivo». Si prefiere CSV, también lo acepta.', E.de('aviso'));
+  wi.une(f, 2, f, 4);
+  wi.alto(f, 44);
+  const FIN1 = f;
+  for(let z = F1; z <= FIN1; z++)
+    for(let c = 2; c <= 4; c++) wi.vaciaSiLibre(z, c, E.de('fondo'));
+
+  /* ------------------------------------------------------ hoja 2 · carga */
+  const wc = Hoja('Carga');
+  const ANCHO_C = columnas.length + 1;
+  const FC = membrete(wc, E, emp, 'Carga de inventario',
+    'La fila 12 trae un ejemplo  ·  bórrelo y escriba sus artículos desde ahí',
+    ANCHO_C) + 1;        /* la cabecera va una fila más abajo: F0=10 -> 11 */
+  wc.ancho(1, 2);
+  columnas.forEach(function(nom, i){ wc.ancho(2 + i, ANCHOS[nom] || 14); });
+  columnas.forEach(function(nom, i){ wc.texto(FC, 2 + i, nom, E.de('cab')); });
+  wc.alto(FC, 30);
+
+  /* el renglón de ejemplo, marcado como tal y en azul: la regla de la casa
+     para los libros que alguien tiene que llenar. Va EXENTO porque así está
+     hoy el catálogo entero; un ejemplo que sugiere lo contrario se copia. */
+  /* La categoría del ejemplo es la que MÁS artículos tiene, no la primera
+     alfabéticamente: un ejemplo de blusa archivado en «BOLSO DE NIÑOS» se
+     copia tal cual y entra mal. */
+  let catEj = cats[0] || 'Ropa de Dama';
+  cats.forEach(function(c){
+    if((cuentaPorCat[c] || 0) > (cuentaPorCat[catEj] || 0)) catEj = c;
+  });
+  const EJ = { codigo:'BL-001', nombre:'Blusa manga larga satinada',
+               categoria: catEj, talla:'S', color:'Negro',
+               existencia:3, costo:12.00, precio:28.00, iva:'no', icono:'👚' };
+  columnas.forEach(function(nom, i){
+    const v = EJ[nom], a = ALIN[nom];
+    const est = a === 'mon' ? 'ejemplo_m' : a === 'ent' ? 'ejemplo_e'
+              : a === 'cen' ? 'ejemplo_c' : 'ejemplo';
+    if(typeof v === 'number') wc.numero(FC + 1, 2 + i, v, E.de(est));
+    else wc.texto(FC + 1, 2 + i, v == null ? '' : v, E.de(est));
+  });
+  wc.texto(FC + 1, 2 + columnas.length, '←  ejemplo: bórrelo y escriba el suyo',
+           E.de('ejemplo_n'));
+
+  const FILAS_LIBRES = 200;
+  for(let fz = FC + 2; fz < FC + 2 + FILAS_LIBRES; fz++){
+    columnas.forEach(function(nom, i){
+      const a = ALIN[nom];
+      wc.vacia(fz, 2 + i, E.de(a === 'mon' ? 'vac_mon' : a === 'ent' ? 'vac_ent'
+                             : a === 'cen' ? 'vac_cen' : 'vac_txt'));
+    });
+  }
+  wc.congelaEn(FC + 1).repite(FC);
+
+  const ult = FC + 1 + FILAS_LIBRES;
+  const letra = function(nom){
+    const i = columnas.indexOf(nom);
+    return i < 0 ? null : String.fromCharCode(66 + i);   /* B + posición */
+  };
+  if(cats.length && letra('categoria')) wc.valida({
+    tipo:'list', donde: letra('categoria')+(FC+1)+':'+letra('categoria')+ult,
+    f1: '"' + cats.join(',') + '"', titulo:'Categoría',
+    error:'Elija una categoría de la lista, o escriba una nueva y el sistema le preguntará.' });
+  if(letra('iva')) wc.valida({
+    tipo:'list', donde: letra('iva')+(FC+1)+':'+letra('iva')+ult,
+    f1:'"si,no"', titulo:'IVA', error:'Escriba «si» (grava IVA) o «no» (exento).' });
+  ['existencia','costo','precio'].forEach(function(nom){
+    const L = letra(nom);
+    if(L) wc.valida({ tipo:'decimal', op:'greaterThanOrEqual',
+      donde: L+(FC+1)+':'+L+ult, f1:'0', titulo:'Cifra',
+      error:'Tiene que ser un número, y no puede ser negativo.' });
+  });
+
+  /* ------------------------------------------- hoja 3 · las categorías */
+  const wk = Hoja('Categorías de hoy');
+  const FK = membrete(wk, E, emp, 'Categorías cargadas',
+                      'Las que el sistema ya conoce', 4);
+  wk.ancho(1, 2).ancho(2, 30).ancho(3, 16);
+  ['Categoría','Artículos hoy'].forEach(function(t, i){ wk.texto(FK, 2 + i, t, E.de('cab')); });
+  wk.alto(FK, 30);
+  cats.forEach(function(cat, i){
+    const t = (i % 2 === 0) ? 'bl' : 'pa';
+    wk.texto (FK + 1 + i, 2, cat, E.de(t+'_txt'));
+    wk.numero(FK + 1 + i, 3, cuentaPorCat[cat] || 0, E.de(t+'_ent'));
+  });
+  for(let z = FK; z <= FK + cats.length + 2; z++)
+    for(let c = 2; c <= 3; c++) wk.vaciaSiLibre(z, c, E.de('fondo'));
+
+  return empaqueta([wi, wc, wk], E, {
+    0: { logo: opc.logo, logoCol: 1, logoFila: 1, logoAncho: 118, logoAlto: 76, dx: 6, dy: 6 },
+    1: { logo: opc.logo, logoCol: 1, logoFila: 1, logoAncho: 96,  logoAlto: 62, dx: 6, dy: 6 },
+    2: { logo: opc.logo, logoCol: 1, logoFila: 1, logoAncho: 96,  logoAlto: 62, dx: 6, dy: 6 }
+  });
+}
+
+
+return { libroEjecutivo: libroEjecutivo, libroPlantilla: libroPlantilla };
+})();
+
+/* ---------- de la base al libro ---------- */
+/* El membrete sale de las MISMAS funciones que lo imprimen en los recibos
+   —`condIVA()` y `dirFiscal()`—, no de una copia. Un membrete que se escribe
+   dos veces es un membrete que el día que cambie la dirección queda viejo en
+   uno de los dos sitios, y el que queda viejo es siempre el que nadie mira. */
+function empresaParaLibro(){
+  const e = DB.empresa || {};
+  return { nom: e.nom || e.marca || 'Casa Keylis', rif: e.rif || '',
+           cond: condIVA(), dir: dirFiscal() };
+}
+
+/* Los artículos que entran: los ACTIVOS. Uno dado de baja no se puede
+   vender, así que no es valor de inventario; el cuadro «Por estado» lo
+   enseña igual para que se vea que no hay ninguno escondido. Las cifras son
+   las de `exi(p)`, las mismas que la pantalla enseña arriba. */
+function artsParaLibro(){
+  return (DB.productos || []).filter(function(p){ return p && p.activo !== false; })
+    .map(function(p){
+      return { nombre:String(p.nom || ''), categoria:String(p.cat || ''),
+               sku:String(p.sku || ''), costo:+p.costo || 0, precio:+p.precio || 0,
+               exento:p.exento === true, activo:p.activo !== false,
+               existencia:exi(p), variantes:vars(p).length };
+    });
+}
+
+/* El logo viaja DENTRO del libro, así que hay que traerlo como bytes. Si no
+   se puede, el libro sale igual sin él: un informe sin logo sirve; un botón
+   que no hace nada, no. */
+async function logoParaLibro(){
+  try{
+    const r = await fetch('logo.png', {cache:'force-cache'});
+    if(!r.ok) return null;
+    return new Uint8Array(await r.arrayBuffer());
+  }catch(e){ return null; }
+}
+
+/* No se llama `bajaArchivo`: ese nombre ya es de la función que baja los
+   respaldos y los CSV, con otros argumentos. Declararla otra vez la pisa y
+   entonces «Bajar respaldo» empieza a escribir el nombre del archivo donde
+   iba el contenido. */
+function bajaLibroXlsx(bytes, nombre){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes],
+    {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+}
+
+/* Armar el libro tarda; dos clics no bajan dos archivos. Es el mismo cinturón
+   que `ocupa()` le pone a las operaciones que salen por la puerta. */
+let BAJANDO_XLSX = false;
+
+async function bajaInventarioXlsx(){
+  if(BAJANDO_XLSX) return;
+  const arts = artsParaLibro();
+  if(!arts.length) return aviso('No hay artículos activos que bajar.', true);
+  BAJANDO_XLSX = true;
+  try{
+    const t = tasaVigente();
+    const z = await XLSX.libroEjecutivo(arts, {
+      empresa: empresaParaLibro(),
+      tasa: t ? +t.bcv : 0,
+      fecha: fFecha(hoy),
+      logo: await logoParaLibro()
+    });
+    bajaLibroXlsx(z, 'SICOM-inventario-' + hoy + '.xlsx');
+    aviso(arts.length + (arts.length === 1 ? ' artículo bajado' : ' artículos bajados')
+      + ' en Excel.' + (t ? '' : ' Sin tasa confirmada, así que va sólo en dólares.'));
+  }catch(e){
+    aviso('No se pudo armar el Excel: '
+      + (e && e.message ? e.message : 'error desconocido'), true);
+  }finally{ BAJANDO_XLSX = false; }
+}
+
+async function bajaPlantillaXlsx(){
+  if(BAJANDO_XLSX) return;
+  BAJANDO_XLSX = true;
+  try{
+    /* Las columnas salen de `modeloArts()`, que es lo que el propio sistema
+       genera para el CSV. Escribirlas aquí otra vez es una lista que se
+       desincroniza el día que alguien añada una columna allá. */
+    const columnas = modeloArts().split('\n')[0].split(';');
+    const cuenta = {};
+    (DB.productos || []).forEach(function(p){
+      if(!p || p.activo === false) return;
+      cuenta[p.cat] = (cuenta[p.cat] || 0) + 1;
+    });
+    const z = await XLSX.libroPlantilla(columnas, (DB.categorias || []).slice().sort(),
+      cuenta, { empresa: empresaParaLibro(), logo: await logoParaLibro() });
+    bajaLibroXlsx(z, 'SICOM-plantilla-inventario.xlsx');
+    aviso('Plantilla descargada. Llénela y súbala aquí mismo: el sistema abre Excel directo.');
+  }catch(e){
+    aviso('No se pudo armar la plantilla: '
+      + (e && e.message ? e.message : 'error desconocido'), true);
+  }finally{ BAJANDO_XLSX = false; }
 }
 
 /* ---------- puesta en marcha ---------- */
@@ -10540,6 +11847,22 @@ function invConsulta(){
     + invCifra('A precio de venta', 'USD ' + fN(vent, 0))
     + invCifra('Margen medio', marg === null ? '—' : fN(marg, 1) + ' %')
     + '</div>';
+
+  /* v68 · Bajar el inventario en Excel.
+     Baja el CATÁLOGO ACTIVO COMPLETO, no lo que el buscador tenga filtrado:
+     «descargar el inventario» significa el inventario, y un archivo que trae
+     seis artículos porque había un filtro puesto se firma y se manda igual.
+     Por eso el rótulo dice cuántos van. */
+  const nAct = (DB.productos || []).filter(function(p){ return p && p.activo !== false; }).length;
+  h += '<div class="acc" style="margin:-6px 0 16px">'
+    + '<button class="b gh" id="inv_xlsx"' + (nAct ? '' : ' disabled') + '>'
+    + 'Descargar el inventario en Excel</button>'
+    + '<span class="mini" style="align-self:center">'
+    + (nAct
+        ? 'Los ' + nAct + ' artículos activos, con resumen por categoría, estado e IVA. '
+          + 'No depende del filtro de aquí abajo.'
+        : 'Todavía no hay artículos activos que bajar.')
+    + '</span></div>';
 
   /* ---- el buscador ---- */
   const cats = (DB.categorias || []).slice().sort();
@@ -11158,9 +12481,11 @@ function cfgProdMasiva(){
     + 'contador, para saber cuántas quedan.</div>'
 
     + '<div class="acc" style="margin:16px 0 4px">'
-    + '<button class="b gh" id="ai_modelo">Descargar el modelo del archivo</button>'
-    + '<span class="mini" style="align-self:center">Trae las columnas, dos ejemplos y '
-    + 'sus categorías ya escritas.</span></div>'
+    + '<button class="b gh" id="ai_modelo_xlsx">Descargar la plantilla en Excel</button>'
+    + '<button class="b gh" id="ai_modelo">Descargar el modelo en CSV</button>'
+    + '<span class="mini" style="align-self:center">La plantilla trae las columnas, un '
+    + 'ejemplo, sus categorías en lista y cómo se llena. El CSV es lo mismo en texto '
+    + 'pelado, por si prefiere otro programa.</span></div>'
 
     /* v66 · la zona es la etiqueta del campo, no un div suelto: así se llega
        con el teclado y el lector de pantalla la anuncia. Y en el teléfono no
@@ -11963,6 +13288,8 @@ document.addEventListener('click', async e=>{
     pinta(); return;
   }
   if(b.id === 'ai_can'){ AIPREV = null; pinta(); return; }
+  if(b.id === 'inv_xlsx'){ bajaInventarioXlsx(); return; }
+  if(b.id === 'ai_modelo_xlsx'){ bajaPlantillaXlsx(); return; }
   if(b.id === 'ai_modelo'){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['\uFEFF' + modeloArts()],
