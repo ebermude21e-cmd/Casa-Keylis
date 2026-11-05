@@ -10877,6 +10877,10 @@ function libroEjecutivo(arts, opc){
      el libro saldría diciendo «Bs 0,0000 por USD» y dos cifras en cero, que
      es peor que no decir nada: parece un inventario que no vale nada. */
   const hayTasa = +opc.tasa > 0, tasa = hayTasa ? +opc.tasa : 0;
+  /* Un libro parcial tiene que decirlo EN EL LIBRO, no sólo en el aviso de
+     la pantalla que nadie vuelve a ver. Se imprime, se manda por correo y se
+     decide con él igual que con el completo. */
+  const filtro = String(opc.filtro || '').trim();
   const tasaTxt = hayTasa
     ? 'Bs ' + tasa.toLocaleString('es-VE', {minimumFractionDigits:4}) + ' por USD'
     : 'sin tasa confirmada';
@@ -10901,7 +10905,7 @@ function libroEjecutivo(arts, opc){
     ['Estado',                  11,  'cen']
   ];
   const ANCHO = COLS.length + 1;           /* columna A estrecha + las 13 */
-  const F0 = membrete(wd, E, emp, 'Inventario cargado',
+  const F0 = membrete(wd, E, emp, filtro ? 'Inventario \u00b7 selección filtrada' : 'Inventario cargado',
                       'Detalle por artículo  ·  al ' + hoy, ANCHO);
 
   wd.ancho(1, 2);
@@ -10966,8 +10970,10 @@ function libroEjecutivo(arts, opc){
   /* ------------------------------------------------ hoja 1 · el resumen -- */
   const wr = Hoja('Resumen');
   const ANCHO_R = 8;
-  const FR = membrete(wr, E, emp, 'Inventario · resumen ejecutivo',
-    'Al ' + hoy + '  ·  ' + (hayTasa ? 'tasa BCV ' + tasaTxt : tasaTxt), 10);
+  const FR = membrete(wr, E, emp,
+    filtro ? 'Inventario · resumen de una selección' : 'Inventario · resumen ejecutivo',
+    'Al ' + hoy + '  ·  ' + (hayTasa ? 'tasa BCV ' + tasaTxt : tasaTxt)
+      + (filtro ? '  ·  FILTRADO: ' + filtro : ''), 10);
   wr.ancho(1, 2).ancho(2, 28).ancho(3, 13).ancho(4, 16).ancho(5, 18)
     .ancho(6, 18).ancho(7, 19).ancho(8, 19);
 
@@ -11088,7 +11094,15 @@ function libroEjecutivo(arts, opc){
   const FN = FG + 17;
   wr.texto(FN, 2, 'Notas', E.de('notaT'));
   for(let c = 3; c <= ANCHO_R; c++) wr.vacia(FN, c, E.de('fondo'));
-  const NOTAS = [
+  const NOTAS = [];
+  if(filtro) NOTAS.push(
+    'ESTE LIBRO NO ES EL INVENTARIO COMPLETO. Trae sólo lo que el filtro de la pantalla '
+    + 'dejaba a la vista: ' + filtro + '. Las cifras de arriba son de esa selección, no de '
+    + 'la tienda.');
+  NOTAS.push(
+    'Las existencias son las que el servidor tenía en el momento de bajar el archivo: la '
+    + 'pantalla se pone al día con él antes de armarlo, porque cada venta las mueve.');
+  NOTAS.push(
     'Las cifras salen de la hoja «Inventario» con fórmulas: si usted corrige una existencia '
       + 'o un precio allá, este resumen se actualiza solo.',
     hayTasa
@@ -11096,11 +11110,11 @@ function libroEjecutivo(arts, opc){
         + ', confirmada en el sistema.'
       : 'No hay ninguna tasa confirmada en el sistema, así que este libro va sólo en dólares. '
         + 'Confirme la tasa del día y vuelva a bajarlo si necesita los bolívares.',
-    'Los precios y costos del catálogo están en dólares. El margen es '
-      + '(valor a la venta − valor al costo) ÷ valor al costo.',
+    'Los precios y costos del catálogo están en dólares. El margen es (valor a la venta '
+      + '− valor al costo) ÷ valor a la venta — sobre el precio, no sobre el costo: es la '
+      + 'misma cuenta que el sistema enseña en el catálogo.',
     'La columna «IVA» de este informe dice «Exento» o «Grava». La plantilla de carga usa otra '
-      + 'escritura para lo mismo: «no» es exento y «si» es gravado.'
-  ];
+      + 'escritura para lo mismo: «no» es exento y «si» es gravado.');
   NOTAS.forEach(function(t, i){
     wr.texto(FN + 1 + i, 2, '·  ' + t, E.de('nota'));
     wr.une(FN + 1 + i, 2, FN + 1 + i, ANCHO_R);
@@ -11358,22 +11372,69 @@ function bajaLibroXlsx(bytes, nombre){
    que `ocupa()` le pone a las operaciones que salen por la puerta. */
 let BAJANDO_XLSX = false;
 
-async function bajaInventarioXlsx(){
+/* ¿Hay algún filtro puesto en la pantalla? Devuelve cómo se llama, para
+   escribirlo dentro del libro. Un archivo parcial que no dice que es parcial
+   se manda por correo y se decide con él igual que con el completo. */
+function filtroDelInventario(){
+  const p = [];
+  if(invNorm(IQ).trim()) p.push('«' + String(IQ).trim() + '»');
+  if(ICAT) p.push(ICAT);
+  const est = IEST || IATAJO;
+  if(est) p.push(est);
+  return p.join('  \u00b7  ');
+}
+
+/* v68 · LA FOTO CON LA QUE SE ESCRIBE TIENE QUE SER DE AHORA (ARQ-43).
+
+   El libro se armaba con `DB.productos`, que es lo que la pantalla leyó la
+   última vez. Una pantalla abierta desde la mañana lleva la existencia de la
+   mañana, y mientras tanto la caja vendió: el archivo salía titulado
+   «inventario al 5/11» con las unidades de ayer. La existencia la mueve el
+   SERVIDOR en cada venta —`core.baja_existencia`, llamada por
+   `core.registra_venta`— así que lo primero es preguntarle.
+
+   Y si el servidor no contesta, NO SE BAJA NADA. Un archivo que dice ser el
+   inventario de hoy sin que se sepa si lo es, es peor que no tenerlo: se
+   imprime, se manda y se decide con él. */
+async function bajaInventarioXlsx(soloFiltrado){
   if(BAJANDO_XLSX) return;
-  const arts = artsParaLibro();
-  if(!arts.length) return aviso('No hay artículos activos que bajar.', true);
   BAJANDO_XLSX = true;
   try{
+    try{
+      await NUBE.sincroniza();
+    }catch(e){
+      return aviso('No se pudo poner el inventario al día con el servidor, así que no bajo '
+        + 'el archivo: no sabría si las existencias son las de ahora. Vuelva a intentarlo.',
+        true);
+    }
+
+    const filtro = soloFiltrado ? filtroDelInventario() : '';
+    const arts = soloFiltrado
+      ? invFiltradas().filter(function(p){ return p && p.activo !== false; })
+          .map(function(p){
+            return { nombre:String(p.nom || ''), categoria:String(p.cat || ''),
+                     sku:String(p.sku || ''), costo:+p.costo || 0, precio:+p.precio || 0,
+                     exento:p.exento === true, activo:p.activo !== false,
+                     existencia:exi(p), variantes:vars(p).length };
+          })
+      : artsParaLibro();
+    if(!arts.length)
+      return aviso(soloFiltrado ? 'Ese filtro no deja ningún artículo activo que bajar.'
+                                : 'No hay artículos activos que bajar.', true);
+
     const t = tasaVigente();
     const z = await XLSX.libroEjecutivo(arts, {
       empresa: empresaParaLibro(),
       tasa: t ? +t.bcv : 0,
       fecha: fFecha(hoy),
+      filtro: filtro,
       logo: await logoParaLibro()
     });
-    bajaLibroXlsx(z, 'SICOM-inventario-' + hoy + '.xlsx');
+    bajaLibroXlsx(z, 'SICOM-inventario' + (soloFiltrado ? '-filtrado' : '') + '-' + hoy + '.xlsx');
     aviso(arts.length + (arts.length === 1 ? ' artículo bajado' : ' artículos bajados')
-      + ' en Excel.' + (t ? '' : ' Sin tasa confirmada, así que va sólo en dólares.'));
+      + ' en Excel, con la existencia de este momento.'
+      + (filtro ? ' Va filtrado: ' + filtro + '.' : '')
+      + (t ? '' : ' Sin tasa confirmada, así que va sólo en dólares.'));
   }catch(e){
     aviso('No se pudo armar el Excel: '
       + (e && e.message ? e.message : 'error desconocido'), true);
@@ -11854,13 +11915,22 @@ function invConsulta(){
      seis artículos porque había un filtro puesto se firma y se manda igual.
      Por eso el rótulo dice cuántos van. */
   const nAct = (DB.productos || []).filter(function(p){ return p && p.activo !== false; }).length;
+  /* El segundo botón sólo aparece cuando hay filtro puesto: uno que diga
+     «sólo lo filtrado» sin filtro ninguno baja lo mismo que el otro y deja a
+     la persona preguntándose en qué se diferencian. */
+  const nFil = lista.filter(function(p){ return p && p.activo !== false; }).length;
+  const hayFiltro = !!filtroDelInventario();
   h += '<div class="acc" style="margin:-6px 0 16px">'
     + '<button class="b gh" id="inv_xlsx"' + (nAct ? '' : ' disabled') + '>'
     + 'Descargar el inventario en Excel</button>'
+    + (hayFiltro
+        ? '<button class="b gh" id="inv_xlsx_fil"' + (nFil ? '' : ' disabled') + '>'
+          + 'Sólo lo filtrado (' + nFil + ')</button>'
+        : '')
     + '<span class="mini" style="align-self:center">'
     + (nAct
         ? 'Los ' + nAct + ' artículos activos, con resumen por categoría, estado e IVA. '
-          + 'No depende del filtro de aquí abajo.'
+          + 'Se pone al día con el servidor antes de bajarlo.'
         : 'Todavía no hay artículos activos que bajar.')
     + '</span></div>';
 
@@ -13288,7 +13358,8 @@ document.addEventListener('click', async e=>{
     pinta(); return;
   }
   if(b.id === 'ai_can'){ AIPREV = null; pinta(); return; }
-  if(b.id === 'inv_xlsx'){ bajaInventarioXlsx(); return; }
+  if(b.id === 'inv_xlsx'){ bajaInventarioXlsx(false); return; }
+  if(b.id === 'inv_xlsx_fil'){ bajaInventarioXlsx(true); return; }
   if(b.id === 'ai_modelo_xlsx'){ bajaPlantillaXlsx(); return; }
   if(b.id === 'ai_modelo'){
     const a = document.createElement('a');
