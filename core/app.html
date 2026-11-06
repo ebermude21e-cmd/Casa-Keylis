@@ -1776,7 +1776,7 @@ function SEMILLA(){ return {
     motivos:MOTIVOS_BASE(), diasDev:15,
     canales:['Presencial','Instagram','TikTok','WhatsApp','Facebook','Referido'],
     vendedores:[], repartidores:[], zonas:[], cajeras:[],
-    abreEn:'vta'
+    abreEn:'home'
   },
   turno:'',
   clientes:[], productos:[], accionista:[], ventas:[], cierres:[],
@@ -12431,7 +12431,10 @@ function gerEstado(){
   h += bloqueEspacio();
 
   /* --- v47 · con qué pantalla abre el sistema ------------------------- */
-  const ab = (DB.cfg.abreEn === 'home') ? 'home' : 'vta';
+  /* PAN-66 · el valor de fabrica es `home`, asi que la excepcion es `vta`.
+     Escrito al reves, una instalacion sin configurar pintaba la casilla de
+     Ventas aunque el sistema abriera por Inicio. */
+  const ab = (DB.cfg.abreEn === 'vta') ? 'vta' : 'home';
   h += '<div class="card"><h2>Con qué pantalla abre el sistema</h2>'
     + '<p class="cap">Lo que ve quien entra. El inicio siempre queda a un clic, '
     + 'en el logo de la barra.</p>'
@@ -17111,7 +17114,7 @@ if(DB._migMod){ delete DB._migMod;
     'la estructura queda; las cuentas las asigna la empresa · '+lineasPorAsignar()+' líneas por asignar'); }
 /* v47 · la pantalla con la que abre el sistema. La puesta en marcha manda
    sobre esto: una instalación sin configurar tiene que ver el asistente. */
-if(DB.cfg.abreEn !== 'home' && DB.cfg.abreEn !== 'vta') DB.cfg.abreEn = 'vta';
+if(DB.cfg.abreEn !== 'home' && DB.cfg.abreEn !== 'vta') DB.cfg.abreEn = 'home';
 if(DB.instalado) TAB = DB.cfg.abreEn;
 if(!DB.cfg.cajeras.some(k=>k.id===DB.turno)){ const a=DB.cfg.cajeras.find(k=>k.activo); DB.turno = a ? a.id : ''; }
 nuevaVenta();

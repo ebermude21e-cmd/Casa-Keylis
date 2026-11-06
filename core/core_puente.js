@@ -332,7 +332,12 @@ function aEstado(T){
     cfg: {
       claveAdmin: txt(aj.clave_admin),
       diasDev:    num(aj.dias_dev, 7),
-      abreEn:     txt(aj.abre_en) || 'vta',
+      /* PAN-66 · EL VALOR DE FABRICA ES `home`. El dueno lo pidio tres
+         veces: una base nueva tiene que abrir por Inicio, no por Ventas.
+         Son cuatro renglones acoplados —estos dos del puente y dos de
+         `app.html`— y el `|| 'vta'` de `prueba_puente.js`, que es por lo
+         que no se cambio antes a las carreras. */
+      abreEn:     txt(aj.abre_en) || 'home',
       /* Con la bandera: filtrar aquí y reconstruir con activo:true borraba del
          servidor el canal que sólo se quería archivar. El selector de la caja
          filtra al pintar. */
@@ -620,7 +625,7 @@ function aFilas(DB){
       { clave: 'paleta',      valor: (DB.paleta || []).slice() },
       { clave: 'clave_admin', valor: txt((DB.cfg || {}).claveAdmin) },
       { clave: 'dias_dev',    valor: num((DB.cfg || {}).diasDev, 7) },
-      { clave: 'abre_en',     valor: txt((DB.cfg || {}).abreEn) || 'vta' },
+      { clave: 'abre_en',     valor: txt((DB.cfg || {}).abreEn) || 'home' },
       { clave: 'turno',       valor: txt(DB.turno) },
       { clave: 'creado',      valor: txt(DB.creado) },
       { clave: 'ult_resp',    valor: DB.ultResp || null },
