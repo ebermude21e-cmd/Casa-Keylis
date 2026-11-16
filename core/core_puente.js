@@ -77,6 +77,23 @@ function opAcc(tipo){
        : 'anul';
 }
 
+/* LO QUE DE UNA VARIANTE SE PUEDE VENDER.
+
+   La 046 partió la existencia en dos: lo que hay en el estante (`e`) y lo que
+   de eso ya tiene dueña (`a`). Lo vendible es la resta, y la resta se hace
+   AQUÍ Y EN NINGÚN OTRO SITIO. Escrita dos veces sería una lista que se
+   desincroniza: el día que una de las dos cambie, la caja va a dejar vender
+   lo que la contabilidad ya comprometió, y el aviso dirá «Listo».
+
+   Una variante vieja —de un respaldo anterior a la 046, o de los formatos
+   `tallas[]` y `exi` que SICOM convierte al vuelo— no trae `a`, y `num()`
+   la lee como cero: sin apartados, lo vendible es todo lo que hay, que es
+   exactamente lo que valía antes. */
+function disponibleDe(v){
+  if(!v) return 0;
+  return Math.max(0, num(v.e) - num(v.a));
+}
+
 /* ==========================================================================
    DE LAS TABLAS AL ESTADO
    ========================================================================== */
@@ -96,7 +113,8 @@ function aEstado(T){
   const varPorProd = {};
   L('producto_variantes').forEach(function(v){
     (varPorProd[v.producto_id] = varPorProd[v.producto_id] || [])
-      .push({ t: txt(v.talla), c: txt(v.color), e: num(v.existencia) });
+      .push({ t: txt(v.talla), c: txt(v.color),
+              e: num(v.existencia), a: num(v.apartada) });
   });
 
   /* ---- las ventas ---- */
@@ -464,9 +482,9 @@ function variantesDe(p){
   if(Array.isArray(p.var)) return [];
   if(Array.isArray(p.tallas) && p.tallas.length)
     return p.tallas.map(function(x){
-      return { t: txt(x.t), c: '', e: Math.max(0, num(x.e)) };
+      return { t: txt(x.t), c: '', e: Math.max(0, num(x.e)), a: 0 };
     });
-  return [{ t: '', c: '', e: Math.max(0, num(p.exi)) }];
+  return [{ t: '', c: '', e: Math.max(0, num(p.exi)), a: 0 }];
 }
 
 function aFilas(DB){
@@ -935,6 +953,7 @@ const API = {
   fiscales: fiscales,
   aFilasVentas: aFilasVentas,
   variantesDe: variantesDe,
+  disponibleDe: disponibleDe,
   diferencia: diferencia,
   cuantos: cuantos,
   llaveDe: llaveDe,

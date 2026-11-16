@@ -2180,6 +2180,13 @@ function nombreVar(t, c){
   return a.join(' \u00b7 ');
 }
 function exi(p){ return vars(p).reduce((a,x)=>a + Math.max(0, +x.e||0), 0); }
+/* v67 · LO APARTADO Y LO VENDIBLE, del artículo entero.
+   `exi` es lo que hay en el estante y sigue significando eso: quien cuenta
+   las piezas tiene que encontrar ese número. Lo que se puede VENDER es otra
+   cosa desde la 046, y la resta la hace el puente —un solo sitio— para que
+   no haya dos reglas que se desincronicen. */
+function apartadas(p){ return vars(p).reduce((a,x)=>a + Math.max(0, +x.a||0), 0); }
+function disponibles(p){ return vars(p).reduce((a,x)=>a + CORE_MAP.disponibleDe(x), 0); }
 function faltaFoto(p){ return !(p && p.foto); }
 /* v64 · El catálogo se puede montar antes que la lista de precios. Un artículo
    en cero está a medio cargar, no en oferta: se marca, se cuenta, y no se
@@ -3403,12 +3410,23 @@ function pasoArts(){
     +'<input id="c_q" value="'+esc(VTA.q)+'" placeholder="Buscar por nombre o código" autocomplete="off" style="margin-bottom:14px">'
     +'<div class="cats">'+cats().map(c=>'<button data-cat="'+esc(c)+'" class="'+(VTA.cat===c?'on':'')+'">'+esc(c)+'</button>').join('')+'</div>';
   if(!lista.length) h+='<div class="vacio"><div class="vi">⌕</div>Ningún artículo coincide.</div>';
-  lista.forEach(p=>{const ex=exi(p);
+  lista.forEach(p=>{const ex=exi(p), ap=apartadas(p), dp=disponibles(p);
     /* v58 · manda la foto; si no la hay, el ícono. La cajera reconoce la
        pieza sin leer el código. */
     h+='<div class="prod"><div class="foto'+(p.foto?' confoto':'')+'">'
       +(fotoSegura(p.foto)?'<img src="'+esc(fotoSegura(p.foto))+'" alt="'+esc(p.nom)+'">':icoSeguro(p))+'</div>'
-      +'<div class="pi"><b>'+esc(p.nom)+'</b><div class="mini">'+esc(p.sku)+' · '+esc(p.cat)+' · existencia '+ex+(ex<=0?' · <b style="color:var(--mal)">agotado</b>':'')+'</div></div>'
+      +'<div class="pi"><b>'+esc(p.nom)+'</b><div class="mini">'+esc(p.sku)+' · '+esc(p.cat)
+        +' · existencia '+ex
+        /* v67 · LAS TRES CIFRAS. Con piezas apartadas, «existencia 10» a
+           secas y un botón que sólo deja agregar 7 es el sistema peleándose
+           consigo mismo delante de la clienta. Se dicen las tres: lo que hay,
+           lo que tiene dueña y lo que se puede vender. */
+        +(ap>0 ? ' · '+ap+' apartada'+(ap===1?'':'s')+' · '+dp+' disponible'+(dp===1?'':'s') : '')
+        /* Y agotado no es lo mismo que comprometido: en el primer caso no hay
+           nada que traer, en el segundo hay piezas y están vendidas. */
+        +(dp<=0 ? (ap>0 ? ' · <b style="color:var(--mal)">todo apartado</b>'
+                        : ' · <b style="color:var(--mal)">agotado</b>') : '')
+        +'</div></div>'
       +'<div class="pp">'+(faltaPrecio(p)
           ? '<span class="chip mal">falta precio</span>'
             + '<div class="mini">no se puede vender</div>'
@@ -3438,9 +3456,18 @@ function pasoArts(){
           const k = p.id+'|'+(v.t||'')+'|'+(v.c||'');
           const en = VTA.lineas.find(l=>l.k===k);
           const rot = v.t || (v.c || 'Único');
+          /* v67 · el número del botón es lo VENDIBLE, y el botón se apaga
+             cuando no queda nada que vender —no cuando el estante está
+             vacío—. El detalle completo va en el `title`: la cajera que
+             pasa el dedo por encima ve de dónde sale la resta. */
+          const vd = CORE_MAP.disponibleDe(v), va = Math.max(0, +v.a||0);
           return '<button data-add="'+p.id+'" data-t="'+esc(v.t||'')+'" data-c="'+esc(v.c||'')+'"'
-            +((v.e<=0||faltaPrecio(p))?' disabled':'')+' class="'+(en?'on':'')+'">'
-            +esc(rot)+'<i>'+v.e+'</i>'+(en?'<u>'+en.cant+'</u>':'')+'</button>';}).join('')+'</div>';
+            +((vd<=0||faltaPrecio(p))?' disabled':'')
+            +' title="'+esc(rot+' · '+Math.max(0,+v.e||0)+' en total'
+                +(va>0?' · '+va+' apartada'+(va===1?'':'s'):'')
+                +' · '+vd+' disponible'+(vd===1?'':'s'))+'"'
+            +' class="'+(en?'on':'')+'">'
+            +esc(rot)+'<i>'+vd+'</i>'+(en?'<u>'+en.cant+'</u>':'')+'</button>';}).join('')+'</div>';
       });
     }else{
       const en=VTA.lineas.find(l=>l.k===p.id+'||');
@@ -4181,8 +4208,10 @@ function cargaVenta(){
    una carga masiva sin lista de precios, los artículos con más existencia son
    justamente los que todavía valen cero, y el recibo salía anunciando
    «Cartera alta gama cuero · USD 0,00 · 14 disponibles». */
-function catalogo(){return DB.productos.filter(p=>p.activo!==false&&exi(p)>0&&!faltaPrecio(p))
-  .sort((a,b)=>exi(b)-exi(a)).slice(0,6);}
+/* v67 · «disponibles» en un correo a una clienta tiene que ser verdad: lo
+   apartado ya es de alguien y no se ofrece otra vez. */
+function catalogo(){return DB.productos.filter(p=>p.activo!==false&&disponibles(p)>0&&!faltaPrecio(p))
+  .sort((a,b)=>disponibles(b)-disponibles(a)).slice(0,6);}
 /* cada línea se lleva la condición del artículo al momento de venderlo:
    si mañana cambia el catálogo, la venta de ayer no se mueve */
 function marcaExento(l){ const p = DB.productos.find(x=>x.id===l.id); if(p && p.exento) l.exento = true; return l; }
@@ -4249,7 +4278,7 @@ function correoHTML(){
   h+='<div class="bloque"><h4>Disponible ahora mismo en la tienda</h4>'
     +'<p class="mini" style="margin:0 0 12px">Lo que hay en existencia hoy, consultado directo del inventario.</p>'
     +'<div class="cat">'+cat.map(p=>'<div class="ci"><div class="ce">'+icoSeguro(p)+'</div><b>'+esc(p.nom)+'</b>'
-      +'<span>'+esc(p.cat)+'</span><span class="pz">USD '+fN(p.precio)+'</span><span class="mini">'+exi(p)+' disponibles</span></div>').join('')+'</div></div>';
+      +'<span>'+esc(p.cat)+'</span><span class="pz">USD '+fN(p.precio)+'</span><span class="mini">'+disponibles(p)+' disponibles</span></div>').join('')+'</div></div>';
   h+='<p>Si algo no le quedó como esperaba, escríbanos y lo resolvemos. Y si le gustó, cuéntele a alguien: así hemos crecido.</p>'
     +'<p style="margin-bottom:0"><b>Un abrazo,</b><br>El equipo de '+esc(marcaDe())+'</p>'
     +'<div class="firma">'+esc(DB.empresa.nom)+' · RIF '+esc(DB.empresa.rif)+' · '+esc(condIVA())+'<br>'
@@ -8051,7 +8080,9 @@ document.addEventListener('click',e=>{
     const p=DB.productos.find(x=>x.id===b.dataset.add); if(!p) return;
     const ta=b.dataset.t||'', co=b.dataset.c||'';
     const v=varDe(p, ta, co);
-    const disp=v?Math.max(0,+v.e||0):0;
+    /* v67 · lo que se puede meter en esta venta es lo vendible, no lo que
+       hay en el estante: parte ya tiene dueña. */
+    const disp=cabeEnLaVenta(p, ta, co);
     /* v64 · un artículo sin precio está a medio cargar: entró en la carga
        masiva para no frenar el inventario, pero cobrarlo sería regalarlo */
     if(faltaPrecio(p)) return aviso('«'+p.nom+'» todavía no tiene precio. Póngaselo en '
@@ -8974,7 +9005,29 @@ function existenciaDe(id, talla, color){
   const v = varDe(p, talla || '', color || '');
   return v ? Math.max(0, +v.e || 0) : 0;
 }
-/* la venta no puede sacar del estante lo que no está */
+/* ---------- y de eso, lo que ya tiene dueña y lo que se puede vender ----------
+   v67 · `existenciaDe` sigue contestando lo que hay en el estante, porque esa
+   pregunta tiene que seguir teniendo respuesta: es la que se compara contra
+   un conteo físico. La que manda en la venta es `vendibleDe`. */
+function apartadaDe(id, talla, color){
+  const p = DB.productos.find(x=>x.id === id); if(!p) return 0;
+  const v = varDe(p, talla || '', color || '');
+  return v ? Math.max(0, +v.a || 0) : 0;
+}
+function vendibleDe(id, talla, color){
+  const p = DB.productos.find(x=>x.id === id); if(!p) return 0;
+  return CORE_MAP.disponibleDe(varDe(p, talla || '', color || ''));
+}
+/* v67 · CUÁNTO CABE DE ESTA VARIANTE EN LA VENTA.
+   Vive en su propia función y no suelta dentro del manejador del clic,
+   porque ahí dentro ninguna batería la alcanza: medido el 16/11, el mutante
+   que la devolvía a la existencia pelada SOBREVIVÍA con las veinte
+   comprobaciones en verde. Y no repite la regla: pregunta por la misma
+   puerta que la guarda de la venta, para que no puedan contestar distinto. */
+function cabeEnLaVenta(p, ta, co){
+  return p ? vendibleDe(p.id, ta, co) : 0;
+}
+/* la venta no puede sacar del estante lo que no está NI LO QUE YA ES DE OTRA */
 function faltaExistencia(){
   const pide = {};
   VTA.lineas.forEach(l=>{
@@ -8983,12 +9036,19 @@ function faltaExistencia(){
   });
   for(const k in pide){
     const par = k.split('|'), id = par[0], ta = par[1] || '', co = par[2] || '';
-    const hay = existenciaDe(id, ta, co);
+    const hay = vendibleDe(id, ta, co);
     if(pide[k] > hay){
       const l = VTA.lineas.find(x=>x.id === id && (x.talla||'') === ta && (x.color||'') === co) || {};
       const que = nombreVar(ta, co);
+      /* v67 · EL MENSAJE DICE POR QUÉ. «Quedan 7» con diez piezas a la vista
+         hace que la cajera piense que el sistema está equivocado y lo
+         repita; nombrar las apartadas cierra esa discusión antes de que
+         empiece. */
+      const ap = apartadaDe(id, ta, co);
       return (l.nom || 'Ese artículo') + (que ? ' \u00b7 ' + que : '') + ': pide ' + pide[k]
-        + ' y quedan ' + hay + '.';
+        + ' y hay ' + hay + ' disponible' + (hay === 1 ? '' : 's')
+        + (ap > 0 ? ' (de ' + existenciaDe(id, ta, co) + ' en el estante, '
+                    + ap + ' apartada' + (ap === 1 ? '' : 's') + ')' : '') + '.';
     }
   }
   return '';
