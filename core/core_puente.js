@@ -66,8 +66,24 @@ function opCobro(met){ return 'cob_' + txt(met); }
    'vue_efec_usd' dejaba la línea del asiento sin cuenta, porque esa clave no
    existe en el mapa. */
 function opVuelto(met){ return 'vue'; }
+/* ARQ-60 · UN COMPROMISO DE APARTADO TIENE SU PROPIA CUENTA.
+
+   La 047 guarda el reintegro de un apartado anulado en `core.pendientes` con
+   `tipo = 'apartado'` —un tipo propio, con su `check` y su cuenta 2.2.05— y
+   crea la operación `apa_anul` en el mapa. Sin esta rama, un apartado anulado
+   caía por descarte en la última línea y se asentaba como `dev_pag`: la plata
+   de la clienta salía rebajando la cuenta de las devoluciones de ventas, que
+   no es donde está registrada. El balance cuadraba y las dos cuentas mentían.
+
+   LA ÚLTIMA LÍNEA SIGUE SIENDO UN DEFECTO CONOCIDO, y no es de esta rama:
+   distingue una anulación de una devolución LEYENDO UNA PALABRA EN CASTELLANO
+   dentro de la nota. El día que alguien escriba «anulado» en masculino —como
+   lo escribe la 047 en su propia nota— elige la otra cuenta. Está anotado en
+   PENDIENTES: lo que corresponde es que la anulación se guarde con su propio
+   `tipo`, igual que acaba de hacer el apartado, y no con un adjetivo. */
 function opPend(tipo, nota){
-  if(tipo === 'vuelto') return 'vue_pend';
+  if(tipo === 'vuelto')   return 'vue_pend';
+  if(tipo === 'apartado') return 'apa_anul';
   return txt(nota).indexOf('anulada') >= 0 ? 'anul_pag' : 'dev_pag';
 }
 function opAcc(tipo){
